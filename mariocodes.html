@@ -1,0 +1,1506 @@
+<html>
+<head>
+<meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<title>Printable LEGO Mario Scanner Codes</title>
+<style>
+
+.G {
+	color: #229551;
+}
+
+.R {
+	color: #cb2129;
+}
+
+.B {
+	color: #0000ff;
+}
+
+.L {
+	color: #aed252;
+}
+
+.P {
+	color: #d166a7;
+}
+
+.V {
+	color: #9b78b5;
+}
+
+.Y {
+	color: #f9dc2a;
+}
+
+.T {
+	color: #1baaa3;
+}
+
+#codelist {
+	display: flex;
+	flex-wrap: wrap;
+}
+
+.codeblock {
+	display: flex;
+	vertical-align: top;
+	margin-top: 20px;
+	padding-top: 10px;
+	border-top:1px solid black;
+	flex-basis:33%;
+}
+
+.code_svg_caption {
+	display: inline-block;
+	vertical-align:top;
+}
+
+.code_description {
+	display:inline-block;
+}
+
+#todo {
+	display:none;
+}
+
+@media (max-width: 800px) {
+  .codeblock {
+    flex: 100%;
+  }
+}
+</style>
+
+</head>
+<body>
+<h1>LEGO Mario Codes</h1>
+
+<h3>Structure</h3>
+Each LEGO Mario barcode consists of five unique colors that are then repeated as a sequence:
+<ul>
+<li class="G">Green</li>
+<li class="R">Red</li>
+<li class="B">Blue</li>
+<li class="L">Lime</li>
+<li class="P">Pink</li>
+<li class="V">Violet</li>
+<li class="Y">Yellow</li>
+<li class="T">Teal</li>
+</ul>
+
+The barcode always seems to start with Green and Red on an edge, so the last three are the only significant ones.
+
+<hr>
+<div id='todo'>
+TODO
+<ul>
+<li>Put JS functions in a file for utility
+<li>Check/uncheck all in section
+<li>Load inline or separately for SVG (might not be possible) and JSON
+<li>Test in Firefox in Windows (two birds, one stone)
+<li>When printing from iOS, how to rotate the paper and remove the stuff at the bottom?
+</ul>
+</div>
+Select codes you want and print them at the bottom of the page.
+
+<script>
+if ( window.location.search == '?itsame' ) {
+	document.getElementById('todo').style.display = 'inline';
+}
+var database_data = {
+  "notes": [
+    "8 colors: GREEN, RED, BLUE, LIME, PINK, VIOLET, YELLOW, TEAL",
+    "5 Positions",
+    "Start with GR",
+    "Codespace is 512 with prefix (8^3) (not accounting for no-repeats or uniques,, narrows to 120 (6*5*4))",
+    "Searched Bricklink on May 17, 2021 and found 84 parts matching 'scanner code'",
+    "Sources:",
+    "https://www.reddit.com/r/lego/comments/iaahnr/lego_mario_barcode_coloring_list/",
+    "https://studioplayfool.medium.com/can-you-play-with-lego-super-mario-without-lego-551f74dfcd77",
+    "Some colors corrected or confirmed by @SzczepanStaszak's (on Twitter) TUGtLSM_v0.9.pdf",
+    "Version 2 added label for labeling auto-generated scanner codes (8 char limit, Use caps)",
+    "Version 3 added optional codeguess for undeciphered codes (THE GUESSED CODE HAS TO ACTUALLY WORK)",
+    "Version 4 added unidentified section",
+    "Version 5 added optional use text",
+    "Copyright (c) 2021, mutesplash"
+  ],
+  "version": 2,
+  "codes": [
+    {
+      "code": "GRLBV",
+      "label": "START",
+      "blpns": [
+        {
+          "blpn": "3068bpb1380",
+          "name": "Start"
+        }
+      ]
+    },
+    {
+      "code": "GRVPL",
+      "label": "START 30",
+      "blpns": [
+        {
+          "blpn": "3068bpb1483",
+          "name": "Start 30"
+        }
+      ]
+    },
+    {
+      "code": "GRYBV",
+      "label": "YOSHI",
+      "blpns": [
+        {
+          "blpn": "3068bpb1385",
+          "name": "Speech Bubble Yoshi"
+        }
+      ]
+    },
+    {
+      "code": "GRPLT",
+      "label": "TOAD",
+      "blpns": [
+        {
+          "blpn": "3068bpb1402",
+          "name": "Speech Bubble Toad"
+        }
+      ]
+    },
+    {
+      "code": "GRPBY",
+      "label": "TOADETTE",
+      "blpns": [
+        {
+          "blpn": "3068bpb1401",
+          "name": "Speech Bubble Toadette"
+        }
+      ]
+    },
+    {
+      "code": "GRPBV",
+      "label": "1 BLOCK",
+      "blpns": [
+        {
+          "blpn": "3068bpb1404",
+          "name": "1 Block Treasure"
+        }
+      ]
+    },
+    {
+      "code": "GRPYV",
+      "label": "2 BLOCK",
+      "blpns": [
+        {
+          "blpn": "3068bpb1405",
+          "name": "2 Block Treasure"
+        }
+      ]
+    },
+    {
+      "code": "GRVPY",
+      "label": "3 BLOCK",
+      "blpns": [
+        {
+          "blpn": "3068bpb1406",
+          "name": "3 Block Treasure"
+        }
+      ]
+    },
+    {
+      "code": "GRYLP",
+      "label": "RED C1",
+      "blpns": [
+        {
+          "blpn": "3068bpb1485",
+          "name": "Red Coin Block"
+        }
+      ]
+    },
+    {
+      "code": "GRYPL",
+      "label": "RED C2",
+      "blpns": [
+        {
+          "blpn": "3068bpb1487",
+          "name": "Red Coin Block 2"
+        }
+      ]
+    },
+    {
+      "code": "GRYLB",
+      "label": "RED C3",
+      "blpns": [
+        {
+          "blpn": "3068bpb1486",
+          "name": "Red Coin Block 3"
+        }
+      ]
+    },
+    {
+      "code": "GRYPT",
+      "label": "SUPER",
+      "blpns": [
+        {
+          "blpn": "14769pb338",
+          "name": "Super Mushroom"
+        }
+      ]
+    },
+    {
+      "code": "GRYBP",
+      "label": "POW",
+      "blpns": [
+        {
+          "blpn": "3068bpb1361",
+          "name": "POW"
+        }
+      ]
+    },
+    {
+      "code": "GRPBL",
+      "label": "POISON",
+      "blpns": [
+        {
+          "blpn": "14769pb379",
+          "name": "Poison"
+        }
+      ]
+    },
+    {
+      "code": "GRVBY",
+      "label": "STAR",
+      "blpns": [
+        {
+          "blpn": "3068bpb1384",
+          "name": "Star"
+        }
+      ]
+    },
+    {
+      "code": "GRBTP",
+      "label": "TIMER",
+      "blpns": [
+        {
+          "blpn": "3068bpb1347",
+          "name": "Timer"
+        }
+      ]
+    },
+    {
+      "code": "GRPYB",
+      "label": "? BLOCK",
+      "blpns": [
+        {
+          "blpn": "3068bpb1359",
+          "name": "Mystery Block ?"
+        }
+      ]
+    },
+    {
+      "code": "GRVTB",
+      "label": "P?BLOCK1",
+      "blpns": [
+        {
+          "blpn": "",
+          "name": "Programmable Mystery Block 1 ?"
+        }
+      ],
+      "note": "Set 71380, no BLPN yet.",
+      "use": "Select the powerup BEFORE start by twisting mario on code as shown by arrows.  Choose mushroom, poison mushroom, 10 coins, or star.  Lift to save."
+    },
+    {
+      "code": "GRVTP",
+      "label": "P?BLOCK2",
+      "blpns": [
+        {
+          "blpn": "",
+          "name": "Programmable Mystery Block 2 ?"
+        }
+      ],
+      "note": "Set 71380, no BLPN yet.",
+      "use": "Select the powerup BEFORE start by twisting mario on code as shown by arrows.  Choose mushroom, poison mushroom, 10 coins, or star.  Lift to save."
+    },
+    {
+      "code": "GRYBL",
+      "label": "P SWITCH",
+      "blpns": [
+        {
+          "blpn": "3068bpb1394",
+          "name": "P Switch"
+        }
+      ]
+    },
+    {
+      "code": "GRLPT",
+      "label": "COIN 1",
+      "blpns": [
+        {
+          "blpn": "3068bpb1387",
+          "name": "Coin"
+        }
+      ]
+    },
+    {
+      "code": "GRYTP",
+      "label": "COIN 2",
+      "blpns": [
+        {
+          "blpn": "3068bpb1393",
+          "name": "Coin 2"
+        }
+      ]
+    },
+    {
+      "code": "GRPYL",
+      "label": "COIN 3",
+      "blpns": [
+        {
+          "blpn": "3068bpb1527",
+          "name": "Coin 3"
+        }
+      ]
+    },
+    {
+      "code": "GRVPT",
+      "label": "GHOST",
+      "blpns": [
+        {
+          "blpn": "14769pb339",
+          "name": "Peepa"
+        },
+        {
+          "blpn": "3068bpb1409",
+          "name": "Boo"
+        }
+      ]
+    },
+    {
+      "code": "GRBPV",
+      "label": "SHY GUY",
+      "blpns": [
+        {
+          "blpn": "14769pb341",
+          "name": "Shy Guy"
+        }
+      ]
+    },
+    {
+      "code": "GRBPY",
+      "label": "GOOMBA",
+      "blpns": [
+        {
+          "blpn": "3068bpb1381",
+          "name": "Goomba"
+        },
+        {
+          "blpn": "3068bpb1501",
+          "name": "Ninji"
+        },
+        {
+          "blpn": "3068bpb1348",
+          "name": "Bullet Bill"
+        },
+        {
+          "blpn": "3068bpb1360",
+          "name": "Monty Mole"
+        },
+        {
+          "blpn": "14769pb368",
+          "name": "Fly Guy"
+        },
+        {
+          "blpn": "3068bpb1365",
+          "name": "Fuzzy"
+        },
+        {
+          "blpn": "3068bpb1520",
+          "name": "Foo"
+        },
+        {
+          "blpn": "3068bpb1499",
+          "name": "Parachute Goomba"
+        }
+      ]
+    },
+    {
+      "code": "GRBYV",
+      "label": "THWIMP",
+      "blpns": [
+        {
+          "blpn": "3068bpb1524",
+          "name": "Thwimp"
+        }
+      ]
+    },
+    {
+      "code": "GRYBT",
+      "label": "BRAMBALL",
+      "blpns": [
+        {
+          "blpn": "3068bpb1526",
+          "name": "Bramball"
+        }
+      ]
+    },
+    {
+      "code": "GRVYP",
+      "label": "BLOOPER",
+      "blpns": [
+        {
+          "blpn": "3068bpb1363",
+          "name": "Blooper"
+        },
+        {
+          "blpn": "3068bpb1413",
+          "name": "Urchin"
+        },
+        {
+          "blpn": "3068bpb1403",
+          "name": "Cheep Cheep"
+        },
+        {
+          "blpn": "3068bpb1349",
+          "name": "Eep Cheep"
+        },
+        {
+          "blpn": "3068bpb1500",
+          "name": "Huckit Crab"
+        },
+        {
+          "blpn": "3068bpb1521",
+          "name": "Spiny Cheep Cheep"
+        }
+      ]
+    },
+    {
+      "code": "GRPVY",
+      "label": "BUZZY",
+      "blpns": [
+        {
+          "blpn": "3068bpb1519",
+          "name": "Para-Beetle"
+        },
+        {
+          "blpn": "3068bpb1415",
+          "name": "Buzzy Beetle"
+        },
+        {
+          "blpn": "3068bpb1364",
+          "name": "Spiny"
+        }
+      ]
+    },
+    {
+      "code": "GRPTB",
+      "label": "CHOMP",
+      "blpns": [
+        {
+          "blpn": "11203pb064",
+          "name": "Chain Chomp"
+        }
+      ]
+    },
+    {
+      "code": "GRBVY",
+      "label": "DRY BONE",
+      "blpns": [
+        {
+          "blpn": "3068bpb1408",
+          "name": "Dry Bones"
+        },
+        {
+          "blpn": "3068bpb1414",
+          "name": "Paragoomba"
+        },
+        {
+          "blpn": "3068bpb1505",
+          "name": "Bone Goomba"
+        },
+        {
+          "blpn": "3068bpb1397",
+          "name": "Lava Bubble"
+        }
+      ]
+    },
+    {
+      "code": "GRBPT",
+      "label": "WHOMP",
+      "blpns": [
+        {
+          "blpn": "3068bpb1396",
+          "name": "Whomp"
+        }
+      ],
+      "note": "NOT Thwomp (this guy falls on his face)"
+    },
+    {
+      "code": "GRPTY",
+      "label": "THWOMP",
+      "blpns": [
+        {
+          "blpn": "3068bpb1407",
+          "name": "Thwomp"
+        }
+      ],
+      "note": "SzczepanStaszak Lists this code as Lava, Seems to do nothing special"
+    },
+    {
+      "code": "GRVBL",
+      "label": "BOB-OMB",
+      "blpns": [
+        {
+          "blpn": "3068bpb1476",
+          "name": "Bob-Omb 1"
+        }
+      ]
+    },
+    {
+      "code": "GRBYT",
+      "label": "BOMB 2",
+      "blpns": [
+        {
+          "blpn": "3068bpb1366",
+          "name": "Bob-Omb 2"
+        }
+      ]
+    },
+    {
+      "code": "GRVPB",
+      "label": "PIRANHA",
+      "blpns": [
+        {
+          "blpn": "3068bpb1382",
+          "name": "Piranha Plant"
+        }
+      ]
+    },
+    {
+      "code": "GRYTL",
+      "label": "KOOPA 1",
+      "blpns": [
+        {
+          "blpn": "3068bpb1383",
+          "name": "Koopa Troopa"
+        }
+      ]
+    },
+    {
+      "code": "GRPTV",
+      "label": "KOOPA 2",
+      "blpns": [
+        {
+          "blpn": "3068bpb1351",
+          "name": "Koopa Troopa 2"
+        }
+      ]
+    },
+    {
+      "code": "GRBTL",
+      "label": "KPARAT 1",
+      "blpns": [
+        {
+          "blpn": "3068bpb1477",
+          "name": "Koopa Paratroopa"
+        }
+      ]
+    },
+    {
+      "code": "GRYVT",
+      "label": "KPARAT 2",
+      "blpns": [
+        {
+          "blpn": "3068bpb1478",
+          "name": "Koopa Paratroopa 2"
+        }
+      ]
+    },
+    {
+      "code": "GRVBP",
+      "label": "EXPLODE",
+      "blpns": [
+        {
+          "blpn": "3068bpb1386",
+          "name": "Swoop Explosion"
+        }
+      ]
+    },
+    {
+      "code": "GRYVP",
+      "label": "STONE",
+      "blpns": [
+        {
+          "blpn": "3068bpb1362",
+          "name": "Stone Eye"
+        }
+      ]
+    },
+    {
+      "code": "GRBYP",
+      "label": "NES",
+      "blpns": [
+        {
+          "blpn": "3068bpb1390",
+          "name": "TV"
+        }
+      ],
+      "note": "From NES set",
+      "use": "Changes reactions to colors, adds orange color reaction until music stops"
+    },
+    {
+      "code": "GRBLP",
+      "label": "HAMMER",
+      "blpns": [
+        {
+          "blpn": "3068bpb1370",
+          "name": "Hammer Turntable"
+        }
+      ]
+    },
+    {
+      "code": "GRBVL",
+      "label": "SPIN 1",
+      "blpns": [
+        {
+          "blpn": "68869pb002",
+          "name": "Spin"
+        }
+      ]
+    },
+    {
+      "code": "GRBVP",
+      "label": "SPIN 2",
+      "blpns": [
+        {
+          "blpn": "68869pb005",
+          "name": "Spin 2"
+        }
+      ]
+    },
+    {
+      "code": "GRVBT",
+      "label": "SPINY",
+      "blpns": [
+        {
+          "blpn": "3068bpb1484",
+          "name": "Spiny 2"
+        }
+      ]
+    },
+    {
+      "code": "GRPVB",
+      "label": "CLOUD",
+      "blpns": [
+        {
+          "blpn": "66792pb001",
+          "name": "Cloud Platform"
+        }
+      ],
+      "use": "Have to wave mario around while he's on it for it to work"
+    },
+    {
+      "code": "GRPBT",
+      "label": "BDARR 1",
+      "blpns": [
+        {
+          "blpn": "68869pb007",
+          "name": "Bidirectional Arrows (unknown set)"
+        }
+      ],
+      "note": "Listed as Double Arrows in BL"
+    },
+    {
+      "code": "GRPLB",
+      "label": "BDARR 2",
+      "blpns": [
+        {
+          "blpn": "3068bpb1350",
+          "name": "Bidirectional Arrows 2"
+        }
+      ],
+      "note": "Comes in the Piranha Plant Power Slide"
+    },
+    {
+      "code": "GRYTB",
+      "label": "BDARR 3",
+      "blpns": [
+        {
+          "blpn": "3068bpb1502",
+          "name": "Bidirectional Arrows 3"
+        }
+      ],
+      "note": "Comes in the Poison Swamp"
+    },
+    {
+      "code": "GRPVT",
+      "label": "BDARR 4",
+      "blpns": [
+        {
+          "blpn": "68869pb001",
+          "name": "Bidirectional Arrows 4"
+        },
+        {
+          "blpn": "66792pb002",
+          "name": "Bidirectional Arrows 4"
+        }
+      ],
+      "note": "Guessing these are the same, came from TUGtLSM.  BOTH found on Thwomp Drop platform"
+    },
+    {
+      "code": "GRPYT",
+      "label": "BDARR 5",
+      "blpns": [
+        {
+          "blpn": "68869pb003",
+          "name": "Bidirectional Arrows 5"
+        }
+      ],
+      "note": "Comes in Womp's Lava Trouble"
+    },
+    {
+      "code": "GRVTY",
+      "label": "GEAR",
+      "blpns": [
+        {
+          "blpn": "3068bpb1533",
+          "name": "Gear"
+        }
+      ]
+    },
+    {
+      "code": "GRBYL",
+      "label": "LARRY",
+      "blpns": [
+        {
+          "blpn": "3068bpb1534",
+          "name": "Larry"
+        }
+      ]
+    },
+    {
+      "code": "GRVYB",
+      "label": "KING BOO",
+      "blpns": [
+        {
+          "blpn": "3068bpb1388",
+          "name": "King Boo"
+        }
+      ]
+    },
+    {
+      "code": "GRTBY",
+      "label": "JrBOWSER",
+      "blpns": [
+        {
+          "blpn": "3068bpb1378",
+          "name": "Bowser Jr"
+        }
+      ]
+    },
+    {
+      "code": "GRBLV",
+      "label": "BOWSER",
+      "blpns": [
+        {
+          "blpn": "3068bpb1416",
+          "name": "Bowser"
+        }
+      ]
+    },
+    {
+      "code": "GRLBY",
+      "label": "GOAL",
+      "blpns": [
+        {
+          "blpn": "3068bpb1379",
+          "name": "Goal"
+        }
+      ]
+    }
+  ],
+  "undeciphered": [
+    {
+      "blpn": "3068bpb1410",
+      "name": "Lava Bubble.  Seems like GRPTY, not sure"
+    },
+    {
+      "blpn": "3068bpb1369",
+      "name": "Pokey",
+      "note": "Looks like GRYPL, 3068bpb1487"
+    },
+    {
+      "blpn": "66792pb004",
+      "codeguess": "GRBTY",
+      "name": "Rotation Arrows",
+      "note": "Comes in Bowser's castle. Plays serious music"
+    },
+    {
+      "blpn": "66792pb005",
+      "codeguess": "GRYLV",
+      "name": "Raft Platform",
+      "note": "Comes in Poison Swamp. Displays !, watery sounding jump"
+    },
+    {
+      "blpn": "68869pb004",
+      "codeguess": "GRBLT",
+      "name": "Spin 3",
+      "note": "Comes in Boomer Bill Barrage. Seems identical to 66792pb003"
+    },
+    {
+      "blpn": "66792pb003",
+      "codeguess": "GRBLT",
+      "name": "Spin 4",
+      "note": "Comes in Boomer Bill Barrage. Seems identical to 68869pb004"
+    },
+    {
+      "blpn": "68869pb006",
+      "codeguess": "GRYTV",
+      "name": "Spin 5",
+      "note": "Comes in Bowser's castle. SM1 castle music, phew when stops"
+    }
+  ],
+  "unidentified": [
+    {
+      "code": "GRYVL",
+      "note": "Hit animation, coin every time (Is this Pokey? 3068bpb1369)"
+    },
+    {
+      "code": "GRPTL",
+      "note": "5-hit boss"
+    }
+  ]
+}
+</script>
+
+<!-- Extremely cut down, modified and re-aligned version of the SVGs created by Reddit user EntireStatus2007 -->
+<div id="code_template">
+<svg
+	xmlns:dc="http://purl.org/dc/elements/1.1/"
+	xmlns:cc="http://creativecommons.org/ns#"
+	xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+	xmlns:svg="http://www.w3.org/2000/svg"
+	xmlns="http://www.w3.org/2000/svg"
+	xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+	xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+	width="14mm"
+	height="14mm"
+	viewBox="0 0 14 14"
+	style="display:none;"
+	version="1.1">
+	<g
+		id="CODE"
+		style="display:inline;">
+		<g
+			id="COLOR-1-GROUP"
+			style="display:inline;fill-opacity:1;stroke-width:0.2;">
+			<g
+				id="COLOR-1-FILL"
+				style="fill:#229551;">
+				<rect
+					id="COLOR-1-REPEAT-1"
+					width="0.2"
+					height="12"
+					x="1.2"
+					y="0"
+				/>
+				<rect
+					id="COLOR-1-REPEAT-2"
+					width="0.2"
+					height="12"
+					x="3.2"
+					y="0"
+				/>
+				<rect
+					id="COLOR-1-REPEAT-3"
+					width="0.2"
+					height="12"
+					x="5.2"
+					y="0"
+				/>
+				<rect
+					id="COLOR-1-REPEAT-4"
+					y="0"
+					x="7.2"
+					height="12"
+					width="0.2"
+				/>
+				<rect
+					id="COLOR-1-REPEAT-5"
+					width="0.2"
+					height="12"
+					x="9.2"
+					y="0"
+				/>
+				<rect
+					id="COLOR-1-REPEAT-6"
+					width="0.2"
+					height="12"
+					x="11.2"
+					y="0"
+				/>
+			</g>
+		</g>
+		<g
+			id="COLOR-2-GROUP"
+			style="display:inline;fill-opacity:1;stroke-width:0.2;">
+			<g
+				id="COLOR-2-FILL"
+				style="fill:#229551;">
+				<rect
+					id="COLOR-2-REPEAT-1"
+					width="0.2"
+					height="12"
+					x="1.6"
+					y="0"
+				/>
+				<rect
+					id="COLOR-2-REPEAT-2"
+					width="0.2"
+					height="12"
+					x="3.6"
+					y="0"
+				/>
+				<rect
+					id="COLOR-2-REPEAT-3"
+					width="0.2"
+					height="12"
+					x="5.6"
+					y="0"
+				/>
+				<rect
+					id="COLOR-2-REPEAT-4"
+					width="0.2"
+					height="12"
+					x="7.6"
+					y="0"
+				/>
+				<rect
+					id="COLOR-2-REPEAT-5"
+					width="0.2"
+					height="12"
+					x="9.6"
+					y="0"
+				/>
+				<rect
+					id="COLOR-2-REPEAT-6"
+					width="0.2"
+					height="12"
+					x="11.6"
+					y="0"
+				/>
+</g>
+		</g>
+		<g
+			id="COLOR-3-GROUP"
+			style="display:inline;fill-opacity:1;stroke-width:0.2;">
+			<g
+				id="COLOR-3-FILL"
+				style="fill:#229551;">
+				<rect
+					id="COLOR-3-REPEAT-1"
+					width="0.2"
+					height="12"
+					x="2"
+					y="0"
+				/>
+				<rect
+					id="COLOR-3-REPEAT-2"
+					width="0.2"
+					height="12"
+					x="4"
+					y="0"
+				/>
+				<rect
+					id="COLOR-3-REPEAT-3"
+					width="0.2"
+					height="12"
+					x="6"
+					y="0"
+				/>
+				<rect
+					id="COLOR-3-REPEAT-4"
+					width="0.2"
+					height="12"
+					x="8"
+					y="0"
+				/>
+				<rect
+					id="COLOR-3-REPEAT-5"
+					width="0.2"
+					height="12"
+					x="10"
+					y="0"
+				/>
+				<rect
+					id="COLOR-3-REPEAT-6"
+					width="0.2"
+					height="12"
+					x="12"
+					y="0"
+				/>
+			</g>
+		</g>
+		<g
+			style="display:inline;fill-opacity:1;stroke-width:0.2;"
+			id="COLOR-4-GROUP">
+			<g
+				id="COLOR-4-FILL"
+				style="fill:#229551;">
+				<rect
+					id="COLOR-4-REPEAT-1"
+					width="0.2"
+					height="12"
+					x="2.4"
+					y="0"
+				/>
+				<rect
+					id="COLOR-4-REPEAT-2"
+					width="0.2"
+					height="12"
+					x="4.4"
+					y="0"
+				/>
+				<rect
+					id="COLOR-4-REPEAT-3"
+					width="0.2"
+					height="12"
+					x="6.4"
+					y="0"
+				/>
+				<rect
+					id="COLOR-4-REPEAT-4"
+					width="0.2"
+					height="12"
+					x="8.4"
+					y="0"
+				/>
+				<rect
+					id="COLOR-4-REPEAT-5"
+					width="0.2"
+					height="12"
+					x="10.4"
+					y="0"
+				/>
+				<rect
+					id="COLOR-4-REPEAT-6"
+					width="0.2"
+					height="12"
+					x="12.4"
+					y="0"
+				/>
+			</g>
+		</g>
+		<g
+			id="COLOR-5-GROUP"
+			style="display:inline;fill-opacity:1;stroke-width:0.2;">
+			<g
+				id="COLOR-5-FILL"
+				style="fill:#229551;">
+				<rect
+					id="COLOR-5-REPEAT-1"
+					width="0.2"
+					height="12"
+					x="2.8"
+					y="0"
+				/>
+				<rect
+					id="COLOR-5-REPEAT-2"
+					width="0.2"
+					height="12"
+					x="4.8"
+					y="0"
+				/>
+				<rect
+					id="COLOR-5-REPEAT-3"
+					width="0.2"
+					height="12"
+					x="6.8"
+					y="0"
+				/>
+				<rect
+					id="COLOR-5-REPEAT-4"
+					width="0.2"
+					height="12"
+					x="8.8"
+					y="0"
+				/>
+				<rect
+					id="COLOR-5-REPEAT-5"
+					width="0.2"
+					height="12"
+					x="10.8"
+					y="0"
+				/>
+				<rect
+					id="COLOR-5-REPEAT-6"
+					width="0.2"
+					height="12"
+					x="12.8"
+					y="0"
+				/>
+			</g>
+		</g>
+		<ellipse
+			id="SHORTNAME-CUTOUT"
+			style="display:inline;fill:#ffffff;fill-opacity:1;stroke-width:0.3"
+			ry="1.5"
+			rx="5.3"
+			cy="11.6"
+			cx="7.1"/>
+		<text
+			id="CODE-SHORTNAME"
+			y="12"
+			x="3.6"
+			style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:1.4px;line-height:1.25;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-feature-settings:normal;text-align:start;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:start;display:inline;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.2"
+			xml:space="preserve"><tspan
+				id="ACTUAL-SHORTNAME"
+				sodipodi:role="line">INVALID</tspan></text>
+	</g>
+</svg>
+</div>
+
+<script>
+var blurlpre = "https://www.bricklink.com/v2/catalog/catalogitem.page?P=";
+var colorcodes = ['G','R','B','L','P','V','Y','T'];
+// As recommended by EntireStatus2007
+var colorSVGrgb = ['229551','cb2129','0000ff','aed252','d166a7','9b78b5','f9dc2a','1baaa3'];
+
+function index_db_by_code() {
+	if ( database_data.hasOwnProperty('codeindex') ) { return; }
+
+	database_data['codeindex'] = {};
+	for (idx in database_data['codes']) {
+		var code = database_data['codes'][idx];
+		database_data['codeindex'][code['code']] = idx;
+	}
+}
+
+function create_svg_code(code) {
+	var codetitle = "";
+
+	if ( !test_code_rules(code) ) {
+		console.log(code);
+		codetitle = "INVALID";
+	}
+
+	var code_svg = clone_SVG_template_from_DOM("code_template");
+	code_svg.style.display = "block";
+	code_svg.id="scanner_code_"+code;
+
+	// SVGSCGElement has to be written before it can be modified, apparently
+	// NOPE. Apparently getElementByID just doesn't work
+	// document.getElementById("code_block_"+code).appendChild(code_svg);
+	// code_svg = document.getElementById("scanner_code_"+code);
+
+	index_db_by_code()
+	if ( codetitle != "INVALID" ) {
+		var codearray = code.split("");
+		for ( i=0; i<5; i++) {
+			var barcolor = colorSVGrgb[colorcodes.indexOf(codearray[i])];
+			color_group_id = "COLOR-"+(i+1)+"-FILL";
+//			color_group = code_svg.getElementById(color_group_id);
+			color_group = walk_SVG_DOM_for_id_because_IDK_why_getElementById_doesnt_work(code_svg, color_group_id);
+
+			color_group.style.fill="#"+barcolor;
+
+//			nametag = code_svg.getElementById("ACTUAL-SHORTNAME");
+			var nametag = walk_SVG_DOM_for_id_because_IDK_why_getElementById_doesnt_work(code_svg, "ACTUAL-SHORTNAME");
+			var name_label = "x_"+code+"_";
+			if ( database_data['codeindex'][code] ) {
+				if ( database_data['codes'][database_data['codeindex'][code]].hasOwnProperty('label') ) {
+					 name_label = database_data['codes'][database_data['codeindex'][code]]['label'];
+				} else {
+					nametag = "_NO_LBL_";
+				}
+			}
+			nametag.innerHTML = name_label;
+		}
+	}
+	return code_svg;
+}
+
+function colorized_html_for_code(code) {
+	var codearray = code.split("");
+	var rh = "";
+
+	if ( !test_code_rules(code) ) {
+		rh = rh + "INVALID CODE<BR>";
+	} else {
+		rh = rh + "<input type='checkbox' style='block' value='"+code+"'>";
+	}
+
+	rh = rh + codearray.reduce( (total, currentValue) => {
+		return total+"<span class=\""+currentValue+"\">"+currentValue+"</span>"
+	},"" );
+	return rh;
+}
+
+function test_code_rules(code) {
+	if (!code) {
+		return false;
+	}
+
+	// Basic syntax
+	// Only five
+	if (code.length != 5) {
+		return false;
+	}
+	// All uppercase
+	if ( code.toUpperCase().localeCompare(code) != 0 ) {
+		return false;
+	}
+
+	// Starts with GR
+	if ( ! code.startsWith("GR") ) {
+		return false;
+	}
+
+	// Valid color code characters
+	var codearray = code.split("");
+	if ( (codearray.filter((c) => colorcodes.indexOf(c)+1)).length != 5 ) {
+		return false;
+	}
+
+	// Colors do not repeat
+	var used_colors = [ ];
+	if ( codearray.reduce( (total, currentValue) => {
+			if ( used_colors.indexOf(currentValue) == -1 ){ used_colors.push(currentValue); return total; }
+			else { return total+1; }
+		},0 ) != 0 ) {
+		return false;
+	}
+
+	return true;
+}
+
+function write_code_div(code) {
+	document.write("<div class='codeblock'>");
+	document.write("<div class='code_svg_caption' id='code_block_"+code['code']+"'>");
+	document.write("<b>"+colorized_html_for_code(code['code'])+"</b>")
+	document.write("</div><div class='code_description'><ul>");
+
+	for (bidx in code['blpns']) {
+		var blpn = code['blpns'][bidx]
+		document.write("<li><a href='"+blurlpre+blpn['blpn']+"'>"+blpn['name']+"</a></li>");
+	}
+
+	if ( code.hasOwnProperty("note") ) {
+		document.write(code['note']);
+	}
+	document.write("</ul></div>");
+	document.write("</div>");
+
+	// code_block_x has to exist before we can stuff an object in it
+	var svg_code = create_svg_code(code['code']);
+	document.getElementById("code_block_"+code['code']).appendChild(svg_code);
+}
+
+function write_code_divs() {
+	for (idx in database_data['codes']) {
+		write_code_div(database_data['codes'][idx]);
+	}
+}
+
+function write_undeciphered_list() {
+	for (idx in database_data['undeciphered']) {
+		var brick = database_data['undeciphered'][idx]
+		document.write("<li>");
+		if ( brick.hasOwnProperty("codeguess") ) {
+			document.write(colorized_html_for_code(brick['codeguess'])+" : ")
+		}
+		document.write("<a href='"+blurlpre+brick['blpn']+"'>"+brick['name']+"</a></li>");
+		if ( brick.hasOwnProperty("note") ) {
+			document.write(brick['note']);
+		}
+	}
+}
+
+function write_unidentified_list() {
+	for (idx in database_data['unidentified']) {
+		var brick = database_data['unidentified'][idx]
+		document.write("<li>");
+		document.write(colorized_html_for_code(brick['code'])+" : ")
+		document.write(brick['note']);
+		document.write("</li>");
+	}
+}
+
+function clear_checkboxes() {
+	for ( let thischeck of document.querySelectorAll("input[type=checkbox]") ) {
+		thischeck.checked = false;
+	}
+}
+
+function create_codelist_from_checkboxes() {
+	var retval = [];
+	for ( let thischeck of document.querySelectorAll("input[type=checkbox]") ) {
+		if ( thischeck.checked ) {
+			retval.push(thischeck.value);
+		}
+	}
+	return retval;
+}
+
+function pop_print_window(codelist) {
+	create_codelist_from_checkboxes()
+	var svgwin = window.open("", "PrintSVGCodes", "width=520, height=320, location=no, menubar=no, toolbar=no, status=no");
+	if ( svgwin ) {
+		for ( code in codelist ) {
+			var code_svg = create_svg_code(codelist[code])
+			code_svg.style.display = "inline";
+			svgwin.document.body.appendChild(code_svg);
+		}
+	} else {
+		alert("Unable to open window to print SVG codes");
+	}
+}
+
+function brute_force_codes() {
+	// Collect known codes
+	var known_codes = [];
+	var unknown_codes = [];
+	for (idx in database_data['codes']) {
+		known_codes.push(database_data['codes'][idx]['code']);
+	}
+	for (idx in database_data['undeciphered']) {
+		if ( database_data['undeciphered'][idx].hasOwnProperty('codeguess') ) {
+			known_codes.push(database_data['undeciphered'][idx]['codeguess']);
+		}
+	}
+	for (idx in database_data['unidentified']) {
+		known_codes.push(database_data['unidentified'][idx]['code']);
+	}
+
+	var ccode = ['G','R'];
+	var remainingcolorcodes = ['B','L','P','V','Y','T'];
+	var codespace = remainingcolorcodes.length;
+	var count = 0;
+	for ( c1=0; c1<codespace; c1++) {
+		var color1 = remainingcolorcodes[c1];
+		for ( c2=0; c2<codespace; c2++) {
+			var color2 = remainingcolorcodes[c2];
+			for ( c3=0; c3<codespace; c3++) {
+				var test_code = ccode.concat([color1, color2, remainingcolorcodes[c3]]);
+				test_code = test_code.join("");
+				if (test_code_rules(test_code)) {
+					count++;
+					if ( known_codes.indexOf(test_code) == -1 ) {
+						unknown_codes.push(test_code);
+					}
+
+				}
+			}
+		}
+	}
+
+	return {
+		"known": known_codes,
+		"unknown": unknown_codes
+	};
+}
+
+function write_brute_force_codespace() {
+	document.write("Brute forcing the codespace...<br>");
+	// Collect known codes
+	var known_codes = [ ];
+	var known_code_names = [];
+	for (idx in database_data['codes']) {
+		known_codes.push(database_data['codes'][idx]['code']);
+		known_code_names.push(database_data['codes'][idx]['blpns'][0]['name']);
+	}
+
+	var ccode = ['G','R'];
+	var remainingcolorcodes = ['B','L','P','V','Y','T'];
+	var codespace = remainingcolorcodes.length;
+	var count = 0;
+	for ( c1=0; c1<codespace; c1++) {
+		var color1 = remainingcolorcodes[c1];
+		for ( c2=0; c2<codespace; c2++) {
+			var color2 = remainingcolorcodes[c2];
+			for ( c3=0; c3<codespace; c3++) {
+				var test_code = ccode.concat([color1, color2, remainingcolorcodes[c3]]);
+				test_code = test_code.join("");
+				if (test_code_rules(test_code)) {
+					count++;
+					document.write(colorized_html_for_code(test_code))
+					var used_index = known_codes.indexOf(test_code);
+					if ( used_index != -1 ) {
+						document.write(" "+known_code_names[used_index]+"<br>");
+					} else {
+						unknown_codes.push(test_code);
+						document.write("<br>");
+					}
+				}
+			}
+		}
+	}
+	document.write("<br>Found "+count+" valid codes.<br>"+known_codes.length+" used.<br>"+(count-known_codes.length)+" unused codes")
+}
+
+// Apparently cloning objects you have handles to is hard, but cloning DOM nodes is easy! (SVGSVGElement)
+function clone_SVG_template_from_DOM(template_id) {
+	var code_svg = document.getElementById(template_id);
+	code_svg = code_svg.firstElementChild.cloneNode(true);
+	return code_svg;
+}
+
+// I mean, what the hell
+// https://stackoverflow.com/questions/42798992/element-getelementbyid-not-working
+function walk_SVG_DOM_for_id_because_IDK_why_getElementById_doesnt_work(svg, search_id) {
+	if ( svg.children ) {
+		for (let element of svg.children) {
+			if ( element.id == search_id ) {
+				return element;
+			}
+
+			var found_element = walk_SVG_DOM_for_id_because_IDK_why_getElementById_doesnt_work(element, search_id);
+			if ( found_element ) {
+				return found_element;
+			}
+		}
+	}
+	return null;
+}
+
+</script>
+
+<div id='codelist'>
+<script>write_code_divs();</script>
+</div>
+
+<h2>Known Bricks (with & without code guesses that work)</h2>
+<i>Codes listed here are guesses.  Photos on Bricklink are too blurry to verify.</i>
+<ul>
+<script>write_undeciphered_list();</script>
+</ul>
+
+<h2>Unidentified, working codes</h2>
+<ul>
+<script>write_unidentified_list();</script>
+</ul>
+
+<h2>Not-working*, but valid codes</h2>
+<i>* Since last I checked & updated Mario, maybe May 8, 2021</i>
+<ul>
+<script>
+var unknown_codes = brute_force_codes()['unknown'];
+for (let curucode of unknown_codes) {
+	document.write("<li>"+colorized_html_for_code(curucode)+"</li>");
+}
+</script>
+</ul>
+<hr>
+<h2>Printing</h2>
+<a href="javascript:void(0)" onClick="clear_checkboxes()">Clear checked codes</a><br><br>
+Printing will pop open an window and write the selected SVGs to it.
+<ul>
+<li>Print on photo paper for best results
+<li>45 codes will fit on 4x6 inch photo paper (9 across the 6" span, five down the 4")
+</ul>
+<a href="javascript:void(0)" onClick="pop_print_window(create_codelist_from_checkboxes())">Print checked codes</a><br><br>
+<hr>
+<i>Copyright (c) 2021, mutesplash</i>
+</body>
+</html>
+
