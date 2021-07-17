@@ -10,10 +10,11 @@
     "https://studioplayfool.medium.com/can-you-play-with-lego-super-mario-without-lego-551f74dfcd77",
     "Some colors corrected or confirmed by @SzczepanStaszak's (on Twitter) TUGtLSM_v0.9.pdf",
     "Version 2 added label for labeling auto-generated scanner codes (8 char limit, Use caps)",
-    "Version 3 added optional codeguess for undeciphered codes (THE GUESSED CODE HAS TO ACTUALLY WORK)",
+    "Version 3 added optional codeguess for undeciphered codes (THE GUESSED CODE HAS TO ACTUALLY WORK) (blpn, name, note, codeguess)",
     "Version 4 added unidentified section",
     "Version 5 added optional use text",
-    "Copyright (c) 2021, mutesplash"
+    "Copyright (c) 2021, mutesplash",
+    "Future notes to self for Aug 1 update: BPYs: Luigi Bone goomba, bullet bill in 71389, Boss Sumo Crowber, Series 3 (Buzzy, Galoomba, Crowber, Scuttlebug, Swoop), Fuzzy (30389) "
   ],
   "version": 5,
   "codes": [
@@ -192,11 +193,11 @@
       "label": "P?BLOCK1",
       "blpns": [
         {
-          "blpn": "",
-          "name": "Programmable Mystery Block 1 ?"
+          "blpn": "3068bpb1762",
+          "name": "Customization Mystery Block 1"
         }
       ],
-      "note": "Set 71380, no BLPN yet.",
+      "note": "Set 71380",
       "use": "Select the powerup BEFORE start by twisting mario on code as shown by arrows.  Choose mushroom, poison mushroom, 10 coins, or star.  Lift to save."
     },
     {
@@ -204,12 +205,23 @@
       "label": "P?BLOCK2",
       "blpns": [
         {
-          "blpn": "",
-          "name": "Programmable Mystery Block 2 ?"
+          "blpn": "3068bpb1784",
+          "name": "Customization Mystery Block 2"
         }
       ],
-      "note": "Set 71380, no BLPN yet.",
+      "note": "Set 71380",
       "use": "Select the powerup BEFORE start by twisting mario on code as shown by arrows.  Choose mushroom, poison mushroom, 10 coins, or star.  Lift to save."
+    },
+    {
+      "code": "GRVTY",
+      "label": "TIMEGEAR",
+      "blpns": [
+        {
+          "blpn": "3068bpb1533",
+          "name": "Customization Time Block"
+        }
+      ],
+      "note": "Set 71380."
     },
     {
       "code": "GRYBL",
@@ -361,7 +373,8 @@
           "blpn": "3068bpb1521",
           "name": "Spiny Cheep Cheep"
         }
-      ]
+      ],
+      "note": "Also series 3 Torpedo Ted"
     },
     {
       "code": "GRPVY",
@@ -379,7 +392,8 @@
           "blpn": "3068bpb1364",
           "name": "Spiny"
         }
-      ]
+      ],
+      "note": "Also Series 3 Bony Beetle"
     },
     {
       "code": "GRPTB",
@@ -426,14 +440,23 @@
     },
     {
       "code": "GRPTY",
+      "label": "LAVA",
+      "blpns": [
+        {
+          "blpn": "3068bpb1410",
+          "name": "Lava Bubble"
+        }
+      ]
+    },
+    {
+      "code": "GRPTL",
       "label": "THWOMP",
       "blpns": [
         {
           "blpn": "3068bpb1407",
           "name": "Thwomp"
         }
-      ],
-      "note": "SzczepanStaszak Lists this code as Lava, Seems to do nothing special"
+      ]
     },
     {
       "code": "GRVBL",
@@ -526,6 +549,16 @@
       ]
     },
     {
+      "code": "GRYPL",
+      "label": "POKEY",
+      "blpns": [
+        {
+          "blpn": "3068bpb1369",
+          "name": "Pokey"
+        }
+      ]
+    },
+    {
       "code": "GRBYP",
       "label": "NES",
       "blpns": [
@@ -582,6 +615,28 @@
       ]
     },
     {
+      "code": "GRYTV",
+      "label": "SPIN 4",
+      "blpns": [
+        {
+          "blpn": "68869pb006",
+          "name": "Spin 4"
+        }
+      ],
+      "note": "Platform for avoiding Boo. Castle music, phew when stops"
+    },
+    {
+      "code": "GRBTY",
+      "label": "WAGGLE",
+      "blpns": [
+        {
+          "blpn": "66792pb004",
+          "name": "Side-to-side Waggle Arrows"
+        }
+      ],
+      "note": "Drawbridge piece that wiggles to defeat bowser. Plays serious music"
+    },
+    {
       "code": "GRVBT",
       "label": "SPINY",
       "blpns": [
@@ -608,10 +663,10 @@
       "blpns": [
         {
           "blpn": "68869pb007",
-          "name": "Bidirectional Arrows (unknown set)"
+          "name": "Bidirectional Arrows"
         }
       ],
-      "note": "Listed as Double Arrows in BL"
+      "note": "Listed as Double Arrows in BL.  Lego 71380"
     },
     {
       "code": "GRPLB",
@@ -648,7 +703,7 @@
           "name": "Bidirectional Arrows 4"
         }
       ],
-      "note": "Guessing these are the same, came from TUGtLSM.  BOTH found on Thwomp Drop platform"
+      "note": "Comes in Thwomp Drop"
     },
     {
       "code": "GRPYT",
@@ -659,17 +714,7 @@
           "name": "Bidirectional Arrows 5"
         }
       ],
-      "note": "Comes in Womp's Lava Trouble"
-    },
-    {
-      "code": "GRVTY",
-      "label": "GEAR",
-      "blpns": [
-        {
-          "blpn": "3068bpb1533",
-          "name": "Gear"
-        }
-      ]
+      "note": "Comes in Womp's Lava Trouble and Toad's Treasure hunt (different brick colors)"
     },
     {
       "code": "GRYLV",
@@ -700,7 +745,8 @@
           "blpn": "3068bpb1388",
           "name": "King Boo"
         }
-      ]
+      ],
+      "note": "7-hit"
     },
     {
       "code": "GRTBY",
@@ -733,157 +779,131 @@
       ]
     }
   ],
-  "undeciphered": [
-    {
-      "blpn": "3068bpb1410",
-      "name": "Lava Bubble.  Seems like GRPTY, not sure"
-    },
-    {
-      "blpn": "3068bpb1369",
-      "name": "Pokey",
-      "note": "Looks like GRYPL, 3068bpb1487"
-    },
-    {
-      "blpn": "66792pb004",
-      "codeguess": "GRBTY",
-      "name": "Rotation Arrows",
-      "note": "Comes in Bowser's castle. Plays serious music"
-    },
-    {
-      "blpn": "68869pb006",
-      "codeguess": "GRYTV",
-      "name": "Spin 4",
-      "note": "Comes in Bowser's castle. SM1 castle music, phew when stops"
-    }
-  ],
+  "undeciphered": [],
   "unidentified": [
     {
       "code": "GRYVL",
-      "note": "Hit animation, coin every time (Is this Pokey? 3068bpb1369)"
-    },
-    {
-      "code": "GRPTL",
-      "note": "5-hit boss"
+      "note": "Hit animation, coin every time"
     },
     {
       "code": "GRBLY",
-      "note": "8-hit boss "
+      "note": "8-hit boss.  Boss Sumo.  Lego 71388."
     },
     {
       "code": "GRLBP",
-      "note": "Kamek Broom (up/down movement)"
+      "note": "Kamek Broom (up/down movement). Lego 71391"
     },
     {
       "code": "GRLBT",
-      "note": "8-hit boss"
-    },
-    {
-      "code": "GRLPB",
-      "note": "Heart"
-    },
-    {
-      "code": "GRLPY",
-      "note": "5-hit boss"
+      "note": "Bowser ship mast. 8-hit boss. Lego 71391"
     },
     {
       "code": "GRVLB",
-      "note": "Zap"
+      "note": "Amp (Series 3, Lego 71394)"
+    },
+    {
+      "code": "GRLPY",
+      "note": "5-hit Rhino 1. Reznor Knockdown. Set 71390"
     },
     {
       "code": "GRVLP",
-      "note": "50-coin challenge"
+      "note": "50-coin Start. Reznor Knockdown. Set 71390"
     },
     {
       "code": "GRVLT",
-      "note": "5-hit boss"
+      "note": "5-hit Rhino 2. Reznor Knockdown. Set 71390"
     },
     {
       "code": "GRVYL",
-      "note": "Reznor Knockdown device"
-    },
-    {
-      "code": "GRVTL",
-      "note": "!"
-    },
-    {
-      "code": "GRYLT",
-      "note": "2-hit boss"
-    },
-    {
-      "code": "GRYPB",
-      "note": "8-hit"
-    },
-    {
-      "code": "GRTBL",
-      "note": "Desert music.  Drive bowser's ship?"
-    },
-    {
-      "code": "GRTYB",
-      "note": "1-Up"
-    },
-    {
-      "code": "GRTBP",
-      "note": "Cannon (90 sec)"
-    },
-    {
-      "code": "GRTPV",
-      "note": "Pink Yoshi mount"
-    },
-    {
-      "code": "GRTPL",
-      "note": "!"
-    },
-    {
-      "code": "GRTPB",
-      "note": "8-hit"
-    },
-    {
-      "code": "GRTBV",
-      "note": "12-hit Bowser head"
+      "note": "Punching mechanism. Reznor Knockdown. Set 71390"
     },
     {
       "code": "GRTLY",
-      "note": "! whooo"
+      "note": "Ferris wheel. Reznor Knockdown. Set 71390"
     },
     {
-      "code": "GRTLV",
-      "note": "Probably Kamek"
-    },
-    {
-      "code": "GRTLP",
-      "note": "!"
-    },
-    {
-      "code": "GRTLB",
-      "note": "Also driving the ship?"
-    },
-    {
-      "code": "GRTVB",
-      "note": "Ominous Music"
-    },
-    {
-      "code": "GRTVL",
-      "note": "Start 60"
-    },
-    {
-      "code": "GRTVP",
-      "note": "Some bomb?"
-    },
-    {
-      "code": "GRTVY",
-      "note": "New boo?"
-    },
-    {
-      "code": "GRTYL",
-      "note": "Third ship?"
+      "code": "GRLPB",
+      "note": "Heart for Blue Toad interaction. Reznor Knockdown. Set 71390"
     },
     {
       "code": "GRTYP",
-      "note": "Wacky 3-hit"
+      "note": "3-hit Reznor. Set 71390"
+    },
+    {
+      "code": "GRYLT",
+      "note": "2-hit Lakitu. Lakitu Sky World. Set 71389"
+    },
+    {
+      "code": "GRYPB",
+      "note": "Boom-boom? 8-hit. Luigi starter. Lego 71378"
+    },
+    {
+      "code": "GRTBL",
+      "note": "Bowser Ship Steering Wheel (Play desert music).  Lego 71391"
+    },
+    {
+      "code": "GRTYB",
+      "note": "1-Up, Series 3. Lego 71394."
+    },
+    {
+      "code": "GRTBP",
+      "note": "Cannon Start (90 sec). Lego 71391"
+    },
+    {
+      "code": "GRTVL",
+      "note": "Start 60. Luigi starter. Lego 71378"
+    },
+    {
+      "code": "GRTPV",
+      "note": "Pink Yoshi egg. Hop on Yoshi. Luigi Starter. Lego 71378"
+    },
+    {
+      "code": "GRTPL",
+      "note": "Gear icon. !, spin for coins. Luigi Starter. Lego 71378"
+    },
+    {
+      "code": "GRVTL",
+      "note": "Nut icon. !, Spin for coins. Luigi starter. Lego 71378"
+    },
+    {
+      "code": "GRTPB",
+      "note": "8-hit Bowser Claw. Lego 71391"
+    },
+    {
+      "code": "GRTBV",
+      "note": "Bowser Ship head (12-hit). Lego 71391"
+    },
+    {
+      "code": "GRTLV",
+      "note": "Kamek (4-hit). Lego 71391"
+    },
+    {
+      "code": "GRTLP",
+      "note": "Add 30 seconds. Lakitu Sky World. Set 71389"
+    },
+    {
+      "code": "GRTVB",
+      "note": "Teeter-totter icon.  Ominous Music. Cooperates with Gear and Nut spinning?  Luigi starter. Lego 71378"
+    },
+    {
+      "code": "GRTVP",
+      "note": "Parachute Bob-omb, Series 3. Lego 71394."
+    },
+    {
+      "code": "GRTVY",
+      "note": "Boo, Series 3. Lego 71394."
+    },
+    {
+      "code": "GRTYL",
+      "note": "Biased directional Arrows. Lakitu Sky World. Set 71389"
+    },
+    {
+      "code": "GRTLB",
+      "note": "Spin. Lakitu Sky World. Set 71389"
     },
     {
       "code": "GRTYV",
-      "note": "3-hit"
+      "note": "3-hit.  Rocky Wrench.  Lego 71391"
     }
   ]
 }
