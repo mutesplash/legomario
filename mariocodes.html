@@ -113,8 +113,8 @@ var database_data = {
   "notes": [
     "8 colors: GREEN, RED, BLUE, LIME, PINK, VIOLET, YELLOW, TEAL",
     "5 Positions",
-    "Start with GR",
-    "Codespace is 512 with prefix (8^3) (not accounting for no-repeats or uniques,, narrows to 120 (6*5*4))",
+    "Start with GR or BR",
+    "GR Codespace is 512 with prefix (8^3) (not accounting for no-repeats or uniques,, narrows to 120 (6*5*4))",
     "Searched Bricklink on May 17, 2021 and found 84 parts matching 'scanner code'",
     "Sources:",
     "https://www.reddit.com/r/lego/comments/iaahnr/lego_mario_barcode_coloring_list/",
@@ -125,10 +125,11 @@ var database_data = {
     "Version 4 added unidentified section",
     "Version 5 added optional use text",
     "Version 6 added provisional label to unidentified",
+    "Version 7 first codes starting with BR show up",
     "Copyright (c) 2021, mutesplash",
     "Future notes to self for Aug 1 update: BPYs: Luigi Bone goomba, bullet bill in 71389, Boss Sumo Crowber, Series 3 (Buzzy, Galoomba, Crowber, Scuttlebug, Swoop), Fuzzy (30389) "
   ],
-  "version": 5,
+  "version": 7,
   "codes": [
     {
       "code": "GRLBV",
@@ -683,6 +684,18 @@ var database_data = {
       "note": "From NES set",
       "use": "Changes reactions to colors, adds orange color reaction until music stops"
     },
+	{
+      "code": "GRYVB",
+      "label": "?BLKGAME",
+      "blpns": [
+        {
+          "blpn": "14769pb469",
+          "name": "Triple star"
+        }
+      ],
+      "note": "Mario 64 Set 71395",
+      "use": "Place on purple brick to fight bowser.  Other colors to gain red coins"
+    },
     {
       "code": "GRBLP",
       "label": "HAMMER",
@@ -894,6 +907,106 @@ var database_data = {
   ],
   "undeciphered": [],
   "unidentified": [
+	{
+      "code": "BRYPG",
+      "label": "",
+      "note": "Shows ! and ghost yells"
+    },
+	{
+      "code": "BRPGL",
+      "label": "",
+      "note": "90-second start.  Mansion theme music"
+    },
+	{
+      "code": "BRPGV",
+      "label": "",
+      "note": "Strange creak and a spring when lifted"
+    },
+	{
+      "code": "BRPGY",
+      "label": "",
+      "note": "Heart and squeak.  Plays music, splashes, coins, and dolphin sounds as you bounce around on the code"
+    },
+	{
+      "code": "BRPLV",
+      "label": "",
+      "note": "! and bomb"
+    },
+    {
+      "code": "BRPLY",
+      "label": "",
+      "note": "Yellow yoshi"
+    },
+	{
+      "code": "BRPLT",
+      "label": "",
+      "note": "! and ghost yells"
+    },
+	{
+      "code": "BRPVG",
+      "label": "",
+      "note": "Freezes the character"
+    },
+	{
+      "code": "BRPVL",
+      "label": "",
+      "note": "Blue diamond"
+    },
+	{
+      "code": "BRPVY",
+      "label": "",
+      "note": "! and yelling"
+    },
+	{
+      "code": "BRPVT",
+      "label": "",
+      "note": "Boss battle music"
+    },
+	{
+      "code": "BRPYG",
+      "label": "",
+      "note": "! and yells ow"
+    },
+	{
+      "code": "BRPYL",
+      "label": "",
+      "note": "Purple diamond"
+    },
+	{
+      "code": "BRPYV",
+      "label": "",
+      "note": "Heart and odd noise"
+    },
+	{
+      "code": "BRPYT",
+      "label": "",
+      "note": "12-hit ghost"
+    },
+	{
+      "code": "BRPTG",
+      "label": "",
+      "note": "3-hit coin"
+    },
+	{
+      "code": "BRPTL",
+      "label": "",
+      "note": "Green diamond"
+    },
+	{
+      "code": "BRPTV",
+      "label": "",
+      "note": "! and ghost yells"
+    },
+	{
+      "code": "BRPTY",
+      "label": "",
+      "note": "Music and coins while on code"
+    },
+	{
+      "code": "BRPLG",
+      "label": "CLOWN",
+      "note": "Bowser Jr.s Clown Car"
+    },
     {
       "code": "GRBTV",
       "label": "CREAK 1",
@@ -987,7 +1100,7 @@ var database_data = {
     {
       "code": "GRYPB",
       "label": "BOOMBOOM",
-      "note": "Boom-boom. 8-hit. Luigi starter. Lego 71378"
+      "note": "Boom-boom. 8-hit. Luigi starter. Lego 71387"
     },
     {
       "code": "GRTBL",
@@ -1007,22 +1120,22 @@ var database_data = {
     {
       "code": "GRTVL",
       "label": "START 60",
-      "note": "Start 60. Luigi starter. Lego 71378"
+      "note": "Start 60. Luigi starter. Lego 71387"
     },
     {
       "code": "GRTPV",
       "label": "YOSHIEGG",
-      "note": "Pink Yoshi egg. Hop on Yoshi. Luigi Starter. Lego 71378"
+      "note": "Pink Yoshi egg. Hop on Yoshi. Luigi Starter. Lego 71387"
     },
     {
       "code": "GRTPL",
       "label": "GEAR",
-      "note": "Gear icon. !, spin for coins. Luigi Starter. Lego 71378"
+      "note": "Gear icon. !, spin for coins. Luigi Starter. Lego 71387"
     },
     {
       "code": "GRVTL",
       "label": "NUT",
-      "note": "Nut icon. !, Spin for coins. Luigi starter. Lego 71378"
+      "note": "Nut icon. !, Spin for coins. Luigi starter. Lego 71387"
     },
     {
       "code": "GRTPB",
@@ -1047,7 +1160,7 @@ var database_data = {
     {
       "code": "GRTVB",
       "label": "SEESAW",
-      "note": "Teeter-totter icon.  Ominous Music. Cooperates with Gear and Nut spinning?  Luigi starter. Lego 71378"
+      "note": "Teeter-totter icon.  Ominous Music. Cooperates with Gear and Nut spinning?  Luigi starter. Lego 71387"
     },
     {
       "code": "GRTVP",
@@ -1468,7 +1581,7 @@ function test_code_rules(code) {
 	}
 
 	// Starts with GR
-	if ( ! code.startsWith("GR") ) {
+	if ( ! (code.startsWith("GR") || code.startsWith("BR")) ) {
 		return false;
 	}
 
@@ -1542,6 +1655,14 @@ function write_unidentified_list() {
 	}
 }
 
+function check_valid_code_checkboxes() {
+	for ( let thischeck of document.querySelectorAll("input[type=checkbox]") ) {
+		if ( database_data['codeindex'][thischeck.value] || database_data['idkindex'][thischeck.value] ) {
+			thischeck.checked = true;
+		}
+	}
+}
+
 function clear_checkboxes() {
 	for ( let thischeck of document.querySelectorAll("input[type=checkbox]") ) {
 		thischeck.checked = false;
@@ -1605,6 +1726,43 @@ function brute_force_codes() {
 						unknown_codes.push(test_code);
 					}
 
+				}
+			}
+		}
+	}
+
+	// FIXME: Since BRGxy can be read as GRByx when flipped, account for "duplicates"
+	var ccode = ['B','R'];
+	var remainingcolorcodes = ['G','L','P','V','Y','T'];
+	var codespace = remainingcolorcodes.length;
+	var count = 0;
+	for ( c1=0; c1<codespace; c1++) {
+		var color1 = remainingcolorcodes[c1];
+		var test_grb_space = false;
+		if (color1 == 'G') {
+			test_grb_space = true;
+		}
+		for ( c2=0; c2<codespace; c2++) {
+			var color2 = remainingcolorcodes[c2];
+			for ( c3=0; c3<codespace; c3++) {
+				var test_code = ccode.concat([color1, color2, remainingcolorcodes[c3]]);
+				test_code = test_code.join("");
+				if (test_code_rules(test_code)) {
+					if (test_grb_space) {
+						var reversed_code = ['G','R','B',remainingcolorcodes[c3],color2];
+						reversed_code = reversed_code.join("");
+						if (test_code_rules(reversed_code)) {
+							if (!( known_codes.indexOf(reversed_code) == -1 && unknown_codes.indexOf(reversed_code) == -1 )) {
+								// Ignore it
+								// console.log("Ignoring "+test_code+" because it is "+reversed_code+" which is already in our lists")
+								continue;
+							}
+						}
+					}
+					count++;
+					if ( known_codes.indexOf(test_code) == -1 ) {
+						unknown_codes.push(test_code);
+					}
 				}
 			}
 		}
@@ -1708,6 +1866,7 @@ for (let curucode of unknown_codes) {
 </ul>
 <hr>
 <h2>Printing</h2>
+<a href="javascript:void(0)" onClick="check_valid_code_checkboxes()">Check all working codes</a><br><br>
 <a href="javascript:void(0)" onClick="clear_checkboxes()">Clear checked codes</a><br><br>
 Printing will pop open an window and write the selected SVGs to it.
 <ul>
