@@ -2,8 +2,8 @@
   "notes": [
     "8 colors: GREEN, RED, BLUE, LIME, PINK, VIOLET, YELLOW, TEAL",
     "5 Positions",
-    "Start with GR",
-    "Codespace is 512 with prefix (8^3) (not accounting for no-repeats or uniques,, narrows to 120 (6*5*4))",
+    "Start with GR or BR",
+    "GR Codespace is 512 with prefix (8^3) (not accounting for no-repeats or uniques,, narrows to 120 (6*5*4))",
     "Searched Bricklink on May 17, 2021 and found 84 parts matching 'scanner code'",
     "Sources:",
     "https://www.reddit.com/r/lego/comments/iaahnr/lego_mario_barcode_coloring_list/",
@@ -14,10 +14,11 @@
     "Version 4 added unidentified section",
     "Version 5 added optional use text",
     "Version 6 added provisional label to unidentified",
+    "Version 7 first codes starting with BR show up",
     "Copyright (c) 2021, mutesplash",
     "Future notes to self for Aug 1 update: BPYs: Luigi Bone goomba, bullet bill in 71389, Boss Sumo Crowber, Series 3 (Buzzy, Galoomba, Crowber, Scuttlebug, Swoop), Fuzzy (30389) "
   ],
-  "version": 6,
+  "version": 7,
   "codes": [
     {
       "code": "GRLBV",
@@ -572,6 +573,18 @@
       "note": "From NES set",
       "use": "Changes reactions to colors, adds orange color reaction until music stops"
     },
+	{
+      "code": "GRYVB",
+      "label": "?BLKGAME",
+      "blpns": [
+        {
+          "blpn": "14769pb469",
+          "name": "Triple star"
+        }
+      ],
+      "note": "Mario 64 Set 71395",
+      "use": "Place on purple brick to fight bowser.  Other colors to gain red coins"
+    },
     {
       "code": "GRBLP",
       "label": "HAMMER",
@@ -783,6 +796,106 @@
   ],
   "undeciphered": [],
   "unidentified": [
+	{
+      "code": "BRYPG",
+      "label": "",
+      "note": "Shows ! and ghost yells"
+    },
+	{
+      "code": "BRPGL",
+      "label": "",
+      "note": "90-second start.  Mansion theme music"
+    },
+	{
+      "code": "BRPGV",
+      "label": "",
+      "note": "Strange creak and a spring when lifted"
+    },
+	{
+      "code": "BRPGY",
+      "label": "",
+      "note": "Heart and squeak.  Plays music, splashes, coins, and dolphin sounds as you bounce around on the code"
+    },
+	{
+      "code": "BRPLV",
+      "label": "",
+      "note": "! and bomb"
+    },
+    {
+      "code": "BRPLY",
+      "label": "",
+      "note": "Yellow yoshi"
+    },
+	{
+      "code": "BRPLT",
+      "label": "",
+      "note": "! and ghost yells"
+    },
+	{
+      "code": "BRPVG",
+      "label": "",
+      "note": "Freezes the character"
+    },
+	{
+      "code": "BRPVL",
+      "label": "",
+      "note": "Blue diamond"
+    },
+	{
+      "code": "BRPVY",
+      "label": "",
+      "note": "! and yelling"
+    },
+	{
+      "code": "BRPVT",
+      "label": "",
+      "note": "Boss battle music"
+    },
+	{
+      "code": "BRPYG",
+      "label": "",
+      "note": "! and yells ow"
+    },
+	{
+      "code": "BRPYL",
+      "label": "",
+      "note": "Purple diamond"
+    },
+	{
+      "code": "BRPYV",
+      "label": "",
+      "note": "Heart and odd noise"
+    },
+	{
+      "code": "BRPYT",
+      "label": "",
+      "note": "12-hit ghost"
+    },
+	{
+      "code": "BRPTG",
+      "label": "",
+      "note": "3-hit coin"
+    },
+	{
+      "code": "BRPTL",
+      "label": "",
+      "note": "Green diamond"
+    },
+	{
+      "code": "BRPTV",
+      "label": "",
+      "note": "! and ghost yells"
+    },
+	{
+      "code": "BRPTY",
+      "label": "",
+      "note": "Music and coins while on code"
+    },
+	{
+      "code": "BRPLG",
+      "label": "CLOWN",
+      "note": "Bowser Jr.s Clown Car"
+    },
     {
       "code": "GRBTV",
       "label": "CREAK 1",
@@ -876,7 +989,7 @@
     {
       "code": "GRYPB",
       "label": "BOOMBOOM",
-      "note": "Boom-boom. 8-hit. Luigi starter. Lego 71378"
+      "note": "Boom-boom. 8-hit. Luigi starter. Lego 71387"
     },
     {
       "code": "GRTBL",
@@ -896,22 +1009,22 @@
     {
       "code": "GRTVL",
       "label": "START 60",
-      "note": "Start 60. Luigi starter. Lego 71378"
+      "note": "Start 60. Luigi starter. Lego 71387"
     },
     {
       "code": "GRTPV",
       "label": "YOSHIEGG",
-      "note": "Pink Yoshi egg. Hop on Yoshi. Luigi Starter. Lego 71378"
+      "note": "Pink Yoshi egg. Hop on Yoshi. Luigi Starter. Lego 71387"
     },
     {
       "code": "GRTPL",
       "label": "GEAR",
-      "note": "Gear icon. !, spin for coins. Luigi Starter. Lego 71378"
+      "note": "Gear icon. !, spin for coins. Luigi Starter. Lego 71387"
     },
     {
       "code": "GRVTL",
       "label": "NUT",
-      "note": "Nut icon. !, Spin for coins. Luigi starter. Lego 71378"
+      "note": "Nut icon. !, Spin for coins. Luigi starter. Lego 71387"
     },
     {
       "code": "GRTPB",
@@ -936,7 +1049,7 @@
     {
       "code": "GRTVB",
       "label": "SEESAW",
-      "note": "Teeter-totter icon.  Ominous Music. Cooperates with Gear and Nut spinning?  Luigi starter. Lego 71378"
+      "note": "Teeter-totter icon.  Ominous Music. Cooperates with Gear and Nut spinning?  Luigi starter. Lego 71387"
     },
     {
       "code": "GRTVP",
