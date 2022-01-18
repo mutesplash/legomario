@@ -974,8 +974,8 @@ var database_data = {
     },
 	{
       "code": "BRPYV",
-      "label": "",
-      "note": "Heart and odd noise"
+      "label": "EGADD",
+      "note": "Heart and odd noise. Set 71397"
     },
 	{
       "code": "BRPYT",
@@ -1010,7 +1010,7 @@ var database_data = {
     {
       "code": "GRBTV",
       "label": "CREAK 1",
-      "note": "Spooky door sound"
+      "note": "Spooky door sound.  Could be BRGVT on the tile."
     },
     {
       "code": "GRPVL",
@@ -1731,7 +1731,7 @@ function brute_force_codes() {
 		}
 	}
 
-	// FIXME: Since BRGxy can be read as GRByx when flipped, account for "duplicates"
+	// Since BRGxy can be read as GRByx when flipped, account for "duplicates"
 	var ccode = ['B','R'];
 	var remainingcolorcodes = ['G','L','P','V','Y','T'];
 	var codespace = remainingcolorcodes.length;
