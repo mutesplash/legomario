@@ -863,8 +863,8 @@
     },
 	{
       "code": "BRPYV",
-      "label": "",
-      "note": "Heart and odd noise"
+      "label": "EGADD",
+      "note": "Heart and odd noise. Set 71397"
     },
 	{
       "code": "BRPYT",
@@ -899,7 +899,7 @@
     {
       "code": "GRBTV",
       "label": "CREAK 1",
-      "note": "Spooky door sound"
+      "note": "Spooky door sound.  Could be BRGVT on the tile."
     },
     {
       "code": "GRPVL",
