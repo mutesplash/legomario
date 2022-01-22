@@ -39,6 +39,7 @@ class BTLegoMario:
 	# https://github.com/salendron/pyLegoMario
 	SUBSCRIBE_IMU_COMMAND = bytearray([0x0A, 0x00, 0x41, 0x00, 0x00, 0x05, 0x00, 0x00, 0x00, 0x01])
 	SUBSCRIBE_RGB_COMMAND = bytearray([0x0A, 0x00, 0x41, 0x01, 0x00, 0x05, 0x00, 0x00, 0x00, 0x01])
+	SUBSCRIBE_PANTS_COMMAND = bytearray([0x0A, 0x00, 0x41, 0x02, 0x00, 0x05, 0x00, 0x00, 0x00, 0x01])
 
 	code_data = None
 	which_brother = None
@@ -58,6 +59,19 @@ class BTLegoMario:
 		268:'purple',
 		312:'nougat',
 		322:'cyan'
+	}
+	pants_codes = {
+		0x0:'no',		# Sometimes mario registers 0x2 as no pants, might be a pin problem?
+		0x3:'bee',
+		0x5:'luigi',
+		0x6:'frog',
+		0xa:'tanooki',
+		0xc:'propeller',
+		0x11:'cat',
+		0x12:'fire',
+		0x14:'penguin',
+		0x21:'mario',	# Sometimes mario registers 0x20 as mario pants, might be a pin problem?
+		0x22:'builder'
 	}
 
 	def __init__(self,json_code_file=None):
@@ -107,7 +121,7 @@ class BTLegoMario:
 
 					await client.start_notify(BTLegoMario.mario_characteristic_uuid, self.mario_events)
 					await asyncio.sleep(0.1)
-					await client.write_gatt_char(BTLegoMario.mario_characteristic_uuid, BTLegoMario.SUBSCRIBE_IMU_COMMAND)
+					await client.write_gatt_char(BTLegoMario.mario_characteristic_uuid, BTLegoMario.SUBSCRIBE_PANTS_COMMAND)
 					await asyncio.sleep(0.1)
 					await client.write_gatt_char(BTLegoMario.mario_characteristic_uuid, BTLegoMario.SUBSCRIBE_RGB_COMMAND)
 					while client.is_connected:
@@ -121,7 +135,9 @@ class BTLegoMario:
 
 	def mario_events(self, sender, data):
 		dtype = "IDK"
-		if data[0] == 0x8:
+		if data[0] == 0x5:
+			dtype="PANTS"
+		elif data[0] == 0x8:
 			dtype="SCANNER"
 		elif data[0] == 0x7:
 			dtype="TILT"
@@ -157,6 +173,13 @@ class BTLegoMario:
 				print(self.which_brother+" "+dtype+" "+scantype)
 			else:
 				print(self.which_brother+" "+dtype+" "+scantype+": " + " ".join(hex(n) for n in data))
+
+		# 0x5 0x0 0x45 0x2 0x12: fire
+		elif dtype == "PANTS":
+			print(self.which_brother+" put on "+BTLegoMario.mario_pants_to_string(data[4])+" "+dtype)
+		else:
+			# print(self.which_brother+" "+dtype+" "+" ".join(hex(n) for n in data))
+			pass
 
 	def get_code_info(barcode_int):
 		info = {
@@ -320,6 +343,12 @@ class BTLegoMario:
 			return BTLegoMario.solid_colors[color]
 		else:
 			return 'unknown('+str(color)+')'
+
+	def mario_pants_to_string(mariobyte):
+		if mariobyte in BTLegoMario.pants_codes:
+			return BTLegoMario.pants_codes[mariobyte]
+		else:
+			return 'unknown('+str(hex(mariobyte))+')'
 
 	def does_code_have_mirror(mariocode):
 		if mariocode.startswith('-'):
