@@ -3,19 +3,30 @@ import platform
 import asyncio
 import time
 from bleak import BleakScanner, BleakClient
+import io
+import os
+from pathlib import Path
 
 from BTLegoMario import BTLegoMario
 
 mario_devices = {}
+json_code_file = "../mariocodes.json"
 
 async def detect_device_callback(device, advertisement_data):
 	global mario_devices
+	global json_code_file
 
 	if device:
 		mario_device = BTLegoMario.which_device(advertisement_data)
 		if mario_device:
 			if not device.address in mario_devices:
-				mario_devices[device.address] = BTLegoMario()
+				check_file = Path(os.path.expanduser(json_code_file))
+				if check_file.is_file():
+					with open(check_file, "rb") as f:
+						mario_devices[device.address] = BTLegoMario(f.read())
+				else:
+					print("Known code database (mariocodes.json) NOT loaded!")
+					mario_devices[device.address] = BTLegoMario()
 				await mario_devices[device.address].connect(device, advertisement_data)
 			else:
 				if not mario_devices[device.address].connected:
