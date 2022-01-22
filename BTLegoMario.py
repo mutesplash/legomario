@@ -1,5 +1,6 @@
 import asyncio
 from bleak import BleakClient
+import json
 
 #{
 #    kCBAdvDataChannel = 37;
@@ -39,6 +40,7 @@ class BTLegoMario:
 	SUBSCRIBE_IMU_COMMAND = bytearray([0x0A, 0x00, 0x41, 0x00, 0x00, 0x05, 0x00, 0x00, 0x00, 0x01])
 	SUBSCRIBE_RGB_COMMAND = bytearray([0x0A, 0x00, 0x41, 0x01, 0x00, 0x05, 0x00, 0x00, 0x00, 0x01])
 
+	code_data = None
 	which_brother = None
 	class_device = None
 	address = None
@@ -58,7 +60,13 @@ class BTLegoMario:
 		322:'cyan'
 	}
 
-	def __init__(self):
+	def __init__(self,json_code_file=None):
+		if json_code_file:
+			try:
+				BTLegoMario.code_data = json.loads(json_code_file)
+			except ValueError as e:  # also JSONDecodeError
+				print("Unable to load code translation JSON:"+str(e))
+
 		self.lock = asyncio.Lock()
 
 	def which_device(advertisement_data):
@@ -141,14 +149,47 @@ class BTLegoMario:
 			if scantype == 'barcode':
 				#print(dtype+" "+scantype+": " + str(hex(data[4])) +" "+str(hex(data[5])))
 				barcode_int = BTLegoMario.mario_bytes_to_int(data[4:6])
-				# FIXME: Load the JSON in here and print even more useful data
-				print(self.which_brother+" "+dtype+" "+scantype+": " + BTLegoMario.int_to_scanner_code(barcode_int)+ " ("+str(barcode_int)+")")
+				code_info = BTLegoMario.get_code_info(barcode_int)
+				print(self.which_brother+" "+dtype+" "+scantype+": "+code_info['label']+" (" + code_info['barcode']+ " "+str(barcode_int)+")")
 			elif scantype == 'color':
 				print(self.which_brother+" "+dtype+" "+scantype+": " + BTLegoMario.mario_bytes_to_solid_color(data[6:8]))
 			elif scantype == 'nothing':
 				print(self.which_brother+" "+dtype+" "+scantype)
 			else:
 				print(self.which_brother+" "+dtype+" "+scantype+": " + " ".join(hex(n) for n in data))
+
+	def get_code_info(barcode_int):
+		info = {
+			'id':barcode_int,
+			'barcode':BTLegoMario.int_to_scanner_code(barcode_int)
+		}
+		if BTLegoMario.code_data:
+			# print("Scanning database for code..")
+			if BTLegoMario.code_data['version'] == 7:
+				info = BTLegoMario.populate_code_info_version_7(info)
+
+		if not 'label' in info:
+			info['label'] = 'x_'+info['barcode']+"_"
+		return info
+
+	def populate_code_info_version_7(info):
+		# FIXME: Kind of a junky way to search them...
+		for code in BTLegoMario.code_data['codes']:
+			if code['code'] == info['barcode']:
+				info['label'] = code['label']
+				if 'note' in code:
+					info['note'] = code['note']
+				if 'use' in code:
+					info['use'] = code['use']
+				if 'blpns' in code:
+					info['blpns'] = code['blpns']
+		if not 'label' in info:
+			for code in BTLegoMario.code_data['unidentified']:
+				if code['code'] == info['barcode']:
+					info['label'] = code['label']
+					if 'note' in code:
+						info['note'] = code['note']
+		return info
 
 	def generate_gr_codespace():
 		prefix = "GR"
