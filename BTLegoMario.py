@@ -1,6 +1,7 @@
 import asyncio
 from bleak import BleakClient
-import json
+from collections.abc import Iterable
+from BTLego import BTLego
 
 #{
 #    kCBAdvDataChannel = 37;
@@ -17,35 +18,75 @@ import json
 # 97 03 is backwards because it's supposed to be a 16 bit int
 # Button state is zero
 # Hub type: 44 (Luigi)
+#	0x44
+#	010 00100
+#     2     4
+#	0x43
+#	010 00011
+#     2     3
+# 2: LEGO System
+# 3&4: mario... what about the Mindstorms hub?
 # Device Capabilities: 3 (Supports central and peripheral (bitmask))
 # Rest is garbage, AFAIAC
 
-class BTLegoMario:
-	connected = False
-
-	mario_characteristic_uuid = '00001624-1212-efde-1623-785feabcd123'
-	mario_hub_service_uuid = '00001623-1212-efde-1623-785feabcd123'
-
-	# https://github.com/bricklife/LEGO-Mario-Reveng
-	# Port #
-	#	0: Accel
-	#	1: Barcode
-	#	2: Pants
-	#	3: Something
-	#	4: Something
-	#	5: Nothing?
-	#	6: Voltage
-
-	# https://github.com/salendron/pyLegoMario
-	SUBSCRIBE_IMU_COMMAND = bytearray([0x0A, 0x00, 0x41, 0x00, 0x00, 0x05, 0x00, 0x00, 0x00, 0x01])
-	SUBSCRIBE_RGB_COMMAND = bytearray([0x0A, 0x00, 0x41, 0x01, 0x00, 0x05, 0x00, 0x00, 0x00, 0x01])
-	SUBSCRIBE_PANTS_COMMAND = bytearray([0x0A, 0x00, 0x41, 0x02, 0x00, 0x05, 0x00, 0x00, 0x00, 0x01])
-
-	code_data = None
+# Should be BTLELegoMario but that's obnoxious
+class BTLegoMario(BTLego):
 	which_brother = None
-	class_device = None
 	address = None
 	lock = None
+	client = None
+	connected = False
+
+	# keep around for whatever
+	device = None
+	advertisement = None
+
+	characteristic_uuid = '00001624-1212-efde-1623-785feabcd123'
+	hub_service_uuid = '00001623-1212-efde-1623-785feabcd123'
+
+	# https://github.com/bricklife/LEGO-Mario-Reveng
+	IMU_PORT = 0		# Inertial Monitoring Unit?
+		# Mode 0: RAW
+		# Mode 1: GEST (probably more useful)
+	RGB_PORT = 1
+		# Mode 0: TAG
+		# Mode 1: RGB
+	PANTS_PORT = 2
+		# Mode 0: PANT
+	EVENTS_PORT = 3
+		# Mode 0: CHAL
+		# Mode 1: VERS
+		# Mode 2: EVENTS
+		# Mode 3: DEBUG
+	ALT_EVENTS_PORT = 4
+		# Mode 0: Events
+			# More different events?
+	VOLTS_PORT = 6		# Constant stream of confusing data
+		# Mode 0: VLT L
+		# Mode 1: VLT S
+
+	port_name = {
+		0:'IMU',
+		1:'scanner',
+		2:'pants',
+		3:'events',
+		4:'alt_events',
+		6:'volts'
+	}
+
+	port_data = {
+	}
+
+	# Populated as:
+	#	{
+	#		port#:{
+	#			'io_type_id',
+	#			'name',
+	#			'status'
+	#		}
+	#	}
+
+	code_data = None
 	gr_codespace = {}
 	br_codespace = {}
 	solid_colors = {
@@ -60,9 +101,10 @@ class BTLegoMario:
 		312:'nougat',
 		322:'cyan'
 	}
+
 	pants_codes = {
 		0x0:'no',		# Sometimes mario registers 0x2 as no pants, might be a pin problem?
-		0x3:'bee',
+		0x3:'bee',		# Acts strange and won't send messages when these pants are on.  Needs more testing
 		0x5:'luigi',
 		0x6:'frog',
 		0xa:'tanooki',
@@ -74,13 +116,30 @@ class BTLegoMario:
 		0x22:'builder'
 	}
 
-	def __init__(self,json_code_file=None):
-		if json_code_file:
-			try:
-				BTLegoMario.code_data = json.loads(json_code_file)
-			except ValueError as e:  # also JSONDecodeError
-				print("Unable to load code translation JSON:"+str(e))
+	# Set in the advertising name
+	app_icon_names = {
+		0x61: 'flag',		# a
+		0x62: 'bell',		# b
+		0x63: 'coin',		# c
+		0x64: 'fireflower',	# d
+		0x65: 'hammer',		# e
+		0x66: 'heart',		# f
+		0x67: 'mushroom',	# g
+		0x68: 'p-switch',	# h
+		0x69: 'pow',		# i
+		0x6a: 'propeller',	# j
+		0x6b: 'star'		# k
+	}
 
+	app_icon_color_names = {
+		0x72: 'red',	# r
+		0x79: 'yellow', # y
+		0x62: 'blue',   # b
+		0x67: 'green'   # g
+	}
+
+	def __init__(self,json_code_dict=None):
+		BTLegoMario.code_data = json_code_dict
 		self.lock = asyncio.Lock()
 
 	def which_device(advertisement_data):
@@ -104,82 +163,257 @@ class BTLegoMario:
 				return 'luigi'
 			elif advertisement_data.manufacturer_data[919][1] == 0x43:
 				return 'mario'
+			else:
+				return 'UNKNOWN_MARIO'
 		return None
 
 	async def connect(self, device, advertisement_data):
 		async with self.lock:
 			self.which_brother = BTLegoMario.which_device(advertisement_data)
 			print("Connecting to "+str(self.which_brother)+"...")
-
+			self.device = device
+			self.advertisement = advertisement_data
 			try:
-				async with BleakClient(device.address) as client:
-					if not client.is_connected:
+				async with BleakClient(device.address) as self.client:
+					if not self.client.is_connected:
 						print("Failed to connect after client creation")
 						return
-					print("Connected to "+self.which_brother+"!")
+					print("Connected to "+self.which_brother+"! ("+str(device.name)+")")
 					self.connected = True
 
-					await client.start_notify(BTLegoMario.mario_characteristic_uuid, self.mario_events)
+					await self.client.start_notify(BTLegoMario.characteristic_uuid, self.mario_events)
 					await asyncio.sleep(0.1)
-					await client.write_gatt_char(BTLegoMario.mario_characteristic_uuid, BTLegoMario.SUBSCRIBE_PANTS_COMMAND)
-					await asyncio.sleep(0.1)
-					await client.write_gatt_char(BTLegoMario.mario_characteristic_uuid, BTLegoMario.SUBSCRIBE_RGB_COMMAND)
-					while client.is_connected:
+					await self.set_port_subscriptions([self.PANTS_PORT], True)
+					while self.client.is_connected:
 						await asyncio.sleep(0.05)
-					print(self.which_brother+" has disconnected.")
 					self.connected = False
+					print(self.which_brother+" has disconnected.")
 
 			except Exception as e:
-				print("Unable to connect to "+str(device.address))
-				print(e)
+				print("Unable to connect to "+str(device.address) + ": "+str(e))
 
-	def mario_events(self, sender, data):
-		dtype = "IDK"
-		if data[0] == 0x5:
-			dtype="PANTS"
-		elif data[0] == 0x8:
-			dtype="SCANNER"
-		elif data[0] == 0x7:
-			dtype="TILT"
-		elif data[0] == 0xF:
-			dtype="F WAT"
-		elif data[0] == 0xA:
-			dtype="A WAT"
+	async def mario_events(self, sender, data):
 
-		if dtype == "SCANNER":
-			scantype = None
-			if data[6] == 0xff and data[7] == 0xff:
-				scantype = 'barcode'
-			if data[4] == 0xff and data[5] == 0xff:
-				if scantype == 'barcode':
-					scantype = 'nothing'
-				else:
-					scantype = 'color'
-			if not scantype:
-				scantype = "UNKNOWN"
-				# Happened after they connected to themselves and THEN to the computer
-				#mario SCANNER UNKNOWN: 0x8 0x0 0x45 0x3 0x6e 0x38 0x0 0x0
-				#luigi SCANNER UNKNOWN: 0x8 0x0 0x45 0x3 0x62 0x38 0x0 0x0
-				#luigi SCANNER UNKNOWN: 0x8 0x0 0x45 0x3 0x59 0x38 0x1 0x0
+		bt_message = BTLego.decode_payload(data)
+		msg_prefix = self.which_brother+" "
 
-			if scantype == 'barcode':
-				#print(dtype+" "+scantype+": " + str(hex(data[4])) +" "+str(hex(data[5])))
-				barcode_int = BTLegoMario.mario_bytes_to_int(data[4:6])
-				code_info = BTLegoMario.get_code_info(barcode_int)
-				print(self.which_brother+" "+dtype+" "+scantype+": "+code_info['label']+" (" + code_info['barcode']+ " "+str(barcode_int)+")")
-			elif scantype == 'color':
-				print(self.which_brother+" "+dtype+" "+scantype+": " + BTLegoMario.mario_bytes_to_solid_color(data[6:8]))
-			elif scantype == 'nothing':
-				print(self.which_brother+" "+dtype+" "+scantype)
-			else:
-				print(self.which_brother+" "+dtype+" "+scantype+": " + " ".join(hex(n) for n in data))
-
-		# 0x5 0x0 0x45 0x2 0x12: fire
-		elif dtype == "PANTS":
-			print(self.which_brother+" put on "+BTLegoMario.mario_pants_to_string(data[4])+" "+dtype)
+		if bt_message['error']:
+			print(msg_prefix+"ERR:"+bt_message['readable'])
 		else:
-			# print(self.which_brother+" "+dtype+" "+" ".join(hex(n) for n in data))
-			pass
+			if BTLego.message_type_str[bt_message['type']] == 'port_input_format_single':
+				msg = "Disabled notifications on "
+				if bt_message['notifications']:
+					# Returned typically after gatt write
+					msg = "Enabled notifications on "
+
+				port_text = "port "+str(bt_message['port'])
+				if bt_message['port'] in BTLegoMario.port_data:
+					# Sometimes the hub_attached_io messages don't come in before the port subscriptions do
+					port_text = BTLegoMario.port_data[bt_message['port']]['name']+" port"
+
+				print(msg_prefix+msg+port_text+", mode "+str(bt_message['mode']))
+
+			elif BTLego.message_type_str[bt_message['type']] == 'hub_attached_io':
+				if BTLego.io_event_type_str[bt_message['event']] == 'attached':
+					dev = "UNKNOWN DEVICE"
+					if bt_message['io_type_id'] in BTLego.io_type_id_str:
+						dev = BTLego.io_type_id_str[bt_message['io_type_id']]
+					if bt_message['port'] in self.port_data:
+						print(msg_prefix+"Re-attached "+dev+" on port "+str(bt_message['port']))
+					else:
+						print(msg_prefix+"Attached "+dev+" on port "+str(bt_message['port']))
+
+					self.port_data[bt_message['port']] = {
+						'io_type_id':bt_message['io_type_id'],
+						'name':dev,
+						'status':bt_message['event']
+					}
+				elif BTLego.io_event_type_str[bt_message['event']] == 'detached':
+					self.port_data.pop(bt_message['port'],None)
+					print(msg_prefix+"Detached "+dev+" on port "+str(bt_message['port']))
+				else:
+					# debug this weird thing
+					print(msg_prefix+"-X- "+bt_message['readable'])
+
+			elif BTLego.message_type_str[bt_message['type']] == 'port_value_single':
+				if not bt_message['port'] in self.port_data:
+					print(msg_prefix+"ERR: Attempted to send data to unattched port "+str(bt_message['port']))
+				else:
+					pd = self.port_data[bt_message['port']]
+					if pd['name'] == 'Mario Pants Sensor':
+						self.decode_pants_data(bt_message['value'])
+					elif pd['name'] == 'Mario RGB Scanner':
+						self.decode_scanner_data(bt_message['value'])
+					elif pd['name'] == 'Mario Tilt Sensor':
+						self.decode_accel_data(bt_message['value'])
+					else:
+
+						port_text = "port "+str(bt_message['port'])
+						if bt_message['port'] in BTLegoMario.port_data:
+							# Sometimes the hub_attached_io messages don't come in before the port subscriptions do
+							port_text = BTLegoMario.port_data[bt_message['port']]['name']+" port"
+
+						print(msg_prefix+"Data on "+port_text+":"+" ".join(hex(n) for n in data))
+						# Events (3) data
+						# Whenever this is turned on, emits
+						# 0x8 0x0 0x45 0x3 0xc0 0x0 0x0 0x0
+
+						# App connected and turned these on:
+						#luigi Enabled notifications on events port, mode 1
+						#luigi Data on port 3:0x14 0x0 0x45 0x3 0xd6 0x0 0x0 0x40 0xd6 0x0 0x0 0x40 0xd6 0x0 0x0 0x40 0x15 0x0 0x15 0x0
+						#luigi Data on port 3:0x14 0x0 0x45 0x3 0xd6 0x0 0x0 0x40 0xd6 0x0 0x0 0x40 0xd6 0x0 0x0 0x40 0x15 0x0 0x15 0x0
+						#luigi Enabled notifications on events port, mode 2
+						#luigi Data on port 3:0x8 0x0 0x45 0x3 0x0 0x0 0x0 0x0
+						#luigi Data on port 3:0x8 0x0 0x45 0x3 0x1 0x19 0x3 0x0
+						#luigi Data on port 3:0x8 0x0 0x45 0x3 0x2 0x19 0x8 0x0
+						#luigi Data on port 3:0x8 0x0 0x45 0x3 0x10 0x19 0x1 0x0
+						#luigi Data on port 3:0x8 0x0 0x45 0x3 0x11 0x19 0x7 0x0
+						#luigi Data on port 3:0x8 0x0 0x45 0x3 0x80 0x1 0x0 0x0
+						#luigi Data on port 3:0x8 0x0 0x45 0x3 0x15 0x1 0x8 0x0
+						#luigi Data on port 3:0x8 0x0 0x45 0x3 0x1 0x18 0x0 0x0
+						#luigi Data on port 3:0x8 0x0 0x45 0x3 0x1 0x40 0x1 0x0
+						#luigi Data on port 3:0x8 0x0 0x45 0x3 0x2 0x40 0x1 0x0
+						#luigi Data on port 3:0x8 0x0 0x45 0x3 0x1 0x30 0x0 0x0
+
+						# Power off
+						# luigi Data on port 3:0x8 0x0 0x45 0x3 0x73 0x38 0x0 0x0
+
+						#luigi Enabled notifications on idk port, mode 0
+						#luigi Data on port 4:0x8 0x0 0x45 0x4 0x1 0x0 0xfe 0x0
+						#luigi Data on port 4:0x8 0x0 0x45 0x4 0x1 0x0 0xfe 0x0
+						#luigi Data on port 4:0x8 0x0 0x45 0x4 0xb 0x0 0xff 0xff
+						#luigi Data on port 4:0x8 0x0 0x45 0x4 0xb 0x0 0xff 0xff
+						#luigi Data on port 4:0x8 0x0 0x45 0x4 0x2 0x0 0xfe 0x0
+
+			elif BTLego.message_type_str[bt_message['type']] == 'hub_properties':
+				# The app seems to be able to subscribe to Battery Voltage and get it sent constantly
+
+				if not BTLego.hub_property_op_str[bt_message['operation']] == 'Update':
+					# everything else is a write, so you shouldn't be getting these messages!
+					print(msg_prefix+"ERR NOT UPDATE: "+bt_message['readable'])
+
+				else:
+					if not bt_message['property'] in BTLego.hub_property_str:
+						print(msg_prefix+"Unknown property "+bt_message['readable'])
+					else:
+						if BTLego.hub_property_str[bt_message['property']] == 'Button':
+							if bt_message['value']:
+								print(msg_prefix+"Bluetooth button pressed!")
+							else:
+								# Well, nobody cares if it WASN'T pressed...
+								pass
+
+						elif BTLego.hub_property_str[bt_message['property']] == 'Battery Voltage':
+							print(msg_prefix+"Battery is at "+str(bt_message['value'])+"%")
+
+						elif BTLego.hub_property_str[bt_message['property']] == 'Advertising Name':
+							self.decode_advertising_name(bt_message['value'])
+
+						else:
+							print(msg_prefix+bt_message['readable'])
+
+			elif BTLego.message_type_str[bt_message['type']] == 'port_output_command_feedback':
+				# Don't really care about these messages?
+				#print(msg_prefix+" "+bt_message['readable'])
+				pass
+
+			elif BTLego.message_type_str[bt_message['type']] == 'hub_alerts':
+
+				# Ignore "status OK" messages
+				if bt_message['status'] == True:
+					print(msg_prefix+"ALERT! "+bt_message['alert_type_str']+" - "+bt_message['operation_str'])
+
+			elif BTLego.message_type_str[bt_message['type']] == 'hub_actions':
+				# Usually a "will" message...
+				print(msg_prefix+bt_message['action_str'])
+
+			elif BTLego.message_type_str[bt_message['type']] == 'port_mode_info':
+				# Debug stuff for the ports and modes, similar to list command on BuildHAT
+				print(msg_prefix+bt_message['readable'])
+
+			else:
+				# debug for messages we've never seen before
+				print(msg_prefix+"-?- "+bt_message['readable'])
+
+	# ---- Make data useful ----
+
+	def decode_pants_data(self, data):
+		if len(data) == 1:
+			print(self.which_brother+" put on "+BTLegoMario.mario_pants_to_string(data[0])+" pants")
+		else:
+			print(self.which_brother+" UNKNOWN PANTS DATA, WEIRD LENGTH OF "+len(data)+":"+" ".join(hex(n) for n in data))
+
+	# RGB Mode 0
+	def decode_scanner_data(self, data):
+		if len(data) != 4:
+			print(self.which_brother+" UNKNOWN SCANNER DATA, WEIRD LENGTH OF "+len(data)+":"+" ".join(hex(n) for n in data))
+			return
+
+		scantype = None
+		if data[2] == 0xff and data[3] == 0xff:
+			scantype = 'barcode'
+		if data[0] == 0xff and data[1] == 0xff:
+			if scantype == 'barcode':
+				scantype = 'nothing'
+			else:
+				scantype = 'color'
+
+		if not scantype:
+			print(self.which_brother+" UNKNOWN SCANNER DATA:"+" ".join(hex(n) for n in data))
+			return
+
+		if scantype == 'barcode':
+			barcode_int = BTLegoMario.mario_bytes_to_int(data[0:2])
+			code_info = BTLegoMario.get_code_info(barcode_int)
+			print(self.which_brother+" scanned "+code_info['label']+" (" + code_info['barcode']+ " "+str(barcode_int)+")")
+		elif scantype == 'color':
+			color = BTLegoMario.mario_bytes_to_solid_color(data[2:4])
+			print (self.which_brother+" scanned color "+color)
+		else:
+			#scantype == 'nothing':
+			print(self.which_brother+" scanned nothing")
+
+	# IMU Mode 0
+	def decode_accel_data(self, data):
+		# The "default" value is around 32, which seems like g at 32 ft/s^2
+		# But when you flip a sensor 180, it's -15
+		# "Waggle" is probably detected by rapid accelerometer events that don't meaningfully change the values
+
+		# Put mario on his right side and he will register ~32
+		lr_accel = int(data[0])
+		if lr_accel > 127:
+			lr_accel = -(127-(lr_accel>>1))
+
+		# Stand mario up to register ~32
+		ud_accel = int(data[1])
+		if ud_accel > 127:
+			ud_accel = -(127-(ud_accel>>1))
+
+		# Put mario on his back and he will register ~32
+		fb_accel = int(data[2])
+		if fb_accel > 127:
+			fb_accel = -(127-(fb_accel>>1))
+
+		print(self.which_brother+" accel down "+str(ud_accel)+" accel right "+str(lr_accel)+" accel backwards "+str(fb_accel))
+
+	# FIXME: You can detect this when the app sets it, but the the question is,
+	# how do you get it to emit this over bluetooth on demand?!
+	def decode_advertising_name(self, name):
+		#LEGO Mario_j_r
+
+		if name.startswith("LEGO Mario_") == False or len(name) != 14:
+			print("Unusual advertising name set:"+name)
+			return
+
+		icon = ord(name[11])
+		color = ord(name[13])
+
+		color_str =  self.app_icon_color_names[color]
+		icon_str =  self.app_icon_names[icon]
+
+		print(self.which_brother+" icon is set to "+color_str+" "+icon_str)
+
+	# ---- Utilities ----
 
 	def get_code_info(barcode_int):
 		info = {
@@ -312,7 +546,7 @@ class BTLegoMario:
 				mirrorcode = c+"\t"+mirrorcode
 			else:
 				mirrorcode = c+"\t"
-			print(str(i)+"\t"+mirrorcode+"\t"+" ".join('0x{:02x}'.format(n) for n in mario_hex))
+			print(str(i)+"\t"+mirrorcode+"\t"+'{:09b}'.format(i))
 
 	# Probably useful instead of having to remember to do this when working with bluetooth
 	def mario_bytes_to_int(mario_byte_array):
@@ -363,3 +597,19 @@ class BTLegoMario:
 			return None
 		else:
 			return "INVAL"
+
+	async def set_port_subscriptions(self, portlist, subscribe):
+		if isinstance(portlist, Iterable):
+			for port in portlist:
+				await self.client.write_gatt_char(BTLegoMario.characteristic_uuid, BTLegoMario.gatt_subscribe_bytes(port,subscribe))
+				await asyncio.sleep(0.1)
+
+	def gatt_subscribe_bytes(port, enable):
+		# https://github.com/salendron/pyLegoMario
+
+		# Sending this results in port_input_format_single response
+		ebyte = 0
+		if enable:
+			ebyte = 1
+		# Port input format (single), port, Mode 0, delta interval of 5 (uint32), enable/disable
+		return bytearray([0x0A, 0x00, 0x41, port, 0x00, 0x05, 0x00, 0x00, 0x00, ebyte])
