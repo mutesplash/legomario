@@ -74,17 +74,9 @@ class BTLegoMario(BTLego):
 		6:'volts'
 	}
 
+	# populated in __init__
 	port_data = {
 	}
-
-	# Populated as:
-	#	{
-	#		port#:{
-	#			'io_type_id',
-	#			'name',
-	#			'status'
-	#		}
-	#	}
 
 	code_data = None
 	gr_codespace = {}
@@ -130,6 +122,7 @@ class BTLegoMario(BTLego):
 		0x6a: 'propeller',	# j
 		0x6b: 'star'		# k
 	}
+	app_icon_ints = {}
 
 	app_icon_color_names = {
 		0x72: 'red',	# r
@@ -137,10 +130,29 @@ class BTLegoMario(BTLego):
 		0x62: 'blue',   # b
 		0x67: 'green'   # g
 	}
+	app_icon_color_ints = {}
 
 	def __init__(self,json_code_dict=None):
 		BTLegoMario.code_data = json_code_dict
+		self.__init_port_data(0,0x47)
+		self.__init_port_data(1,0x49)
+		self.__init_port_data(2,0x4A)
+		self.__init_port_data(3,0x46)
+		self.__init_port_data(4,0x55)
+		self.__init_port_data(6,0x14)
+
+		# reverse map some dicts so you can index them either way
+		self.app_icon_ints = dict(map(reversed, self.app_icon_names.items()))
+		self.app_icon_color_ints = dict(map(reversed, self.app_icon_color_names.items()))
+
 		self.lock = asyncio.Lock()
+
+	def __init_port_data(self, port, port_id):
+		self.port_data[port] = {
+			'io_type_id':port_id,
+			'name':BTLego.io_type_id_str[port_id],
+			'single_input': False
+		}
 
 	def which_device(advertisement_data):
 		# https://lego.github.io/lego-ble-wireless-protocol-docs/index.html#document-2-Advertising
@@ -180,10 +192,14 @@ class BTLegoMario(BTLego):
 						return
 					print("Connected to "+self.which_brother+"! ("+str(device.name)+")")
 					self.connected = True
-
 					await self.client.start_notify(BTLegoMario.characteristic_uuid, self.mario_events)
 					await asyncio.sleep(0.1)
+
+					await self.request_name_update()
 					await self.set_port_subscriptions([self.PANTS_PORT], True)
+
+					#await self.set_icon('star', 'green')
+
 					while self.client.is_connected:
 						await asyncio.sleep(0.05)
 					self.connected = False
@@ -237,7 +253,7 @@ class BTLegoMario(BTLego):
 
 			elif BTLego.message_type_str[bt_message['type']] == 'port_value_single':
 				if not bt_message['port'] in self.port_data:
-					print(msg_prefix+"ERR: Attempted to send data to unattched port "+str(bt_message['port']))
+					print(msg_prefix+"ERR: Attempted to send data to unconfigured port "+str(bt_message['port']))
 				else:
 					pd = self.port_data[bt_message['port']]
 					if pd['name'] == 'Mario Pants Sensor':
@@ -247,12 +263,7 @@ class BTLegoMario(BTLego):
 					elif pd['name'] == 'Mario Tilt Sensor':
 						self.decode_accel_data(bt_message['value'])
 					else:
-
-						port_text = "port "+str(bt_message['port'])
-						if bt_message['port'] in BTLegoMario.port_data:
-							# Sometimes the hub_attached_io messages don't come in before the port subscriptions do
-							port_text = BTLegoMario.port_data[bt_message['port']]['name']+" port"
-
+						port_text = self.port_data[bt_message['port']]['name']+" port"
 						print(msg_prefix+"Data on "+port_text+":"+" ".join(hex(n) for n in data))
 
 			elif BTLego.message_type_str[bt_message['type']] == 'hub_properties':
@@ -573,6 +584,44 @@ class BTLegoMario(BTLego):
 			for port in portlist:
 				await self.client.write_gatt_char(BTLegoMario.characteristic_uuid, BTLegoMario.gatt_subscribe_bytes(port,0,subscribe))
 				await asyncio.sleep(0.1)
+
+	async def set_icon(self, icon, color):
+		if icon not in self.app_icon_ints:
+			print("ERROR: Attempted to set invalid icon:"+icon)
+			return
+		if color not in self.app_icon_color_ints:
+			print("ERROR: Attempted to set invalid color for icon:"+color)
+
+		set_name_bytes = bytearray([
+			0x00,	# len placeholder
+			0x00,	# padding but maybe stuff in the future (:
+			0x1,	# 'hub_properties'
+			0x1,	# 'Advertising Name'
+			0x1		# 'Set'
+		])
+
+		set_name_bytes = set_name_bytes + "LEGO Mario_I_C".encode()
+
+		set_name_bytes[0] = len(set_name_bytes)
+		set_name_bytes[16] = self.app_icon_ints[icon]
+		set_name_bytes[18] = self.app_icon_color_ints[color]
+
+		#print(" ".join('0x{:02x}'.format(n) for n in set_name_bytes))
+
+		await self.client.write_gatt_char(BTLegoMario.characteristic_uuid, set_name_bytes)
+		await asyncio.sleep(0.1)
+
+
+	async def request_name_update(self):
+		name_update_bytes = bytearray([
+			0x05,	# len
+			0x00,	# padding but maybe stuff in the future (:
+			0x1,	# 'hub_properties'
+			0x1,	# 'Advertising Name'
+			0x5		# 'Request Update'
+		])
+		await self.client.write_gatt_char(BTLegoMario.characteristic_uuid, name_update_bytes)
+		await asyncio.sleep(0.1)
 
 	def gatt_subscribe_bytes(port, mode, enable):
 		# https://github.com/salendron/pyLegoMario
