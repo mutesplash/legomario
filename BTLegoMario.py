@@ -471,6 +471,11 @@ class BTLegoMario(BTLego):
 			# 0x57 0x38 0x0 0x0
 			# 0x57 0x38 0x1 0x0		# SOMETIMES a wild 0x1 appears!
 
+			# maybe related to low battery flashing
+			# 0x61 0x38 0x8 0x0
+			# 0x61 0x38 0x3 0x0
+			# 0x61 0x38 0x8 0x0
+
 			# Dumped on app connect
 			# 0x1 0x19 0x3 0x0
 			# 0x2 0x19 0x8 0x0
@@ -513,13 +518,24 @@ class BTLegoMario(BTLego):
 			'barcode':BTLegoMario.int_to_scanner_code(barcode_int)
 		}
 		if BTLegoMario.code_data:
-			# print("Scanning database for code..")
+			# print("Scanning database for code "+str(barcode_int)+"...")
 			if BTLegoMario.code_data['version'] == 7:
 				info = BTLegoMario.populate_code_info_version_7(info)
 
 		if not 'label' in info:
 			info['label'] = 'x_'+info['barcode']+"_"
+		elif not info['label']:
+			info['label'] = 'x_'+info['barcode']+"_"
 		return info
+
+	def get_label_for_scanner_code_info(barcode_str):
+		if BTLegoMario.code_data:
+			#print("Scanning database for code "+barcode_str+"..")
+			if BTLegoMario.code_data['version'] == 7:
+				for code in BTLegoMario.code_data['codes']:
+					if code['code'] == barcode_str:
+						return code['label']
+		return ""
 
 	def populate_code_info_version_7(info):
 		# FIXME: Kind of a junky way to search them...
@@ -605,6 +621,7 @@ class BTLegoMario(BTLego):
 					count += 1
 
 	def print_codespace():
+		# i\tcode\tmirror\tlabel\tscanner hex\tbinary
 		BTLegoMario.generate_codespace()
 		BTLegoMario.print_gr_codespace()
 		BTLegoMario.print_br_codespace()
@@ -627,18 +644,26 @@ class BTLegoMario(BTLego):
 
 	def print_cached_codespace(codespace_cache):
 		for i,c in codespace_cache.items():
-			mirrorcode = None
+			mirrorcode = ""
 			splitcode = c.split('\t')
 			if isinstance(splitcode, list):
 				c = splitcode[0]
 				if splitcode[1]:
 					mirrorcode = splitcode[1]
 			mario_hex = BTLegoMario.int_to_mario_bytes(i)
-			if mirrorcode:
-				mirrorcode = c+"\t"+mirrorcode
-			else:
-				mirrorcode = c+"\t"
-			print(str(i)+"\t"+mirrorcode+"\t"+" ".join('0x{:02x}'.format(n) for n in mario_hex)+"\t"+'{:09b}'.format(i))
+
+			c_info = BTLegoMario.get_code_info(i)
+			if c == "-----":
+				c_info['label'] = ""
+			elif c == "--M--":
+				c_info['label'] = BTLegoMario.get_label_for_scanner_code_info(mirrorcode)
+
+			# Pad these out
+			c_info['label'] = "{:<8}".format(c_info['label'])
+			if not mirrorcode:
+				mirrorcode = "{:<5}".format(mirrorcode)
+
+			print(str(i)+"\t"+c+"\t"+mirrorcode+"\t"+c_info['label']+"\t"+" ".join('0x{:02x}'.format(n) for n in mario_hex)+"\t"+'{:09b}'.format(i))
 
 	# Probably useful instead of having to remember to do this when working with bluetooth
 	def mario_bytes_to_int(mario_byte_array):
