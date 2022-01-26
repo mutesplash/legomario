@@ -196,7 +196,10 @@ class BTLegoMario(BTLego):
 					await asyncio.sleep(0.1)
 
 					await self.request_name_update()
-					await self.set_port_subscriptions([self.PANTS_PORT], True)
+					await self.set_port_subscriptions([
+						[self.PANTS_PORT,0,True],
+						[self.IMU_PORT,1,True]
+					])
 
 					#await self.set_icon('star', 'green')
 
@@ -354,28 +357,53 @@ class BTLegoMario(BTLego):
 			#scantype == 'nothing':
 			print(self.which_brother+" scanned nothing")
 
-	# IMU Mode 0
+	# IMU Mode 0,1
 	def decode_accel_data(self, data):
 		# The "default" value is around 32, which seems like g at 32 ft/s^2
 		# But when you flip a sensor 180, it's -15
 		# "Waggle" is probably detected by rapid accelerometer events that don't meaningfully change the values
 
-		# Put mario on his right side and he will register ~32
-		lr_accel = int(data[0])
-		if lr_accel > 127:
-			lr_accel = -(127-(lr_accel>>1))
+		# RAW: Mode 0
+		if len(data) == 3:
+			# Put mario on his right side and he will register ~32
+			lr_accel = int(data[0])
+			if lr_accel > 127:
+				lr_accel = -(127-(lr_accel>>1))
 
-		# Stand mario up to register ~32
-		ud_accel = int(data[1])
-		if ud_accel > 127:
-			ud_accel = -(127-(ud_accel>>1))
+			# Stand mario up to register ~32
+			ud_accel = int(data[1])
+			if ud_accel > 127:
+				ud_accel = -(127-(ud_accel>>1))
 
-		# Put mario on his back and he will register ~32
-		fb_accel = int(data[2])
-		if fb_accel > 127:
-			fb_accel = -(127-(fb_accel>>1))
+			# Put mario on his back and he will register ~32
+			fb_accel = int(data[2])
+			if fb_accel > 127:
+				fb_accel = -(127-(fb_accel>>1))
 
-		print(self.which_brother+" accel down "+str(ud_accel)+" accel right "+str(lr_accel)+" accel backwards "+str(fb_accel))
+			print(self.which_brother+" accel down "+str(ud_accel)+" accel right "+str(lr_accel)+" accel backwards "+str(fb_accel))
+
+		# GEST: Mode 1
+		# 0x8 0x0 0x45 0x0 0x0 0x80 0x0 0x80
+		elif len(data) == 4:
+			notes= ""
+			if data[0] != data[2]:
+				notes += "NOTE:odd mismatch:"
+			if data[1] != data[3]:
+				notes += "NOTE:even mismatch:"
+			if (data[0] and data[1]) or (data[2] and data[3]) or (data[0] and data[3]) or (data[1] and data[2]):
+				notes += "NOTE:dual paring:"
+
+			# Ignore "no gesture"
+			if not int.from_bytes(data, byteorder="little", signed=False) == 0x0:
+				if notes:
+					print(self.which_brother+" gesture data:"+notes+" ".join(hex(n) for n in data))
+				else:
+					if data[0]:
+						print(self.which_brother+" gesture data ODD:"+str(data[0])+" ("+str(hex(data[0]))+")")
+					elif data[1]:
+						print(self.which_brother+" gesture data EVEN:"+str(data[1])+" ("+str(hex(data[1]))+")")
+					else:
+						print(self.which_brother+" gesture data logic failure:"+" ".join(hex(n) for n in data))
 
 	# FIXME: You can detect this when the app sets it, but the the question is,
 	# how do you get it to emit this over bluetooth on demand?!
@@ -579,11 +607,13 @@ class BTLegoMario(BTLego):
 		else:
 			return "INVAL"
 
-	async def set_port_subscriptions(self, portlist, subscribe):
+	# array of 3-item arrays [port, mode, subscribe on/off]
+	async def set_port_subscriptions(self, portlist):
 		if isinstance(portlist, Iterable):
-			for port in portlist:
-				await self.client.write_gatt_char(BTLegoMario.characteristic_uuid, BTLegoMario.gatt_subscribe_bytes(port,0,subscribe))
-				await asyncio.sleep(0.1)
+			for port_settings in portlist:
+				if isinstance(port_settings, Iterable) and len(port_settings) == 3:
+					await self.client.write_gatt_char(BTLegoMario.characteristic_uuid, BTLegoMario.gatt_subscribe_bytes(port_settings[0],port_settings[1],port_settings[2]))
+					await asyncio.sleep(0.1)
 
 	async def set_icon(self, icon, color):
 		if icon not in self.app_icon_ints:
@@ -610,7 +640,6 @@ class BTLegoMario(BTLego):
 
 		await self.client.write_gatt_char(BTLegoMario.characteristic_uuid, set_name_bytes)
 		await asyncio.sleep(0.1)
-
 
 	async def request_name_update(self):
 		name_update_bytes = bytearray([
