@@ -5,6 +5,7 @@ from binascii import hexlify
 class BTLego():
 
 	#https://lego.github.io/lego-ble-wireless-protocol-docs/index.html#message-typ
+	message_type_ints = {}
 	message_type_str = {
 		0x1:"hub_properties",
 		0x2:"hub_actions",
@@ -86,6 +87,7 @@ class BTLego():
 		0x4:'Update'			# Upstream (emitted from BT device)
 	}
 
+	hub_property_ints = {}
 	hub_property_str = {
 		0x1:'Advertising Name',
 		0x2:'Button',
@@ -104,6 +106,13 @@ class BTLego():
 		0xf:'Hardware Network Family',
 		0x12:'Mario UNKNOWN property'
 	}
+
+	subscribable_hub_properties = [
+		0x1,	# Advertising Name
+		0x2,	# Button
+		0x5,	# RSSI
+		0x6		# Voltage
+	]
 
 	hub_property_op_str = {
 		0x1:'Set',				# Downstream  (write to BT device)
@@ -129,6 +138,12 @@ class BTLego():
 		0x31:'Hub Will Disconnect',
 		0x32:'Hub Will Go Into Boot Mode'
 	}
+
+	def __init__(self):
+		# reverse map some dicts so you can index them either way
+		self.message_type_ints = dict(map(reversed, self.message_type_str.items()))
+		self.hub_property_ints = dict(map(reversed, self.hub_property_str.items()))
+		pass
 
 	def decode_payload(message_bytes):
 		bt_message = {
