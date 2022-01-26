@@ -133,6 +133,8 @@ class BTLegoMario(BTLego):
 	app_icon_color_ints = {}
 
 	def __init__(self,json_code_dict=None):
+		super().__init__()
+
 		BTLegoMario.code_data = json_code_dict
 		self.__init_port_data(0,0x47)
 		self.__init_port_data(1,0x49)
@@ -196,9 +198,18 @@ class BTLegoMario(BTLego):
 					await asyncio.sleep(0.1)
 
 					await self.request_name_update()
+					await self.set_updates_for_hub_properties([
+						#['Advertising Name',True],	# I guess this works different than requesting the update because something else could change it, but then THAT would cause an update message
+						#['RSSI',True],				# Doesn't really update for whatever reason
+						#['Battery Voltage',True],	# Transmits updates pretty frequently
+						['Button',True]				# Works as advertised (the "button" is the bluetooth button)
+					])
+
 					await self.set_port_subscriptions([
-						[self.PANTS_PORT,0,True],
-						[self.IMU_PORT,1,True]
+						[self.RGB_PORT,0,True],
+						[self.EVENTS_PORT,2,True],
+						# [self.IMU_PORT,1,True],
+						[self.PANTS_PORT,0,True]
 					])
 
 					#await self.set_icon('star', 'green')
@@ -265,6 +276,8 @@ class BTLegoMario(BTLego):
 						self.decode_scanner_data(bt_message['value'])
 					elif pd['name'] == 'Mario Tilt Sensor':
 						self.decode_accel_data(bt_message['value'])
+					elif pd['name'] == 'Mario Events':
+						self.decode_event_data(bt_message['value'])
 					else:
 						port_text = self.port_data[bt_message['port']]['name']+" port"
 						print(msg_prefix+"Data on "+port_text+":"+" ".join(hex(n) for n in data))
@@ -395,6 +408,7 @@ class BTLegoMario(BTLego):
 
 			# Ignore "no gesture"
 			if not int.from_bytes(data, byteorder="little", signed=False) == 0x0:
+				# FIXME: match up some patterns to real life
 				if notes:
 					print(self.which_brother+" gesture data:"+notes+" ".join(hex(n) for n in data))
 				else:
@@ -405,8 +419,77 @@ class BTLegoMario(BTLego):
 					else:
 						print(self.which_brother+" gesture data logic failure:"+" ".join(hex(n) for n in data))
 
-	# FIXME: You can detect this when the app sets it, but the the question is,
-	# how do you get it to emit this over bluetooth on demand?!
+	def decode_event_data(self, data):
+
+		# Mode 2
+		if len(data) == 4:
+			# hat tip to hints from https://github.com/bhawkes/lego-mario-web-bluetooth/blob/master/pages/index.vue
+			#													TYP		KEY		VAL (uint16)
+			#luigi Data on Mario Events port:0x8 0x0 0x45 0x3	0x9 	0x20	0x1 0x0
+
+			event_type = data[0]
+			event_key = data[1]
+			value = BTLegoMario.mario_bytes_to_int(data[2:])
+
+			decoded_something = False
+			if event_type == 0x2:
+				if event_key == 0x18:
+					#0x2 0x18 0x2 0x0
+					#0x2 0x18 0x1 0x0
+					if value == 2:
+						print(self.which_brother+" fell asleep")
+						decoded_something = True
+					elif value == 1:
+						print(self.which_brother+" woke up")
+						decoded_something = True
+			elif event_type == 0x1:
+				if event_key == 0x18:
+					if value == 0:
+						# 0x1 0x18 0x0 0x0
+						# Happens a little while after the flag, sometimes on bootup too
+						print(self.which_brother+" course status has been reset")
+						decoded_something = True
+
+			if event_key == 0x20:
+				print(self.which_brother+" now has "+str(value)+" coins (obtained via "+str(hex(event_type))+")")
+					# via:
+					# 0x9:	Bouncing around randomly
+					# 0x42:	Goomba
+					# 0x44:	Whatever complexity stomping a Spiny is
+				decoded_something = True
+
+			# Start a course
+			# 0x72 0x38 0x2 0x0	First this
+			# 0x1 0x18 0x1 0x0	Then this
+
+			# Last message before powered off via button
+			# 0x73 0x38 0x0 0x0
+
+			# Unidentified "Idle" or jumping around chatter
+			# 0x0 0x0 0x0 0x0		Probably init response when subscribed to port
+			# 0x62 0x38 0x0 0x0
+			# 0x57 0x38 0x0 0x0
+			# 0x57 0x38 0x1 0x0		# SOMETIMES a wild 0x1 appears!
+
+			# Dumped on app connect
+			# 0x1 0x19 0x3 0x0
+			# 0x2 0x19 0x8 0x0
+			# 0x10 0x19 0x1 0x0
+			# 0x11 0x19 0x7 0x0
+			# 0x80 0x1 0x0 0x0
+			# 0x15 0x1 0x8 0x0
+			# 0x1 0x18 0x0 0x0		DONE: Course status reset
+			# 0x1 0x40 0x1 0x0
+			# 0x2 0x40 0x1 0x0
+			# 0x1 0x30 0x0 0x0
+
+			if not decoded_something:
+				print(self.which_brother+" event data:"+" ".join(hex(n) for n in data))
+		else:
+			print(self.which_brother+" non-mode-2-style event data:"+" ".join(hex(n) for n in data))
+
+		pass
+
 	def decode_advertising_name(self, name):
 		#LEGO Mario_j_r
 
@@ -607,12 +690,12 @@ class BTLegoMario(BTLego):
 		else:
 			return "INVAL"
 
-	# array of 3-item arrays [port, mode, subscribe on/off]
 	async def set_port_subscriptions(self, portlist):
+		# array of 3-item arrays [port, mode, subscribe on/off]
 		if isinstance(portlist, Iterable):
 			for port_settings in portlist:
 				if isinstance(port_settings, Iterable) and len(port_settings) == 3:
-					await self.client.write_gatt_char(BTLegoMario.characteristic_uuid, BTLegoMario.gatt_subscribe_bytes(port_settings[0],port_settings[1],port_settings[2]))
+					await self.client.write_gatt_char(BTLegoMario.characteristic_uuid, BTLegoMario.port_inport_format_setup_bytes(port_settings[0],port_settings[1],port_settings[2]))
 					await asyncio.sleep(0.1)
 
 	async def set_icon(self, icon, color):
@@ -641,7 +724,35 @@ class BTLegoMario(BTLego):
 		await self.client.write_gatt_char(BTLegoMario.characteristic_uuid, set_name_bytes)
 		await asyncio.sleep(0.1)
 
+	async def set_updates_for_hub_properties(self, hub_properties):
+		# array of [str(hub_property_str),bool] arrays
+		if isinstance(hub_properties, Iterable):
+			for hub_property_settings in hub_properties:
+				if isinstance(hub_property_settings, Iterable) and len(hub_property_settings) == 2:
+					hub_property = str(hub_property_settings[0])
+					hub_property_set_updates = bool(hub_property_settings[1])
+					if hub_property in self.hub_property_ints:
+						hub_property_int = self.hub_property_ints[hub_property]
+						if hub_property_int in self.subscribable_hub_properties:
+							hub_property_operation = 0x3
+							if hub_property_set_updates:
+								print("Requesting updates for hub property: "+hub_property)
+								hub_property_operation = 0x2
+							else:
+								print("Disabling updates for hub property: "+hub_property)
+								pass
+							hub_property_update_subscription_bytes = bytearray([
+								0x05,	# len
+								0x00,	# padding but maybe stuff in the future (:
+								0x1,	# 'hub_properties'
+								hub_property_int,
+								hub_property_operation
+							])
+							await self.client.write_gatt_char(BTLegoMario.characteristic_uuid, hub_property_update_subscription_bytes)
+							await asyncio.sleep(0.1)
+
 	async def request_name_update(self):
+		# Triggers hub_properties message
 		name_update_bytes = bytearray([
 			0x05,	# len
 			0x00,	# padding but maybe stuff in the future (:
@@ -652,12 +763,13 @@ class BTLegoMario(BTLego):
 		await self.client.write_gatt_char(BTLegoMario.characteristic_uuid, name_update_bytes)
 		await asyncio.sleep(0.1)
 
-	def gatt_subscribe_bytes(port, mode, enable):
-		# https://github.com/salendron/pyLegoMario
+	def port_inport_format_setup_bytes(port, mode, enable):
+		# original hint from https://github.com/salendron/pyLegoMario
+		# Port Input Format Setup (Single) message
 
 		# Sending this results in port_input_format_single response
 		ebyte = 0
 		if enable:
 			ebyte = 1
-		# Port input format (single), port, mode, delta interval of 5 (uint32), enable/disable
+		# Len, 0x0, Port input format (single), port, mode, delta interval of 5 (uint32), notification enable/disable
 		return bytearray([0x0A, 0x00, 0x41, port, mode, 0x05, 0x00, 0x00, 0x00, ebyte])
