@@ -52,6 +52,8 @@ class BTLego():
 	}
 
 	io_type_id_str = {
+		# Lego BT document names
+		# Pybricks documents this space too https://github.com/pybricks/technical-info/blob/master/assigned-numbers.md#io-device-type-ids
 		0x1:'Motor',
 		0x2:'System Train Motor',
 		0x5:'Button',
@@ -66,6 +68,8 @@ class BTLego():
 		0x26:'External Motor with Tacho',
 		0x27:'Internal Motor with Tacho',
 		0x28:'Internal Tilt',
+
+		# My names
 		0x46:'Mario Events',
 		0x47:'Mario Tilt Sensor',
 		0x49:'Mario RGB Scanner',
@@ -104,7 +108,9 @@ class BTLego():
 		0xd:'Primary MAC Address',
 		0xe:'Secondary MAC Address',
 		0xf:'Hardware Network Family',
-		0x12:'Mario UNKNOWN property'
+
+		# My name
+		0x12:'Mario Volume'		# Can't enable updates on this property, which is annoying. Also won't send an update when you update it
 	}
 
 	subscribable_hub_properties = [
@@ -345,6 +351,17 @@ class BTLego():
 				return
 			property_value = ":".join(hexlify(n.to_bytes(1,byteorder='little')).decode('ascii') for n in payload[2:])
 			bt_message['value'] = property_value
+
+		# Mario Volume
+		elif property_involved == 0x12:
+			if payload[1] != 0x6:
+				bt_message['readable'] += "UNKNOWN VOLUME PREFIX IN MESSAGE: "+" ".join(hex(n) for n in payload)
+				bt_message['error'] = True
+				return
+
+			property_value = str(int(payload[2]))
+			# 0 - 100
+			bt_message['value'] = int(payload[2])
 
 		else:
 			bt_message['readable'] += property_involved_str+" "+property_operation_str+" UNKNOWN remaining payload:"+" ".join(hex(n) for n in payload[2:])
