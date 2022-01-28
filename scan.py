@@ -16,6 +16,10 @@ code_data = None
 json_code_file = "../mariocodes.json"
 run_seconds = 60
 
+async def mariocallbacks(message):
+	# ( type, key, value )
+	print("CALLBACK:"+str(message))
+
 async def detect_device_callback(device, advertisement_data):
 	global mario_devices
 	global code_data
@@ -24,6 +28,12 @@ async def detect_device_callback(device, advertisement_data):
 		if mario_device:
 			if not device.address in mario_devices:
 				mario_devices[device.address] = BTLegoMario(code_data)
+				callback_uuid = mario_devices[device.address].register_callback(mariocallbacks)
+				await mario_devices[device.address].subscribe_to_messages_on_callback(callback_uuid, 'event')
+#				await mario_devices[device.address].subscribe_to_messages_on_callback(callback_uuid, 'pants')
+				await mario_devices[device.address].subscribe_to_messages_on_callback(callback_uuid, 'info')
+				await mario_devices[device.address].subscribe_to_messages_on_callback(callback_uuid, 'scanner', True)
+
 				await mario_devices[device.address].connect(device, advertisement_data)
 			else:
 				if not mario_devices[device.address].connected:
