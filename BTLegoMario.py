@@ -262,6 +262,8 @@ class BTLegoMario(BTLego):
 
 					# Not always sent on connect
 					await self.request_name_update()
+					# Definitely not sent on connect
+					await self.request_volume_update()
 
 					while self.client.is_connected:
 						await asyncio.sleep(0.05)
@@ -353,7 +355,7 @@ class BTLegoMario(BTLego):
 			message = self.message_queue.get()
 			for callback_uuid, callback in self.callbacks.items():
 				if message[0] in callback[1]:
-					await callback[0](message)
+					await callback[0]((callback_uuid,) + message)
 
 	async def mario_events(self, sender, data):
 
@@ -442,6 +444,11 @@ class BTLegoMario(BTLego):
 
 						elif BTLego.hub_property_str[bt_message['property']] == 'Advertising Name':
 							self.decode_advertising_name(bt_message['value'])
+
+						# hat tip to https://github.com/djipko/legomario.py/blob/master/legomario.py
+						elif BTLego.hub_property_str[bt_message['property']] == 'Mario Volume':
+							BTLegoMario.dp(msg_prefix+"Volume set to "+str(bt_message['value']),2)
+							self.message_queue.put(('info','volume',bt_message['value']))
 
 						else:
 							BTLegoMario.dp(msg_prefix+bt_message['readable'],2)
@@ -554,6 +561,7 @@ class BTLegoMario(BTLego):
 			# Ignore "no gesture"
 			if not int.from_bytes(data, byteorder="little", signed=False) == 0x0:
 				# FIXME: match up some patterns to real life
+				# https://github.com/djipko/legomario.py/blob/master/legomario.py
 				if notes:
 					BTLegoMario.dp(self.which_brother+" gesture data:"+notes+" ".join(hex(n) for n in data),2)
 				else:
@@ -928,6 +936,23 @@ class BTLegoMario(BTLego):
 		await self.client.write_gatt_char(BTLegoMario.characteristic_uuid, set_name_bytes)
 		await asyncio.sleep(0.1)
 
+	async def set_volume(self, volume):
+		if volume > 100 or volume < 0:
+			return
+		# The levels in the app are 100, 90, 75, 50, 0
+		# Which is weird, but whatever
+		set_volume_bytes = bytearray([
+			0x06,	# len placeholder
+			0x00,	# padding but maybe stuff in the future (:
+			0x1,	# 'hub_properties'
+			0x12,	# 'Mario Volume'
+			0x1,	# 'Set'
+			volume
+		])
+
+		await self.client.write_gatt_char(BTLegoMario.characteristic_uuid, set_volume_bytes)
+		await asyncio.sleep(0.1)
+
 	async def set_updates_for_hub_properties(self, hub_properties):
 		# array of [str(hub_property_str),bool] arrays
 		if isinstance(hub_properties, Iterable):
@@ -972,6 +997,18 @@ class BTLegoMario(BTLego):
 			0x00,	# padding but maybe stuff in the future (:
 			0x1,	# 'hub_properties'
 			0x1,	# 'Advertising Name'
+			0x5		# 'Request Update'
+		])
+		await self.client.write_gatt_char(BTLegoMario.characteristic_uuid, name_update_bytes)
+		await asyncio.sleep(0.1)
+
+	async def request_volume_update(self):
+		# Triggers hub_properties message
+		name_update_bytes = bytearray([
+			0x05,	# len
+			0x00,	# padding but maybe stuff in the future (:
+			0x1,	# 'hub_properties'
+			0x12,	# 'Mario Volume'
 			0x5		# 'Request Update'
 		])
 		await self.client.write_gatt_char(BTLegoMario.characteristic_uuid, name_update_bytes)
