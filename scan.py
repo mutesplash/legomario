@@ -11,27 +11,47 @@ import json
 from BTLegoMario import BTLegoMario
 
 mario_devices = {}
+callbacks_to_device_addresses = {}
 code_data = None
 
 json_code_file = "../mariocodes.json"
 run_seconds = 60
 
+volume = 0
+
 async def mariocallbacks(message):
 	# ( type, key, value )
+	global volume
+
 	print("CALLBACK:"+str(message))
+	mario_device = mario_devices[callbacks_to_device_addresses[message[0]]]
+
+	if message[1] == 'scanner':
+		if message[2] == 'code':
+			if message[3][1] == 2:
+				volume = volume + 10
+				if volume > 100:
+					volume = 0
+				print("Setting volume to "+str(volume))
+				await mario_device.set_volume(volume)
+
 
 async def detect_device_callback(device, advertisement_data):
 	global mario_devices
+	global callbacks_to_device_addresses
 	global code_data
+
 	if device:
 		mario_device = BTLegoMario.which_device(advertisement_data)
 		if mario_device:
 			if not device.address in mario_devices:
 				mario_devices[device.address] = BTLegoMario(code_data)
 				callback_uuid = mario_devices[device.address].register_callback(mariocallbacks)
+				callbacks_to_device_addresses[callback_uuid] = device.address
 				await mario_devices[device.address].subscribe_to_messages_on_callback(callback_uuid, 'event')
 #				await mario_devices[device.address].subscribe_to_messages_on_callback(callback_uuid, 'pants')
 				await mario_devices[device.address].subscribe_to_messages_on_callback(callback_uuid, 'info')
+				await mario_devices[device.address].subscribe_to_messages_on_callback(callback_uuid, 'error')
 				await mario_devices[device.address].subscribe_to_messages_on_callback(callback_uuid, 'scanner', True)
 
 				await mario_devices[device.address].connect(device, advertisement_data)
