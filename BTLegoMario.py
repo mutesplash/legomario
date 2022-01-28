@@ -1,6 +1,9 @@
 import asyncio
-from bleak import BleakClient
+import uuid
+from queue import SimpleQueue
 from collections.abc import Iterable
+
+from bleak import BleakClient
 from BTLego import BTLego
 
 #{
@@ -31,6 +34,13 @@ from BTLego import BTLego
 
 # Should be BTLELegoMario but that's obnoxious
 class BTLegoMario(BTLego):
+	# 0:	Don't debug
+	# 1:	Print weird stuff
+	# 2:	Print most of the information flow
+	# 3:	Print stuff even you the debugger probably don't need
+	# 4:	Why did you even put this level in?
+	DEBUG = 0
+
 	which_brother = None
 	address = None
 	lock = None
@@ -41,11 +51,49 @@ class BTLegoMario(BTLego):
 	device = None
 	advertisement = None
 
+	# MESSAGE TYPES ( type, key, value )
+	# event:
+	#	'button':			'pressed'
+	#	'consciousness':	'asleep','awake'
+	#	'coincount':		(count_int, last_obtained_via_int)
+	#	'power':			'turned_off'
+	#	'bt':				'disconnected'
+	# motion
+	#	TODO raw data
+	#	TODO gesture
+	# scanner
+	#	'code':		((5-char string),(int))
+	#	'color':	(solid_colors)
+	# pants
+	#	'pants': (pants_codes)
+	# info
+	#	'brother':		'mario', 'luigi'
+	#	'icon': 		((app_icon_names),(app_icon_color_names))
+	#	'batt':			(percentage)
+	#	'power': 		'turning_off', 'disconnecting'
+	# voltage:
+	#	TODO
+	# error
+	#	message:	(str)
+	message_queue = None
+
+	callbacks = {}
+	message_types = (
+		'event',
+		'motion',
+		'gesture',
+		'scanner',
+		'pants',
+		'info',
+		'error'
+	)
+
 	characteristic_uuid = '00001624-1212-efde-1623-785feabcd123'
 	hub_service_uuid = '00001623-1212-efde-1623-785feabcd123'
 
 	# https://github.com/bricklife/LEGO-Mario-Reveng
-	IMU_PORT = 0		# Inertial Monitoring Unit?
+	IMU_PORT = 0		# Inertial Motion Unit?
+						# Pybricks calls this IMU
 		# Mode 0: RAW
 		# Mode 1: GEST (probably more useful)
 	RGB_PORT = 1
@@ -135,7 +183,19 @@ class BTLegoMario(BTLego):
 	def __init__(self,json_code_dict=None):
 		super().__init__()
 
-		BTLegoMario.code_data = json_code_dict
+		if not BTLegoMario.code_data:
+			BTLegoMario.code_data = json_code_dict
+
+		# reverse map some dicts so you can index them either way
+		if not BTLegoMario.app_icon_ints:
+			BTLegoMario.app_icon_ints = dict(map(reversed, self.app_icon_names.items()))
+		if not BTLegoMario.app_icon_color_ints:
+			BTLegoMario.app_icon_color_ints = dict(map(reversed, self.app_icon_color_names.items()))
+
+		# It would be nice to dynamically init the ports when you connect
+		# and not do some magic numbers here but
+		# 1. They're static and
+		# 2. They don't "initialize" when you connect
 		self.__init_port_data(0,0x47)
 		self.__init_port_data(1,0x49)
 		self.__init_port_data(2,0x4A)
@@ -143,9 +203,7 @@ class BTLegoMario(BTLego):
 		self.__init_port_data(4,0x55)
 		self.__init_port_data(6,0x14)
 
-		# reverse map some dicts so you can index them either way
-		self.app_icon_ints = dict(map(reversed, self.app_icon_names.items()))
-		self.app_icon_color_ints = dict(map(reversed, self.app_icon_color_names.items()))
+		self.message_queue = SimpleQueue()
 
 		self.lock = asyncio.Lock()
 
@@ -153,7 +211,7 @@ class BTLegoMario(BTLego):
 		self.port_data[port] = {
 			'io_type_id':port_id,
 			'name':BTLego.io_type_id_str[port_id],
-			'single_input': False
+			'status': 0x1	# BTLego.io_event_type_str[0x1]
 		}
 
 	def which_device(advertisement_data):
@@ -184,43 +242,118 @@ class BTLegoMario(BTLego):
 	async def connect(self, device, advertisement_data):
 		async with self.lock:
 			self.which_brother = BTLegoMario.which_device(advertisement_data)
-			print("Connecting to "+str(self.which_brother)+"...")
+			BTLegoMario.dp("Connecting to "+str(self.which_brother)+"...",2)
 			self.device = device
 			self.advertisement = advertisement_data
 			try:
 				async with BleakClient(device.address) as self.client:
 					if not self.client.is_connected:
-						print("Failed to connect after client creation")
+						BTLegoMario.dp("Failed to connect after client creation")
 						return
-					print("Connected to "+self.which_brother+"! ("+str(device.name)+")")
+					BTLegoMario.dp("Connected to "+self.which_brother+"! ("+str(device.name)+")",2)
+					self.message_queue.put(('info','brother',self.which_brother))
 					self.connected = True
 					await self.client.start_notify(BTLegoMario.characteristic_uuid, self.mario_events)
 					await asyncio.sleep(0.1)
 
+					# turn on everything everybody registered for
+					for callback_uuid,callback in self.callbacks.items():
+						await self.set_event_subscriptions(callback[1])
+
+					# Not always sent on connect
 					await self.request_name_update()
-					await self.set_updates_for_hub_properties([
-						#['Advertising Name',True],	# I guess this works different than requesting the update because something else could change it, but then THAT would cause an update message
-						#['RSSI',True],				# Doesn't really update for whatever reason
-						#['Battery Voltage',True],	# Transmits updates pretty frequently
-						['Button',True]				# Works as advertised (the "button" is the bluetooth button)
-					])
-
-					await self.set_port_subscriptions([
-						[self.RGB_PORT,0,True],
-						[self.EVENTS_PORT,2,True],
-						# [self.IMU_PORT,1,True],
-						[self.PANTS_PORT,0,True]
-					])
-
-					#await self.set_icon('star', 'green')
 
 					while self.client.is_connected:
 						await asyncio.sleep(0.05)
 					self.connected = False
-					print(self.which_brother+" has disconnected.")
+					BTLegoMario.dp(self.which_brother+" has disconnected.",2)
 
 			except Exception as e:
-				print("Unable to connect to "+str(device.address) + ": "+str(e))
+				BTLegoMario.dp("Unable to connect to "+str(device.address) + ": "+str(e))
+
+	def register_callback(self, callback):
+		# FIXME: Un-register?
+		callback_uuid = str(uuid.uuid4())
+		self.callbacks[callback_uuid] = (callback, ())
+		return callback_uuid
+
+	def request_update_on_callback(self,update_request):
+		# FIXME: User should be able to pokes mario for stuff like request_name_update
+		pass
+
+	async def subscribe_to_messages_on_callback(self, callback_uuid, message_type, subscribe=True):
+		# FIXME: Uhh, actually doesn't allow you to unsubscribe.  Good design here. Top notch
+		if not message_type in self.message_types:
+			BTLegoMario.dp("Invalid message type "+message_type)
+			return False
+		if not callback_uuid in self.callbacks:
+			BTLegoMario.dp("Given UUID not registered to recieve messages "+message_type)
+			return False
+
+		do_nothing = False
+		callback_settings = self.callbacks[callback_uuid]
+		current_subscriptions = callback_settings[1]
+		new_subscriptions = ()
+		if subscribe:
+			if message_type in current_subscriptions:
+				do_nothing = True
+			else:
+				new_subscriptions = current_subscriptions+(message_type,)
+		else:
+			if message_type in current_subscriptions:
+				sub_list = list(current_subscriptions)
+				sub_list.remove(message_type)
+				new_subscriptions = tuple(sub_list)
+			else:
+				do_nothing = True
+
+		if do_nothing:
+			new_subscriptions = current_subscriptions
+		else:
+			self.callbacks[callback_uuid] = (callback_settings[0], new_subscriptions)
+
+		if self.connected:
+			await self.set_event_subscriptions(new_subscriptions)
+
+		return True
+
+	async def set_event_subscriptions(self, current_subscriptions):
+		# FIXME: Uhh, actually doesn't allow you to unsubscribe.  Good design here. Top notch
+		if self.connected:
+			for subscription in current_subscriptions:
+				if subscription == 'event':
+					await self.set_port_subscriptions([[self.EVENTS_PORT,2,True]])
+					await self.set_updates_for_hub_properties([
+						['Button',True]				# Works as advertised (the "button" is the bluetooth button)
+					])
+
+				elif subscription == 'motion':
+					await self.set_port_subscriptions([[self.IMU_PORT,0,True]])
+				elif subscription == 'gesture':
+					await self.set_port_subscriptions([[self.IMU_PORT,1,True]])
+				elif subscription == 'scanner':
+					await self.set_port_subscriptions([[self.RGB_PORT,0,True]])
+				elif subscription == 'pants':
+					await self.set_port_subscriptions([[self.PANTS_PORT,0,True]])
+				elif subscription == 'info':
+					await self.set_updates_for_hub_properties([
+						['Advertising Name',True]	# I guess this works different than requesting the update because something else could change it, but then THAT would cause an update message
+
+						# Kind of a problem to implement in the future because you don't want these spewing at you
+						# Probably need to be separate types
+						#['RSSI',True],				# Doesn't really update for whatever reason
+						#['Battery Voltage',True],	# Transmits updates pretty frequently
+					])
+#				elif subscription == 'error'
+		else:
+			BTLegoMario.dp("NOT CONNECTED.  Not setting port subscriptions",2)
+
+	async def drain_messages(self):
+		while not self.message_queue.empty():
+			message = self.message_queue.get()
+			for callback_uuid, callback in self.callbacks.items():
+				if message[0] in callback[1]:
+					await callback[0](message)
 
 	async def mario_events(self, sender, data):
 
@@ -228,7 +361,9 @@ class BTLegoMario(BTLego):
 		msg_prefix = self.which_brother+" "
 
 		if bt_message['error']:
-			print(msg_prefix+"ERR:"+bt_message['readable'])
+			BTLegoMario.dp(msg_prefix+"ERR:"+bt_message['readable'])
+			self.message_queue.put(('error','message',bt_message['readable']))
+
 		else:
 			if BTLego.message_type_str[bt_message['type']] == 'port_input_format_single':
 				msg = "Disabled notifications on "
@@ -241,7 +376,7 @@ class BTLegoMario(BTLego):
 					# Sometimes the hub_attached_io messages don't come in before the port subscriptions do
 					port_text = BTLegoMario.port_data[bt_message['port']]['name']+" port"
 
-				print(msg_prefix+msg+port_text+", mode "+str(bt_message['mode']))
+				BTLegoMario.dp(msg_prefix+msg+port_text+", mode "+str(bt_message['mode']), 2)
 
 			elif BTLego.message_type_str[bt_message['type']] == 'hub_attached_io':
 				if BTLego.io_event_type_str[bt_message['event']] == 'attached':
@@ -249,9 +384,9 @@ class BTLegoMario(BTLego):
 					if bt_message['io_type_id'] in BTLego.io_type_id_str:
 						dev = BTLego.io_type_id_str[bt_message['io_type_id']]
 					if bt_message['port'] in self.port_data:
-						print(msg_prefix+"Re-attached "+dev+" on port "+str(bt_message['port']))
+						BTLegoMario.dp(msg_prefix+"Re-attached "+dev+" on port "+str(bt_message['port']),2)
 					else:
-						print(msg_prefix+"Attached "+dev+" on port "+str(bt_message['port']))
+						BTLegoMario.dp(msg_prefix+"Attached "+dev+" on port "+str(bt_message['port']),2)
 
 					self.port_data[bt_message['port']] = {
 						'io_type_id':bt_message['io_type_id'],
@@ -259,15 +394,16 @@ class BTLegoMario(BTLego):
 						'status':bt_message['event']
 					}
 				elif BTLego.io_event_type_str[bt_message['event']] == 'detached':
+					# Err, what?
+					BTLegoMario.dp(msg_prefix+"Detached "+dev+" on port "+str(bt_message['port']),2)
 					self.port_data.pop(bt_message['port'],None)
-					print(msg_prefix+"Detached "+dev+" on port "+str(bt_message['port']))
 				else:
 					# debug this weird thing
-					print(msg_prefix+"-X- "+bt_message['readable'])
+					BTLegoMario.dp(msg_prefix+"InputFormatSingle: "+bt_message['readable'],2)
 
 			elif BTLego.message_type_str[bt_message['type']] == 'port_value_single':
 				if not bt_message['port'] in self.port_data:
-					print(msg_prefix+"ERR: Attempted to send data to unconfigured port "+str(bt_message['port']))
+					BTLegoMario.dp(msg_prefix+"ERR: Attempted to send data to unconfigured port "+str(bt_message['port']))
 				else:
 					pd = self.port_data[bt_message['port']]
 					if pd['name'] == 'Mario Pants Sensor':
@@ -279,71 +415,78 @@ class BTLegoMario(BTLego):
 					elif pd['name'] == 'Mario Events':
 						self.decode_event_data(bt_message['value'])
 					else:
-						port_text = self.port_data[bt_message['port']]['name']+" port"
-						print(msg_prefix+"Data on "+port_text+":"+" ".join(hex(n) for n in data))
+						if BTLegoMario.DEBUG >= 2:
+							BTLegoMario.dp(msg_prefix+"Data on "+self.port_data[bt_message['port']]['name']+" port"+":"+" ".join(hex(n) for n in data),2)
 
 			elif BTLego.message_type_str[bt_message['type']] == 'hub_properties':
-				# The app seems to be able to subscribe to Battery Voltage and get it sent constantly
-
 				if not BTLego.hub_property_op_str[bt_message['operation']] == 'Update':
 					# everything else is a write, so you shouldn't be getting these messages!
-					print(msg_prefix+"ERR NOT UPDATE: "+bt_message['readable'])
+					BTLegoMario.dp(msg_prefix+"ERR NOT UPDATE: "+bt_message['readable'])
 
 				else:
 					if not bt_message['property'] in BTLego.hub_property_str:
-						print(msg_prefix+"Unknown property "+bt_message['readable'])
+						BTLegoMario.dp(msg_prefix+"Unknown property "+bt_message['readable'])
 					else:
 						if BTLego.hub_property_str[bt_message['property']] == 'Button':
 							if bt_message['value']:
-								print(msg_prefix+"Bluetooth button pressed!")
+								BTLegoMario.dp(msg_prefix+"Bluetooth button pressed!",2)
+								self.message_queue.put(('event','button','pressed'))
 							else:
 								# Well, nobody cares if it WASN'T pressed...
 								pass
 
+						# The app seems to be able to subscribe to Battery Voltage and get it sent constantly
 						elif BTLego.hub_property_str[bt_message['property']] == 'Battery Voltage':
-							print(msg_prefix+"Battery is at "+str(bt_message['value'])+"%")
+							BTLegoMario.dp(msg_prefix+"Battery is at "+str(bt_message['value'])+"%",2)
+							self.message_queue.put(('info','batt',bt_message['value']))
 
 						elif BTLego.hub_property_str[bt_message['property']] == 'Advertising Name':
 							self.decode_advertising_name(bt_message['value'])
 
 						else:
-							print(msg_prefix+bt_message['readable'])
+							BTLegoMario.dp(msg_prefix+bt_message['readable'],2)
 
 			elif BTLego.message_type_str[bt_message['type']] == 'port_output_command_feedback':
-				# Don't really care about these messages?
-				#print(msg_prefix+" "+bt_message['readable'])
+				# Don't really care about these messages?  Just a bunch of queue status reporting
+				BTLegoMario.dp(msg_prefix+" "+bt_message['readable'],3)
 				pass
 
 			elif BTLego.message_type_str[bt_message['type']] == 'hub_alerts':
-
 				# Ignore "status OK" messages
 				if bt_message['status'] == True:
-					print(msg_prefix+"ALERT! "+bt_message['alert_type_str']+" - "+bt_message['operation_str'])
+					BTLegoMario.dp(msg_prefix+"ALERT! "+bt_message['alert_type_str']+" - "+bt_message['operation_str'])
+					self.message_queue.put(('error','message',bt_message['alert_type_str']+" - "+bt_message['operation_str']))
 
 			elif BTLego.message_type_str[bt_message['type']] == 'hub_actions':
-				# Usually a "will" message...
-				print(msg_prefix+bt_message['action_str'])
+				self.decode_hub_action(bt_message)
 
 			elif BTLego.message_type_str[bt_message['type']] == 'port_mode_info':
 				# Debug stuff for the ports and modes, similar to list command on BuildHAT
-				print(msg_prefix+bt_message['readable'])
+				BTLegoMario.dp(msg_prefix+bt_message['readable'],3)
 
 			else:
 				# debug for messages we've never seen before
-				print(msg_prefix+"-?- "+bt_message['readable'])
+				BTLegoMario.dp(msg_prefix+"-?- "+bt_message['readable'],1)
+
+		BTLegoMario.dp("Draining for: "+bt_message['readable'],3)
+		await self.drain_messages()
 
 	# ---- Make data useful ----
 
 	def decode_pants_data(self, data):
 		if len(data) == 1:
-			print(self.which_brother+" put on "+BTLegoMario.mario_pants_to_string(data[0])+" pants")
+			BTLegoMario.dp(self.which_brother+" put on "+BTLegoMario.mario_pants_to_string(data[0])+" pants",2)
+			if data[0] in self.pants_codes:
+				self.message_queue.put(('pants','pants',data[0]))
+			else:
+				BTLegoMario.dp(self.which_brother+" put on unknown pants code "+str(hex(data[0])))
 		else:
-			print(self.which_brother+" UNKNOWN PANTS DATA, WEIRD LENGTH OF "+len(data)+":"+" ".join(hex(n) for n in data))
+			BTLegoMario.dp(self.which_brother+" UNKNOWN PANTS DATA, WEIRD LENGTH OF "+len(data)+":"+" ".join(hex(n) for n in data))
 
 	# RGB Mode 0
 	def decode_scanner_data(self, data):
 		if len(data) != 4:
-			print(self.which_brother+" UNKNOWN SCANNER DATA, WEIRD LENGTH OF "+len(data)+":"+" ".join(hex(n) for n in data))
+			BTLegoMario.dp(self.which_brother+" UNKNOWN SCANNER DATA, WEIRD LENGTH OF "+len(data)+":"+" ".join(hex(n) for n in data))
 			return
 
 		scantype = None
@@ -356,19 +499,21 @@ class BTLegoMario(BTLego):
 				scantype = 'color'
 
 		if not scantype:
-			print(self.which_brother+" UNKNOWN SCANNER DATA:"+" ".join(hex(n) for n in data))
+			BTLegoMario.dp(self.which_brother+" UNKNOWN SCANNER DATA:"+" ".join(hex(n) for n in data))
 			return
 
 		if scantype == 'barcode':
 			barcode_int = BTLegoMario.mario_bytes_to_int(data[0:2])
 			code_info = BTLegoMario.get_code_info(barcode_int)
-			print(self.which_brother+" scanned "+code_info['label']+" (" + code_info['barcode']+ " "+str(barcode_int)+")")
+			BTLegoMario.dp(self.which_brother+" scanned "+code_info['label']+" (" + code_info['barcode']+ " "+str(barcode_int)+")",2)
+			self.message_queue.put(('scanner','code',(code_info['barcode'], barcode_int)))
 		elif scantype == 'color':
 			color = BTLegoMario.mario_bytes_to_solid_color(data[2:4])
-			print (self.which_brother+" scanned color "+color)
+			BTLegoMario.dp(self.which_brother+" scanned color "+color,2)
+			self.message_queue.put(('scanner','color',color))
 		else:
 			#scantype == 'nothing':
-			print(self.which_brother+" scanned nothing")
+			BTLegoMario.dp(self.which_brother+" scanned nothing",2)
 
 	# IMU Mode 0,1
 	def decode_accel_data(self, data):
@@ -393,7 +538,7 @@ class BTLegoMario(BTLego):
 			if fb_accel > 127:
 				fb_accel = -(127-(fb_accel>>1))
 
-			print(self.which_brother+" accel down "+str(ud_accel)+" accel right "+str(lr_accel)+" accel backwards "+str(fb_accel))
+			BTLegoMario.dp(self.which_brother+" accel down "+str(ud_accel)+" accel right "+str(lr_accel)+" accel backwards "+str(fb_accel),2)
 
 		# GEST: Mode 1
 		# 0x8 0x0 0x45 0x0 0x0 0x80 0x0 0x80
@@ -410,20 +555,19 @@ class BTLegoMario(BTLego):
 			if not int.from_bytes(data, byteorder="little", signed=False) == 0x0:
 				# FIXME: match up some patterns to real life
 				if notes:
-					print(self.which_brother+" gesture data:"+notes+" ".join(hex(n) for n in data))
+					BTLegoMario.dp(self.which_brother+" gesture data:"+notes+" ".join(hex(n) for n in data),2)
 				else:
 					if data[0]:
-						print(self.which_brother+" gesture data ODD:"+str(data[0])+" ("+str(hex(data[0]))+")")
+						BTLegoMario.dp(self.which_brother+" gesture data ODD:"+str(data[0])+" ("+str(hex(data[0]))+")",2)
 					elif data[1]:
-						print(self.which_brother+" gesture data EVEN:"+str(data[1])+" ("+str(hex(data[1]))+")")
+						BTLegoMario.dp(self.which_brother+" gesture data EVEN:"+str(data[1])+" ("+str(hex(data[1]))+")",2)
 					else:
-						print(self.which_brother+" gesture data logic failure:"+" ".join(hex(n) for n in data))
+						BTLegoMario.dp(self.which_brother+" gesture data logic failure:"+" ".join(hex(n) for n in data),2)
 
 	def decode_event_data(self, data):
 
 		# Mode 2
 		if len(data) == 4:
-			# hat tip to hints from https://github.com/bhawkes/lego-mario-web-bluetooth/blob/master/pages/index.vue
 			#													TYP		KEY		VAL (uint16)
 			#luigi Data on Mario Events port:0x8 0x0 0x45 0x3	0x9 	0x20	0x1 0x0
 
@@ -431,31 +575,38 @@ class BTLegoMario(BTLego):
 			event_key = data[1]
 			value = BTLegoMario.mario_bytes_to_int(data[2:])
 
+			# 0x0 0x0 0x0 0x0	when powered on or when subscribed?  FIXME: after callbacks get set, check which one
+
 			decoded_something = False
 			if event_type == 0x2:
 				if event_key == 0x18:
 					#0x2 0x18 0x2 0x0
 					#0x2 0x18 0x1 0x0
 					if value == 2:
-						print(self.which_brother+" fell asleep")
+						BTLegoMario.dp(self.which_brother+" fell asleep",2)
+						self.message_queue.put(('event','consciousness','asleep'))
 						decoded_something = True
 					elif value == 1:
-						print(self.which_brother+" woke up")
+						BTLegoMario.dp(self.which_brother+" woke up",2)
+						self.message_queue.put(('event','consciousness','awake'))
 						decoded_something = True
 			elif event_type == 0x1:
 				if event_key == 0x18:
 					if value == 0:
 						# 0x1 0x18 0x0 0x0
 						# Happens a little while after the flag, sometimes on bootup too
-						print(self.which_brother+" course status has been reset")
+						BTLegoMario.dp(self.which_brother+" course status has been reset",2)
 						decoded_something = True
 
 			if event_key == 0x20:
-				print(self.which_brother+" now has "+str(value)+" coins (obtained via "+str(hex(event_type))+")")
+				# hat tip to https://github.com/bhawkes/lego-mario-web-bluetooth/blob/master/pages/index.vue
+				BTLegoMario.dp(self.which_brother+" now has "+str(value)+" coins (obtained via "+str(hex(event_type))+")",2)
+				self.message_queue.put(('event','coincount',(value, event_type)))
 					# via:
 					# 0x9:	Bouncing around randomly
 					# 0x42:	Goomba
 					# 0x44:	Whatever complexity stomping a Spiny is
+					# 0xb0: Fireball blip nothing
 				decoded_something = True
 
 			# Start a course
@@ -476,22 +627,34 @@ class BTLegoMario(BTLego):
 			# 0x61 0x38 0x3 0x0
 			# 0x61 0x38 0x8 0x0
 
+			# Hanging out and doing nothing with fire pants on
+			# 0x62 0x38 0x0 0x0
+			# 0x61 0x38 0x5 0x0
+			# 0x5e 0x38 0x0 0x0
+			# 0x61 0x38 0x8 0x0
+			# 0x61 0x38 0x3 0x0
+			# 0x61 0x38 0x8 0x0
+			# 0x61 0x38 0x3 0x0
+			# 0x66 0x38 0x0 0x0
+
+			# 0x5e 0x38 0x0 0x0		a little while after first powered on
+
 			# Dumped on app connect
 			# 0x1 0x19 0x3 0x0
 			# 0x2 0x19 0x8 0x0
 			# 0x10 0x19 0x1 0x0
 			# 0x11 0x19 0x7 0x0
 			# 0x80 0x1 0x0 0x0
-			# 0x15 0x1 0x8 0x0
+			# 0x15 0x1 0x8 0x0		Pants related (power up/down?)
 			# 0x1 0x18 0x0 0x0		DONE: Course status reset
 			# 0x1 0x40 0x1 0x0
 			# 0x2 0x40 0x1 0x0
 			# 0x1 0x30 0x0 0x0
 
 			if not decoded_something:
-				print(self.which_brother+" event data:"+" ".join(hex(n) for n in data))
+				BTLegoMario.dp(self.which_brother+" event data:"+" ".join(hex(n) for n in data),2)
 		else:
-			print(self.which_brother+" non-mode-2-style event data:"+" ".join(hex(n) for n in data))
+			BTLegoMario.dp(self.which_brother+" non-mode-2-style event data:"+" ".join(hex(n) for n in data),2)
 
 		pass
 
@@ -499,16 +662,34 @@ class BTLegoMario(BTLego):
 		#LEGO Mario_j_r
 
 		if name.startswith("LEGO Mario_") == False or len(name) != 14:
-			print("Unusual advertising name set:"+name)
+			BTLegoMario.dp("Unusual advertising name set:"+name)
 			return
 
 		icon = ord(name[11])
 		color = ord(name[13])
 
-		color_str =  self.app_icon_color_names[color]
-		icon_str =  self.app_icon_names[icon]
+		if not icon in BTLegoMario.app_icon_names:
+			BTLegoMario.dp("Unknown icon:"+str(hex(icon)))
+			return
 
-		print(self.which_brother+" icon is set to "+color_str+" "+icon_str)
+		if not color in BTLegoMario.app_icon_color_names:
+			BTLegoMario.dp("Unknown icon color:"+str(hex(color)))
+			return
+
+		if BTLegoMario.DEBUG >= 2:
+			color_str =  BTLegoMario.app_icon_color_names[color]
+			icon_str =  BTLegoMario.app_icon_names[icon]
+			BTLegoMario.dp(self.which_brother+" icon is set to "+color_str+" "+icon_str,2)
+
+		self.message_queue.put(('info','icon',(icon,color)))
+
+	def decode_hub_action(self, bt_message):
+		BTLegoMario.dp(self.which_brother+" "+bt_message['action_str'],2)
+		# BTLego.hub_action_type
+		if bt_message['action'] == 0x30:
+			self.message_queue.put(('event','power','turned_off'))
+		if bt_message['action'] == 0x31:
+			self.message_queue.put(('event','bt','disconnected'))
 
 	# ---- Utilities ----
 
@@ -518,7 +699,7 @@ class BTLegoMario(BTLego):
 			'barcode':BTLegoMario.int_to_scanner_code(barcode_int)
 		}
 		if BTLegoMario.code_data:
-			# print("Scanning database for code "+str(barcode_int)+"...")
+			BTLegoMario.dp("Scanning database for code "+str(barcode_int)+"...",3)
 			if BTLegoMario.code_data['version'] == 7:
 				info = BTLegoMario.populate_code_info_version_7(info)
 
@@ -530,7 +711,7 @@ class BTLegoMario(BTLego):
 
 	def get_label_for_scanner_code_info(barcode_str):
 		if BTLegoMario.code_data:
-			#print("Scanning database for code "+barcode_str+"..")
+			BTLegoMario.dp("Scanning database for code "+barcode_str+"..",3)
 			if BTLegoMario.code_data['version'] == 7:
 				for code in BTLegoMario.code_data['codes']:
 					if code['code'] == barcode_str:
@@ -584,7 +765,7 @@ class BTLegoMario(BTLego):
 						# Contains forbidden "color"
 						code = "-----\t"
 					mario_hex = BTLegoMario.int_to_mario_bytes(count)
-					#print(str(count)+"\t"+code+"\t"+" ".join('0x{:02x}'.format(n) for n in mario_hex))
+					BTLegoMario.dp(str(count)+"\t"+code+"\t"+" ".join('0x{:02x}'.format(n) for n in mario_hex),4)
 					BTLegoMario.gr_codespace[count] = code
 					count += 1
 
@@ -616,7 +797,7 @@ class BTLegoMario(BTLego):
 					else:
 						code = "-----\t"
 					mario_hex = BTLegoMario.int_to_mario_bytes(count)
-					#print(str(count)+"\t"+code+"\t"+" ".join('0x{:02x}'.format(n) for n in mario_hex))
+					BTLegoMario.dp(str(count)+"\t"+code+"\t"+" ".join('0x{:02x}'.format(n) for n in mario_hex),4)
 					BTLegoMario.br_codespace[count] = code
 					count += 1
 
@@ -724,11 +905,11 @@ class BTLegoMario(BTLego):
 					await asyncio.sleep(0.1)
 
 	async def set_icon(self, icon, color):
-		if icon not in self.app_icon_ints:
-			print("ERROR: Attempted to set invalid icon:"+icon)
+		if icon not in BTLegoMario.app_icon_ints:
+			BTLegoMario.dp("ERROR: Attempted to set invalid icon:"+icon)
 			return
-		if color not in self.app_icon_color_ints:
-			print("ERROR: Attempted to set invalid color for icon:"+color)
+		if color not in BTLegoMario.app_icon_color_ints:
+			BTLegoMario.dp("ERROR: Attempted to set invalid color for icon:"+color)
 
 		set_name_bytes = bytearray([
 			0x00,	# len placeholder
@@ -741,10 +922,8 @@ class BTLegoMario(BTLego):
 		set_name_bytes = set_name_bytes + "LEGO Mario_I_C".encode()
 
 		set_name_bytes[0] = len(set_name_bytes)
-		set_name_bytes[16] = self.app_icon_ints[icon]
-		set_name_bytes[18] = self.app_icon_color_ints[color]
-
-		#print(" ".join('0x{:02x}'.format(n) for n in set_name_bytes))
+		set_name_bytes[16] = BTLegoMario.app_icon_ints[icon]
+		set_name_bytes[18] = BTLegoMario.app_icon_color_ints[color]
 
 		await self.client.write_gatt_char(BTLegoMario.characteristic_uuid, set_name_bytes)
 		await asyncio.sleep(0.1)
@@ -761,10 +940,10 @@ class BTLegoMario(BTLego):
 						if hub_property_int in self.subscribable_hub_properties:
 							hub_property_operation = 0x3
 							if hub_property_set_updates:
-								print("Requesting updates for hub property: "+hub_property)
+								BTLegoMario.dp("Requesting updates for hub property: "+hub_property,2)
 								hub_property_operation = 0x2
 							else:
-								print("Disabling updates for hub property: "+hub_property)
+								BTLegoMario.dp("Disabling updates for hub property: "+hub_property,2)
 								pass
 							hub_property_update_subscription_bytes = bytearray([
 								0x05,	# len
@@ -775,6 +954,16 @@ class BTLegoMario(BTLego):
 							])
 							await self.client.write_gatt_char(BTLegoMario.characteristic_uuid, hub_property_update_subscription_bytes)
 							await asyncio.sleep(0.1)
+
+	async def turn_off(self):
+		name_update_bytes = bytearray([
+			0x04,	# len
+			0x00,	# padding but maybe stuff in the future (:
+			0x2,	# 'hub_actions'
+			0x1		# BTLego.hub_action_type: 'Switch Off Hub'  (Don't use 0x2f, powers down as if you yanked the battery)
+		])
+		await self.client.write_gatt_char(BTLegoMario.characteristic_uuid, name_update_bytes)
+		await asyncio.sleep(0.1)
 
 	async def request_name_update(self):
 		# Triggers hub_properties message
@@ -798,3 +987,8 @@ class BTLegoMario(BTLego):
 			ebyte = 1
 		# Len, 0x0, Port input format (single), port, mode, delta interval of 5 (uint32), notification enable/disable
 		return bytearray([0x0A, 0x00, 0x41, port, mode, 0x05, 0x00, 0x00, 0x00, ebyte])
+
+	def dp(pstr, level=1):
+		if BTLegoMario.DEBUG:
+			if BTLegoMario.DEBUG >= level:
+				print(pstr)
