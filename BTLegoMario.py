@@ -77,7 +77,7 @@ class BTLegoMario(BTLego):
 	#	message:	(str)
 	message_queue = None
 
-	callbacks = {}
+	callbacks = None
 	message_types = (
 		'event',
 		'motion',
@@ -204,6 +204,7 @@ class BTLegoMario(BTLego):
 		self.__init_port_data(6,0x14)
 
 		self.message_queue = SimpleQueue()
+		self.callbacks = {}
 
 		self.lock = asyncio.Lock()
 
