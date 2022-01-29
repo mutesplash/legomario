@@ -549,7 +549,7 @@ class BTLegoMario(BTLego):
 			BTLegoMario.dp(self.which_brother+" accel down "+str(ud_accel)+" accel right "+str(lr_accel)+" accel backwards "+str(fb_accel),2)
 
 		# GEST: Mode 1
-		# 0x8 0x0 0x45 0x0 0x0 0x80 0x0 0x80
+		# 0x8 0x0 0x45 0x0 [ 0x0 0x80 0x0 0x80 ]
 		elif len(data) == 4:
 			notes= ""
 			if data[0] != data[2]:
@@ -558,18 +558,63 @@ class BTLegoMario(BTLego):
 				notes += "NOTE:even mismatch:"
 			if (data[0] and data[1]) or (data[2] and data[3]) or (data[0] and data[3]) or (data[1] and data[2]):
 				notes += "NOTE:dual paring:"
-
+				# 0x41 0x2 0x41 0x2
+				# 0x2 0x4 0x2 0x4			# while jumping
+				# 0x2 0x2 0x2 0x2			# while jumping
+				# 0x41 0x8 0x41 0x8
+				# 0x41 0x1 0x41 0x1
 			# Ignore "no gesture"
 			if not int.from_bytes(data, byteorder="little", signed=False) == 0x0:
-				# FIXME: match up some patterns to real life
-				# https://github.com/djipko/legomario.py/blob/master/legomario.py
+				# Not exactly helpful, can't really replicate https://github.com/djipko/legomario.py/blob/master/legomario.py
+
+				# Odd
+				gest_first_byte = {
+					# 0x2
+					# 0x10								# 0001 0000
+					# 0x41: '?? up/down					# 0100 0001
+					# 0x81								# 1000 0001
+				}
+
+				# Even
+				gest_second_byte = {
+					0x1:	'Turns clockwise',			# 0000 0000 0000 0001
+					0x2:	'Changes direction',		# 0000 0000 0000 0010
+					0x4:	'?? base state noise',		# 0000 0000 0000 0100
+					#0x5								# 0000 0000 0000 0101
+					#0x6								# 0000 0000 0000 0110
+					#0x8	shake?						# 0000 0000 0000 1000
+					#0xa
+					#0xc
+					#0x10:	'?? sideways move/tilt',	# 0000 0000 0001 0000
+					#0x11								# 0000 0000
+					#0x12
+					#0x14								# 0000 0000
+					0x21:	'Turns counterclockwise',	# 0000 0000 0010 0001
+					#0x25
+					0x80:	'Suddenly changes directon'	# 0000 0000 1000 0000
+					#0x82								# 0000 0000 1000 0010
+					#0x92
+				}
+
 				if notes:
 					BTLegoMario.dp(self.which_brother+" gesture data:"+notes+" ".join(hex(n) for n in data),2)
 				else:
 					if data[0]:
 						BTLegoMario.dp(self.which_brother+" gesture data ODD:"+str(data[0])+" ("+str(hex(data[0]))+")",2)
 					elif data[1]:
-						BTLegoMario.dp(self.which_brother+" gesture data EVEN:"+str(data[1])+" ("+str(hex(data[1]))+")",2)
+						if data[1] in gest_second_byte:
+							if data[1] == 0x4:
+								# ignore this crap
+								return
+							BTLegoMario.dp(self.which_brother+" "+gest_second_byte[data[1]],2)
+						else:
+							BTLegoMario.dp(self.which_brother+" gesture data EVEN: ("+str(hex(data[1]))+")",2)
+							# at least emit the ones that can be detected reliably
+							if data[1] == 0x1:
+								self.message_queue.put(('gesture','turn','clockwise'))
+							elif data[1] == 0x21:
+								self.message_queue.put(('gesture','turn','counterclockwise'))
+
 					else:
 						BTLegoMario.dp(self.which_brother+" gesture data logic failure:"+" ".join(hex(n) for n in data),2)
 
