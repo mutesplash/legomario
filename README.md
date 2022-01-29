@@ -1,4 +1,7 @@
 # legomario
-Generate printable SVG scanner codes for LEGO Mario
+This project now has two goals
+* Generate printable SVG scanner codes for LEGO Mario.
+* Provide a complete Python library for interacting with LEGO Mario.
 
-This project has expanded to translate the bluetooth integers returned by LEGO Mario into scanner codes.
+    _This goal has been added due to the unfortunate desire to understand and integrate the bluetooth-encoded scanner code information that balooned into the desire to create the most complete and correct LEGO Mario communication library._
+    
