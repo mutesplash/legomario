@@ -142,19 +142,25 @@ class BTLegoMario(BTLego):
 		322:'cyan'
 	}
 
+	# Read the pins facing you with MSB on the left (Mario's right)
 	pants_codes = {
 		0x0:'no',		# Sometimes mario registers 0x2 as no pants, might be a pin problem?
+		0x1:'vacuum',	# Poltergust
+		0x2:'no',		# Just cover the case and pretend it's normal, who wants to get weird messages and debug them. When you actually PUSH pin 1 (0x2), you get the update icon
 		0x3:'bee',		# Acts strange and won't send messages when these pants are on.  Needs more testing
 		0x5:'luigi',
 		0x6:'frog',
-		0xa:'tanooki',
+		0x9:'vacuum_button',	# Poltergust
+		0xa:'tanooki',	# Leaf icon
 		0xc:'propeller',
-		0x11:'cat',
+		0x11:'cat',		# Bell icon
 		0x12:'fire',
 		0x14:'penguin',
+		0x20:'mario',	# Because who has time to deal with errata... doesn't seem to be the SAME pin problem,  When you actually PUSH pin 5 (0x20), you get the update icon
 		0x21:'mario',	# Sometimes mario registers 0x20 as mario pants, might be a pin problem?
 		0x22:'builder'
 	}
+	# 0x8 does nothing and doesn't trigger the update icon, perhaps a hidden trigger?
 
 	# Set in the advertising name
 	app_icon_names = {
@@ -369,17 +375,18 @@ class BTLegoMario(BTLego):
 
 		else:
 			if BTLego.message_type_str[bt_message['type']] == 'port_input_format_single':
-				msg = "Disabled notifications on "
-				if bt_message['notifications']:
-					# Returned typically after gatt write
-					msg = "Enabled notifications on "
+				if BTLegoMario.DEBUG >= 2:
+					msg = "Disabled notifications on "
+					if bt_message['notifications']:
+						# Returned typically after gatt write
+						msg = "Enabled notifications on "
 
-				port_text = "port "+str(bt_message['port'])
-				if bt_message['port'] in BTLegoMario.port_data:
-					# Sometimes the hub_attached_io messages don't come in before the port subscriptions do
-					port_text = BTLegoMario.port_data[bt_message['port']]['name']+" port"
+					port_text = "port "+str(bt_message['port'])
+					if bt_message['port'] in BTLegoMario.port_data:
+						# Sometimes the hub_attached_io messages don't come in before the port subscriptions do
+						port_text = BTLegoMario.port_data[bt_message['port']]['name']+" port"
 
-				BTLegoMario.dp(msg_prefix+msg+port_text+", mode "+str(bt_message['mode']), 2)
+					BTLegoMario.dp(msg_prefix+msg+port_text+", mode "+str(bt_message['mode']), 2)
 
 			elif BTLego.message_type_str[bt_message['type']] == 'hub_attached_io':
 				if BTLego.io_event_type_str[bt_message['event']] == 'attached':
@@ -745,7 +752,7 @@ class BTLegoMario(BTLego):
 		if bt_message['action'] == 0x31:
 			self.message_queue.put(('event','bt','disconnected'))
 
-	# ---- Utilities ----
+	# ---- Scanner code utilities ----
 
 	def get_code_info(barcode_int):
 		info = {
@@ -900,13 +907,19 @@ class BTLegoMario(BTLego):
 
 			print(str(i)+"\t"+c+"\t"+mirrorcode+"\t"+c_info['label']+"\t"+" ".join('0x{:02x}'.format(n) for n in mario_hex)+"\t"+'{:09b}'.format(i))
 
-	# Probably useful instead of having to remember to do this when working with bluetooth
-	def mario_bytes_to_int(mario_byte_array):
-		return int.from_bytes(mario_byte_array, byteorder="little")
-
-	# Not useful anywhere but here, IMO
-	def int_to_mario_bytes(mario_int):
-		return mario_int.to_bytes(2, byteorder="little")
+	def does_code_have_mirror(mariocode):
+		if mariocode.startswith('-'):
+			return None
+		if mariocode.startswith('BR'):
+			if mariocode[2] == 'G':
+				return 'GRB'+mariocode[4]+mariocode[3]
+			return None
+		elif mariocode.startswith('GR'):
+			if mariocode[2] == 'B':
+				return 'BRG'+mariocode[4]+mariocode[3]
+			return None
+		else:
+			return "INVAL"
 
 	def int_to_scanner_code(mario_int):
 		BTLegoMario.generate_codespace()
@@ -923,6 +936,17 @@ class BTLegoMario(BTLego):
 		else:
 			return code
 
+	# ---- Random stuff ----
+
+	# Probably useful instead of having to remember to do this when working with bluetooth
+	def mario_bytes_to_int(mario_byte_array):
+		return int.from_bytes(mario_byte_array, byteorder="little")
+
+	# Not useful anywhere but here, IMO
+	# what is this, uint16?  put this in the base
+	def int_to_mario_bytes(mario_int):
+		return mario_int.to_bytes(2, byteorder="little")
+
 	def mario_bytes_to_solid_color(mariobytes):
 		color = BTLegoMario.mario_bytes_to_int(mariobytes)
 		if color in BTLegoMario.solid_colors:
@@ -936,19 +960,12 @@ class BTLegoMario(BTLego):
 		else:
 			return 'unknown('+str(hex(mariobyte))+')'
 
-	def does_code_have_mirror(mariocode):
-		if mariocode.startswith('-'):
-			return None
-		if mariocode.startswith('BR'):
-			if mariocode[2] == 'G':
-				return 'GRB'+mariocode[4]+mariocode[3]
-			return None
-		elif mariocode.startswith('GR'):
-			if mariocode[2] == 'B':
-				return 'BRG'+mariocode[4]+mariocode[3]
-			return None
-		else:
-			return "INVAL"
+	def dp(pstr, level=1):
+		if BTLegoMario.DEBUG:
+			if BTLegoMario.DEBUG >= level:
+				print(pstr)
+
+	# ---- Bluetooth port writes ----
 
 	async def set_port_subscriptions(self, portlist):
 		# array of 3-item arrays [port, mode, subscribe on/off]
@@ -1071,7 +1088,4 @@ class BTLegoMario(BTLego):
 		# Len, 0x0, Port input format (single), port, mode, delta interval of 5 (uint32), notification enable/disable
 		return bytearray([0x0A, 0x00, 0x41, port, mode, 0x05, 0x00, 0x00, 0x00, ebyte])
 
-	def dp(pstr, level=1):
-		if BTLegoMario.DEBUG:
-			if BTLegoMario.DEBUG >= level:
-				print(pstr)
+
