@@ -28,7 +28,19 @@
           "blpn": "3068bpb1380",
           "name": "Start"
         }
-      ]
+      ],
+      "note": "60 second start: Mario starter set"
+    },
+    {
+      "code": "GRTVL",
+      "label": "START2",
+      "blpns": [
+        {
+          "blpn": "3068bpb1802",
+          "name": "Start 60 (Luigi)"
+        }
+      ],
+      "note": "60 second start: Luigi starter set"
     },
     {
       "code": "GRVPL",
@@ -38,7 +50,41 @@
           "blpn": "3068bpb1483",
           "name": "Start 30"
         }
-      ]
+      ],
+      "note": "30 second start"
+    },
+    {
+      "code": "GRVLP",
+      "label": "STARTC50",
+      "blpns": [
+        {
+          "blpn": "3068bpb1954",
+          "name": "50-coin Start"
+        }
+      ],
+      "note": "Collect 50 coins to complete.  Fail if you scan the goal code"
+    },
+    {
+      "code": "GRTBP",
+      "label": "START 90",
+      "blpns": [
+        {
+          "blpn": "3068bpb1962",
+          "name": "Cannon Start 90"
+        }
+      ],
+      "note": "90 second start. Won't start until you pull upwards.  Ominimous music plays"
+    },
+    {
+      "code": "BRPGL",
+      "label": "SSTART90",
+      "blpns": [
+        {
+          "blpn": "3068bpb1972",
+          "name": "Spooky Start 90"
+        }
+      ],
+      "note": "90 second start. Luigi's Mansion Start"
     },
     {
       "code": "GRYBV",
@@ -67,6 +113,100 @@
         {
           "blpn": "3068bpb1401",
           "name": "Speech Bubble Toadette"
+        }
+      ]
+    },
+    {
+      "code": "GRLPB",
+      "label": "TOAD 2",
+      "blpns": [
+        {
+          "blpn": "3068bpb1957",
+          "name": "Blue Toad"
+        }
+      ],
+      "note": "Shows Heart. Will also lock a player if they sit on the code too long after doing a spooky start."
+    },
+    {
+      "code": "BRPGY",
+      "label": "DORRIE",
+      "blpns": [
+        {
+          "blpn": "3068bpb1985",
+          "name": "Dorrie"
+        }
+      ]
+    },
+    {
+      "code": "BRPTY",
+      "label": "DOLPHIN",
+      "blpns": [
+        {
+          "blpn": "3068bpb1979",
+          "name": "Dolphin"
+        }
+      ],
+      "note": "Plays music.  Rideable"
+    },
+    {
+      "code": "GRTPV",
+      "label": "YOSHIEGG",
+      "blpns": [
+        {
+          "blpn": "3068bpb1807",
+          "name": "Pink Yoshi egg"
+        }
+      ],
+      "note": "Hop on Yoshi. Yoshi looks purple on the display, pink when viewed off-axis"
+    },
+    {
+      "code": "BRPLY",
+      "label": "YOSHI E2",
+      "blpns": [
+        {
+          "blpn": "3068bpb1977",
+          "name": "Yellow Yoshi egg"
+        }
+      ]
+    },
+    {
+      "code": "GRYPV",
+      "label": "POLTER",
+      "blpns": [
+        {
+          "blpn": "3068bpb1983",
+          "name": "Polterpup"
+        }
+      ]
+    },
+    {
+      "code": "GRVLY",
+      "label": "GOLDBONE",
+      "blpns": [
+        {
+          "blpn": "3068bpb1981",
+          "name": "Golden bone"
+        }
+      ],
+      "note": "Give to Polterpup"
+    },
+    {
+      "code": "BRPYV",
+      "label": "EGADD",
+      "blpns": [
+        {
+          "blpn": "3068bpb1986",
+          "name": "Professor E. Gadd"
+        }
+      ]
+    },
+    {
+      "code": "GRVYT",
+      "label": "BPENGUIN",
+      "blpns": [
+        {
+          "blpn": "3068bpb1909",
+          "name": "Baby penguin"
         }
       ]
     },
@@ -101,12 +241,46 @@
       ]
     },
     {
+      "code": "BRPYL",
+      "label": "GEM PURP",
+      "blpns": [
+        {
+          "blpn": "3068bpb1968",
+          "name": "Purple diamond"
+        }
+      ]
+    },
+    {
+      "code": "BRPVL",
+      "label": "GEM BLUE",
+      "blpns": [
+        {
+          "blpn": "3068bpb1967",
+          "name": "Blue diamond"
+        }
+      ]
+    },
+    {
+      "code": "BRPTL",
+      "label": "GEM GREE",
+      "blpns": [
+        {
+          "blpn": "3068bpb1969",
+          "name": "Green diamond"
+        }
+      ]
+    },
+    {
       "code": "GRYLP",
       "label": "RED C1",
       "blpns": [
         {
           "blpn": "3068bpb1485",
           "name": "Red Coin Block"
+        },
+        {
+          "blpn": "3068bpb1970",
+          "name": "Red Coin Block Rounded"
         }
       ]
     },
@@ -117,6 +291,10 @@
         {
           "blpn": "3068bpb1487",
           "name": "Red Coin Block 2"
+        },
+        {
+          "blpn": "11203pb082",
+          "name": "Red Coin Block Triangle"
         }
       ]
     },
@@ -127,6 +305,10 @@
         {
           "blpn": "3068bpb1486",
           "name": "Red Coin Block 3"
+        },
+        {
+          "blpn": "3068bpb1971",
+          "name": "Red Coin Block Square"
         }
       ]
     },
@@ -139,6 +321,17 @@
           "name": "Super Mushroom"
         }
       ]
+    },
+    {
+      "code": "GRTYB",
+      "label": "1-UP",
+      "blpns": [
+        {
+          "blpn": "14769pb454",
+          "name": "1-Up"
+        }
+      ],
+      "note": "Plays the 1-Up sound and shows the green mushroom"
     },
     {
       "code": "GRYBP",
@@ -178,7 +371,19 @@
           "blpn": "3068bpb1347",
           "name": "Timer"
         }
-      ]
+      ],
+      "note": "Add 30 seconds"
+    },
+    {
+      "code": "GRTLP",
+      "label": "TIMER 2",
+      "blpns": [
+        {
+          "blpn": "3068bpb1855",
+          "name": "Timer 2"
+        }
+      ],
+      "note": "Add 30 seconds"
     },
     {
       "code": "GRPYB",
@@ -280,6 +485,60 @@
       ]
     },
     {
+      "code": "GRTVY",
+      "label": "BOO",
+      "blpns": [
+        {
+          "blpn": "3068bpb1799",
+          "name": "Boo"
+        }
+      ]
+    },
+    {
+      "code": "BRYPG",
+      "label": "GRBG GHO",
+      "blpns": [
+        {
+          "blpn": "3068bpb1973",
+          "name": "Garbage can ghost"
+        }
+      ],
+      "note": "Vacuum or use star"
+    },
+    {
+      "code": "BRPLT",
+      "label": "GRBGHOST",
+      "blpns": [
+        {
+          "blpn": "3068bpb1974",
+          "name": "Grabbing ghost"
+        }
+      ],
+      "note": "Vacuum or use star"
+    },
+    {
+      "code": "BRPTV",
+      "label": "GLDGHOST",
+      "blpns": [
+        {
+          "blpn": "14769pb514",
+          "name": "Golden ghost"
+        }
+      ],
+      "note": "Vacuum or use star"
+    },
+    {
+      "code": "GRTPY",
+      "label": "BOGMIRE",
+      "blpns": [
+        {
+          "blpn": "3068bpb1984",
+          "name": "Bogmire"
+        }
+      ],
+      "note": "Vacuum or use star"
+    },
+    {
       "code": "GRBPV",
       "label": "SHY GUY",
       "blpns": [
@@ -324,6 +583,10 @@
         {
           "blpn": "3068bpb1499",
           "name": "Parachute Goomba"
+        },
+        {
+          "blpn": "3068bpb1916",
+          "name": "Scaredy Rat"
         }
       ]
     },
@@ -430,6 +693,28 @@
       ]
     },
     {
+      "code": "GRVLB",
+      "label": "AMP",
+      "blpns": [
+        {
+          "blpn": "3068bpb1801",
+          "name": "Amp"
+        }
+      ],
+      "note": "Electrocutes and causes spinning eyes without star power"
+    },
+    {
+      "code": "BRPVG",
+      "label": "FREEZIE",
+      "blpns": [
+        {
+          "blpn": "3068bpb1914",
+          "name": "Freezie"
+        }
+      ],
+      "note": "Freezes the character"
+    },
+    {
       "code": "GRBPT",
       "label": "WHOMP",
       "blpns": [
@@ -477,6 +762,26 @@
         {
           "blpn": "3068bpb1366",
           "name": "Bob-Omb 2"
+        }
+      ]
+    },
+    {
+      "code": "BRPLV",
+      "label": "BOMB 3",
+      "blpns": [
+        {
+          "blpn": "3068bpb1883",
+          "name": "Bob-omb"
+        }
+      ]
+    },
+    {
+      "code": "GRTVP",
+      "label": "PARABOMB",
+      "blpns": [
+        {
+          "blpn": "3068bpb1795",
+          "name": "Parachute Bob-omb"
         }
       ]
     },
@@ -559,7 +864,128 @@
           "name": "Pokey"
         }
       ],
-      "note": "App has it as the V as P, but that's the same as Red Coin 2.  Bricklink shows a very fuzzy V, not P."
+      "note": "App has it as the V being P, which is wrong."
+    },
+    {
+      "code": "BRPVY",
+      "label": "BIG URCH",
+      "blpns": [
+        {
+          "blpn": "3068bpb1978",
+          "name": "Purple Urchin"
+        }
+      ],
+      "note": "Not normally stompable"
+    },
+    {
+      "code": "BRPYG",
+      "label": "BULLY",
+      "blpns": [
+        {
+          "blpn": "3068bpb1910",
+          "name": "Bully"
+        }
+      ],
+      "note": "Have to do a flip before stomping for coinss"
+    },
+    {
+      "code": "GRYLT",
+      "label": "LAKITU",
+      "blpns": [
+        {
+          "blpn": "3068bpb1856",
+          "name": "Lakitu"
+        }
+      ],
+      "note": "2-hit"
+    },
+    {
+      "code": "GRTYV",
+      "label": "ROCKY",
+      "blpns": [
+        {
+          "blpn": "3068bpb1959",
+          "name": "Rocky Wrench"
+        }
+      ],
+      "note": "3-hit"
+    },
+    {
+      "code": "BRPTG",
+      "label": "COINCOFF",
+      "blpns": [
+        {
+          "blpn": "3068bpb1911",
+          "name": "Coin Coffer"
+        }
+      ],
+      "note": "3-hit"
+    },
+    {
+      "code": "GRTYP",
+      "label": "GRRROL",
+      "blpns": [
+        {
+          "blpn": "3068bpb1955",
+          "name": "Grrrol"
+        }
+      ],
+      "note": "3-hit"
+    },
+    {
+      "code": "GRTLV",
+      "label": "KAMEK",
+      "blpns": [
+        {
+          "blpn": "11203pb079",
+          "name": "Kamek"
+        }
+      ],
+      "note": "4-hit"
+    },
+    {
+      "code": "GRLPY",
+      "label": "REZNOR 1",
+      "blpns": [
+        {
+          "blpn": "3068bpb1885",
+          "name": "Reznor (With fireball)"
+        }
+      ],
+      "note": "5-hit"
+    },
+    {
+      "code": "GRVLT",
+      "label": "REZNOR 2",
+      "blpns": [
+        {
+          "blpn": "3068bpb1884",
+          "name": "Reznor (No fireball)"
+        }
+      ],
+      "note": "5-hit"
+    },
+    {
+      "code": "GRBLY",
+      "label": "SUMO",
+      "blpns": [
+        {
+          "blpn": "3068bpb1844",
+          "name": "Boss Sumo"
+        }
+      ],
+      "note": "8-hit boss"
+    },
+    {
+      "code": "GRYPB",
+      "label": "BOOMBOOM",
+      "blpns": [
+        {
+          "blpn": "3068bpb1814",
+          "name": "Boom-boom"
+        }
+      ],
+      "note": "8-hit"
     },
     {
       "code": "GRBYP",
@@ -641,6 +1067,28 @@
       "note": "Platform for avoiding Boo. Castle music, phew when stops"
     },
     {
+      "code": "GRTLB",
+      "label": "SPIN 5",
+      "blpns": [
+        {
+          "blpn": "68869pb009",
+          "name": "Spin 5"
+        }
+      ],
+      "note": "Plays SMB3 Sky Land Part 1 music. Spin for coins"
+    },
+    {
+      "code": "GRBTV",
+      "label": "SPIN 6",
+      "blpns": [
+        {
+          "blpn": "3068bpb1966",
+          "name": "Spin 6"
+        }
+      ],
+      "note": "Spinning hallway"
+    },
+    {
       "code": "GRBTY",
       "label": "WAGGLE",
       "blpns": [
@@ -650,6 +1098,17 @@
         }
       ],
       "note": "Drawbridge piece that wiggles to defeat bowser. Plays serious music"
+    },
+    {
+      "code": "BRPVT",
+      "label": "WAGGLE2",
+      "blpns": [
+        {
+          "blpn": "66792pb009",
+          "name": "Side-to-side Waggle Arrows"
+        }
+      ],
+      "note": "Wiggle to defeat King Boo.  Plays serious music. Brick smashing noise when twisted"
     },
     {
       "code": "GRVBT",
@@ -732,6 +1191,91 @@
       "note": "Comes in Womp's Lava Trouble and Toad's Treasure hunt (different brick colors)"
     },
     {
+      "code": "GRPVL",
+      "label": "KEYHOLE",
+      "blpns": [
+        {
+          "blpn": "3068bpb1982",
+          "name": "Entrance keyhole"
+        }
+      ],
+      "note": "Rotate for creaking"
+    },
+    {
+      "code": "GRVYL",
+      "label": "SKEWER",
+      "blpns": [
+        {
+          "blpn": "66792pb008",
+          "name": "Skewer"
+        }
+      ]
+    },
+    {
+      "code": "GRTLY",
+      "label": "FERRIS",
+      "blpns": [
+        {
+          "blpn": "66792pb007",
+          "name": "Ferris wheel"
+        }
+      ]
+    },
+    {
+      "code": "GRTPL",
+      "label": "GEAR",
+      "blpns": [
+        {
+          "blpn": "3068bpb1803",
+          "name": "Gear icon"
+        }
+      ],
+      "note": "Spin for coins"
+    },
+    {
+      "code": "GRVTL",
+      "label": "NUT",
+      "blpns": [
+        {
+          "blpn": "3068bpb1804",
+          "name": "Nut icon"
+        }
+      ],
+      "note": "Spin for coins"
+    },
+    {
+      "code": "GRTVB",
+      "label": "SEESAW",
+      "blpns": [
+        {
+          "blpn": "66792pb006",
+          "name": "Seesaw"
+        }
+      ],
+      "note": "Ominous Music. Cooperates with Gear and Nut spinning"
+    },
+    {
+      "code": "GRTYL",
+      "label": "BIASDIR",
+      "blpns": [
+        {
+          "blpn": "3068bpb1853",
+          "name": "Biased directional Arrows"
+        }
+      ]
+    },
+    {
+      "code": "GRTBL",
+      "label": "STEERING",
+      "blpns": [
+        {
+          "blpn": "3068bpb1958",
+          "name": "Steering wheel for Bowser's ship"
+        }
+      ],
+      "note": "Plays Sky Land 1 music"
+    },
+    {
       "code": "GRYLV",
       "label": "RAFT",
       "note": "Comes in Poison Swamp",
@@ -743,6 +1287,72 @@
       ]
     },
     {
+      "code": "BRPGV",
+      "label": "DIVING",
+      "blpns": [
+        {
+          "blpn": "3068bpb1980",
+          "name": "Diving board"
+        }
+      ],
+      "note": "Scan blue to dive into the water for coins"
+    },
+    {
+      "code": "GRLBP",
+      "label": "BROOM",
+      "note": "Up/down movement",
+      "blpns": [
+        {
+          "blpn": "3068bpb1961",
+          "name": "Kamek Broom"
+        }
+      ]
+    },
+    {
+      "code": "BRPLG",
+      "label": "CLOWN",
+      "blpns": [
+        {
+          "blpn": "3068bpb1918",
+          "name": "Bowser Jr's Clown Car"
+        }
+      ],
+      "note": "Play Sky Land 1 music.  Lift up rapidly to take off.  Sputter noise."
+    },
+    {
+      "code": "GRLBT",
+      "label": "MAST",
+      "blpns": [
+        {
+          "blpn": "3068bpb1960",
+          "name": "Bowser ship mast"
+        }
+      ],
+      "note": "8-hit"
+    },
+    {
+      "code": "GRTPB",
+      "label": "CLAW",
+      "blpns": [
+        {
+          "blpn": "11203pb081",
+          "name": "Bowser Claw"
+        }
+      ],
+      "note": "8-hit"
+    },
+    {
+      "code": "GRTBV",
+      "label": "SHIPHEAD",
+      "blpns": [
+        {
+          "blpn": "11203pb080",
+          "name": "Bowser's ship head"
+        }
+      ],
+      "note": "12-hit"
+    },
+    {
       "code": "GRBYL",
       "label": "LARRY",
       "blpns": [
@@ -750,7 +1360,8 @@
           "blpn": "3068bpb1534",
           "name": "Larry"
         }
-      ]
+      ],
+      "note": "6-hit"
     },
     {
       "code": "GRVYB",
@@ -762,6 +1373,17 @@
         }
       ],
       "note": "7-hit"
+    },
+    {
+      "code": "BRPYT",
+      "label": "KINGBOO2",
+      "blpns": [
+        {
+          "blpn": "3068bpb1975",
+          "name": "Dark Moon King Boo"
+        }
+      ],
+      "note": "12-hit"
     },
     {
       "code": "GRTBY",
@@ -797,284 +1419,14 @@
   "undeciphered": [],
   "unidentified": [
     {
-      "code": "BRYPG",
-      "label": "GRBG GHO",
-      "note": "Garbage Can Ghost. Lego 71401"
+      "code": "BRYTV",
+      "label": "YOSHI E3",
+      "note": "Red Yoshi"
     },
     {
-      "code": "BRPGL",
-      "label": "SSTART90",
-      "note": "Luigi's Mansion (Spooky!) Start, 90 seconds. Lego 71401, Lego 71397, Lego 71399"
-    },
-    {
-      "code": "BRPGV",
-      "label": "DIVING",
-      "note": "Scan blue to dive into the water for coins. Lego 71400"
-    },
-    {
-      "code": "BRPGY",
-      "label": "DORRIE",
-      "note": "Lego 71398"
-    },
-    {
-      "code": "BRPLV",
-      "label": "BOMB 3",
-      "note": "Lego 71396"
-    },
-    {
-      "code": "BRPLY",
-      "label": "YOSHI E2",
-      "note": "Yellow Yoshi. Lego 71400"
-    },
-    {
-      "code": "BRPLT",
-      "label": "GRBGHOST",
-      "note": "Grabbing ghost. Lego 71401"
-    },
-    {
-      "code": "BRPVG",
-      "label": "FREEZIE",
-      "note": "Freezes the character. Series 4 Lego 71402"
-    },
-    {
-      "code": "BRPVL",
-      "label": "GEM BLUE",
-      "note": "Blue diamond. Lego 71401"
-    },
-    {
-      "code": "BRPVY",
-      "label": "BIG URCH",
-      "note": "Purple urchin. Lego 71400"
-    },
-    {
-      "code": "BRPVT",
-      "label": "WAGGLE2",
-      "note": "King Boo battle music. Lego 71401"
-    },
-    {
-      "code": "BRPYG",
-      "label": "BULLY",
-      "note": "Series 4 Lego 71402"
-    },
-    {
-      "code": "BRPYL",
-      "label": "GEM PURP",
-      "note": "Purple diamond. Lego 71401"
-    },
-    {
-      "code": "BRPYV",
-      "label": "EGADD",
-      "note": "Lego 71397"
-    },
-    {
-      "code": "BRPYT",
-      "label": "KINGBOO",
-      "note": "12-hit Lego 71401"
-    },
-    {
-      "code": "BRPTG",
-      "label": "COINCOFF",
-      "note": "3-hit Series 4 Lego 71402"
-    },
-    {
-      "code": "BRPTL",
-      "label": "GEM GREE",
-      "note": "Green diamond. Lego 71401"
-    },
-    {
-      "code": "BRPTV",
-      "label": "GLDGHOST",
-      "note": "Golden ghost. Lego 71397"
-    },
-    {
-      "code": "BRPTY",
-      "label": "DOLPHIN",
-      "note": "Lego 71400"
-    },
-    {
-      "code": "BRPLG",
-      "label": "CLOWN",
-      "note": "Lego 71396"
-    },
-    {
-      "code": "GRBTV",
-      "label": "SPIN 6",
-      "note": "Spinning hallway. Lego 71401"
-    },
-    {
-      "code": "GRPVL",
-      "label": "KEYHOLE",
-      "note": "Entrance keyhole. Lego 71399"
-    },
-    {
-      "code": "GRVLY",
-      "label": "GOLDBONE",
-      "note": "Give to Polterpup.  Lego 71399"
-    },
-    {
-      "code": "GRVYT",
-      "label": "BPENGUIN",
-      "note": "Baby penguin. Series 4 Lego 71402"
-    },
-    {
-      "code": "GRYPV",
-      "label": "POLTER",
-      "note": "Polterpup.  Lego 71399"
-    },
-    {
-      "code": "GRTPY",
-      "label": "BOGMIRE",
-      "note": "Lego 71399"
-    },
-    {
-      "code": "GRBLY",
-      "label": "SUMO",
-      "note": "8-hit boss.  Boss Sumo.  Lego 71388."
-    },
-    {
-      "code": "GRLBP",
-      "label": "BROOM",
-      "note": "Kamek Broom (up/down movement). Lego 71391"
-    },
-    {
-      "code": "GRLBT",
-      "label": "MAST",
-      "note": "Bowser ship mast. 8-hit boss. Lego 71391"
-    },
-    {
-      "code": "GRVLB",
-      "label": "AMP",
-      "note": "Amp (Series 3, Lego 71394)"
-    },
-    {
-      "code": "GRLPY",
-      "label": "REZNOR 1",
-      "note": "5-hit Rhino 1. Reznor Knockdown. Set 71390"
-    },
-    {
-      "code": "GRVLP",
-      "label": "STARTC50",
-      "note": "50-coin Start. Reznor Knockdown. Set 71390"
-    },
-    {
-      "code": "GRVLT",
-      "label": "REZNOR 2",
-      "note": "5-hit Rhino 2. Reznor Knockdown. Set 71390"
-    },
-    {
-      "code": "GRVYL",
-      "label": "SKEWER",
-      "note": "Skewer (lego term) mechanism. Reznor Knockdown. Set 71390"
-    },
-    {
-      "code": "GRTLY",
-      "label": "FERRIS",
-      "note": "Ferris wheel. Reznor Knockdown. Set 71390"
-    },
-    {
-      "code": "GRLPB",
-      "label": "TOAD 2",
-      "note": "Heart for Blue Toad interaction. Reznor Knockdown. Set 71390.  Will also lock a brother if they sit on the code too long after doing a mansion start."
-    },
-    {
-      "code": "GRTYP",
-      "label": "GRRROL",
-      "note": "3-hit Grrol. Set 71390"
-    },
-    {
-      "code": "GRYLT",
-      "label": "LAKITU",
-      "note": "2-hit Lakitu. Lakitu Sky World. Set 71389"
-    },
-    {
-      "code": "GRYPB",
-      "label": "BOOMBOOM",
-      "note": "Boom-boom. 8-hit. Luigi starter. Lego 71387"
-    },
-    {
-      "code": "GRTBL",
-      "label": "STEERING",
-      "note": "Bowser Ship Steering Wheel (Play desert music).  Lego 71391"
-    },
-    {
-      "code": "GRTYB",
-      "label": "1-UP",
-      "note": "1-Up, Series 3. Lego 71394."
-    },
-    {
-      "code": "GRTBP",
-      "label": "START 90",
-      "note": "Cannon Start (90 sec). Lego 71391"
-    },
-    {
-      "code": "GRTVL",
-      "label": "START 60",
-      "note": "Start 60. Luigi starter. Lego 71387"
-    },
-    {
-      "code": "GRTPV",
-      "label": "YOSHIEGG",
-      "note": "Pink Yoshi egg. Hop on Yoshi. Luigi Starter. Lego 71387"
-    },
-    {
-      "code": "GRTPL",
-      "label": "GEAR",
-      "note": "Gear icon. !, spin for coins. Luigi Starter. Lego 71387"
-    },
-    {
-      "code": "GRVTL",
-      "label": "NUT",
-      "note": "Nut icon. !, Spin for coins. Luigi starter. Lego 71387"
-    },
-    {
-      "code": "GRTPB",
-      "label": "CLAW",
-      "note": "8-hit Bowser Claw. Lego 71391"
-    },
-    {
-      "code": "GRTBV",
-      "label": "SHIPHEAD",
-      "note": "Bowser Ship head (12-hit). Lego 71391"
-    },
-    {
-      "code": "GRTLV",
-      "label": "KAMEK",
-      "note": "Kamek (4-hit). Lego 71391"
-    },
-    {
-      "code": "GRTLP",
-      "label": "TIMER 2",
-      "note": "Add 30 seconds. Lakitu Sky World. Set 71389"
-    },
-    {
-      "code": "GRTVB",
-      "label": "SEESAW",
-      "note": "Teeter-totter icon.  Ominous Music. Cooperates with Gear and Nut spinning?  Luigi starter. Lego 71387"
-    },
-    {
-      "code": "GRTVP",
-      "label": "PARABOMB",
-      "note": "Parachute Bob-omb, Series 3. Lego 71394."
-    },
-    {
-      "code": "GRTVY",
-      "label": "BOO",
-      "note": "Boo, Series 3. Lego 71394."
-    },
-    {
-      "code": "GRTYL",
-      "label": "BIASDIR",
-      "note": "Biased directional Arrows. Lakitu Sky World. Set 71389"
-    },
-    {
-      "code": "GRTLB",
-      "label": "SPIN 5",
-      "note": "Spin. Lakitu Sky World. Set 71389"
-    },
-    {
-      "code": "GRTYV",
-      "label": "ROCKY",
-      "note": "3-hit.  Rocky Wrench.  Lego 71391"
+      "code": "BRYPL",
+      "label": "YOSHI E4",
+      "note": "Green Yoshi"
     },
     {
       "code": "BRVTG",
@@ -1104,17 +1456,17 @@
     {
       "code": "BRVGP",
       "label": "",
-      "note": "6-hit"
+      "note": "6-hit."
     },
     {
       "code": "BRVPG",
       "label": "",
-      "note": "6-hit"
+      "note": "6-hit. Peach starter Lemmy?"
     },
     {
       "code": "BRVYG",
-      "label": "",
-      "note": "Start 60"
+      "label": "START3",
+      "note": "60-second start: Peach starter set?"
     },
     {
       "code": "BRVYP",
@@ -1123,7 +1475,7 @@
     },
     {
       "code": "BRYGL",
-      "label": "",
+      "label": "FRUIT PR",
       "note": "Purple fruit (give to yoshi, plays music and says 'for you', or 'you're welcome')"
     },
     {
@@ -1133,8 +1485,8 @@
     },
     {
       "code": "BRYGV",
-      "label": "",
-      "note": "Present icon (sometimes empty, can put fruit in it?)"
+      "label": "PRESENT2",
+      "note": "Present icon 2 (sometimes empty, can put fruit in it?)"
     },
     {
       "code": "BRYGT",
@@ -1148,8 +1500,8 @@
     },
     {
       "code": "BRYLP",
-      "label": "",
-      "note": "Present icon 2"
+      "label": "PRESENT",
+      "note": "Present icon.  Peach starter set. 71403"
     },
     {
       "code": "BRYLV",
@@ -1158,13 +1510,8 @@
     },
     {
       "code": "BRYLT",
-      "label": "",
+      "label": "FRUIT GR",
       "note": "Green fruit"
-    },
-    {
-      "code": "BRYPL",
-      "label": "",
-      "note": "Green Yoshi"
     },
     {
       "code": "BRYPV",
@@ -1178,8 +1525,8 @@
     },
     {
       "code": "BRYVG",
-      "label": "",
-      "note": "Desert theme music.  Clinking sound of glass when shaken."
+      "label": "SWING",
+      "note": "Sky Land 1 music.  Clinking sound of glass when tipped.  Coins when you do a flip. Peach swing. 71403"
     },
     {
       "code": "BRYVL",
@@ -1193,8 +1540,8 @@
     },
     {
       "code": "BRYVT",
-      "label": "",
-      "note": "Red fruit"
+      "label": "FRUIT RE",
+      "note": "Red fruit.  Peach starter set. 71403"
     },
     {
       "code": "BRYTG",
@@ -1212,14 +1559,9 @@
       "note": "Boop.  Yellow exclamation point"
     },
     {
-      "code": "BRYTV",
-      "label": "",
-      "note": "Red Yoshi"
-    },
-    {
       "code": "GRBVT",
       "label": "",
-      "note": "Desert theme music."
+      "note": "Sky Land 1 music."
     }
   ]
 }
