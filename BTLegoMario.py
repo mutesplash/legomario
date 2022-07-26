@@ -144,23 +144,44 @@ class BTLegoMario(BTLego):
 
 	# Read the pins facing you with MSB on the left (Mario's right)
 	pants_codes = {
-		0x0:'no',		# Sometimes mario registers 0x2 as no pants, might be a pin problem?
-		0x1:'vacuum',	# Poltergust
-		0x2:'no',		# Just cover the case and pretend it's normal, who wants to get weird messages and debug them. When you actually PUSH pin 1 (0x2), you get the update icon
-		0x3:'bee',		# Acts strange and won't send messages when these pants are on.  Needs more testing
-		0x5:'luigi',
-		0x6:'frog',
-		0x9:'vacuum_button',	# Poltergust
-		0xa:'tanooki',	# Leaf icon
-		0xc:'propeller',
-		0x11:'cat',		# Bell icon
-		0x12:'fire',
-		0x14:'penguin',
-		0x20:'mario',	# Because who has time to deal with errata... doesn't seem to be the SAME pin problem,  When you actually PUSH pin 5 (0x20), you get the update icon
-		0x21:'mario',	# Sometimes mario registers 0x20 as mario pants, might be a pin problem?
-		0x22:'builder'
+		0x0:'no',			# 000 000	Sometimes mario registers 0x2 as no pants, might be a pin problem?
+		0x1:'vacuum',		# 000 001	Poltergust
+		0x2:'no',			# 000 010	Just cover the case and pretend it's normal, who wants to get weird messages and debug them. When you actually PUSH pin 1 (0x2), you get the update icon
+		0x3:'bee',			# 000 011	Acts strange and won't send messages when these pants are on.  Needs more testing
+							# 000 100
+		0x5:'luigi',		# 000 101
+		0x6:'frog',			# 000 110
+							# 000 111
+							# 001 000	does nothing and doesn't trigger the update icon, perhaps a hidden trigger?  Might also be poltergust?
+		0x9:'vacuum_button',# 001 001	Poltergust. Seems to not matter which one is the toggle!
+		0xa:'tanooki',		# 001 010	Leaf icon
+							# 001 011
+		0xc:'propeller',	# 001 100
+							# 001 101
+							# 001 110
+							# 001 111
+							# 010 000
+		0x11:'cat',			# 010 001	Bell icon
+		0x12:'fire',		# 010 010
+							# 010 011
+		0x14:'penguin',		# 010 100
+							# 010 101
+							# 010 110
+							# 010 111
+							# 011 000
+							# 011 001
+							# 011 010
+							# 011 011
+							# 011 100
+							# 011 101
+							# 011 110
+							# 011 111
+		0x20:'mario',		# 100 000	Because who has time to deal with errata... doesn't seem to be the SAME pin problem,  When you actually PUSH pin 5 (0x20), you get the update icon
+		0x21:'mario',		# 100 001	Mario pants.  Sometimes mario registers 0x20 as mario pants, might be a pin problem?
+		0x22:'builder',		# 100 010
+
+		0x2a:'cat'			# 101 010	Peach's cat pants
 	}
-	# 0x8 does nothing and doesn't trigger the update icon, perhaps a hidden trigger?
 
 	# Set in the advertising name
 	app_icon_names = {
@@ -389,7 +410,8 @@ class BTLegoMario(BTLego):
 					BTLegoMario.dp(msg_prefix+msg+port_text+", mode "+str(bt_message['mode']), 2)
 
 			elif BTLego.message_type_str[bt_message['type']] == 'hub_attached_io':
-				if BTLego.io_event_type_str[bt_message['event']] == 'attached':
+				event = BTLego.io_event_type_str[bt_message['event']]
+				if event == 'attached':
 					dev = "UNKNOWN DEVICE"
 					if bt_message['io_type_id'] in BTLego.io_type_id_str:
 						dev = BTLego.io_type_id_str[bt_message['io_type_id']]
@@ -403,13 +425,13 @@ class BTLegoMario(BTLego):
 						'name':dev,
 						'status':bt_message['event']
 					}
-				elif BTLego.io_event_type_str[bt_message['event']] == 'detached':
-					# Err, what?
+
+				elif event == 'detached':
 					BTLegoMario.dp(msg_prefix+"Detached "+dev+" on port "+str(bt_message['port']),2)
-					self.port_data.pop(bt_message['port'],None)
+					self.port_data[bt_message['port']]['status'] = 0x0 # io_event_type_str
+
 				else:
-					# debug this weird thing
-					BTLegoMario.dp(msg_prefix+"InputFormatSingle: "+bt_message['readable'],2)
+					BTLegoMario.dp(msg_prefix+"HubAttachedIO: "+bt_message['readable'],1)
 
 			elif BTLego.message_type_str[bt_message['type']] == 'port_value_single':
 				if not bt_message['port'] in self.port_data:
