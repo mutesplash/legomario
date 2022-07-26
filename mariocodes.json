@@ -447,6 +447,10 @@
         {
           "blpn": "3068bpb1387",
           "name": "Coin"
+        },
+        {
+          "blpn": "11203pb083",
+          "name": "Coin"
         }
       ]
     },
@@ -482,7 +486,8 @@
           "blpn": "3068bpb1409",
           "name": "Boo"
         }
-      ]
+      ],
+      "note": "Vacuum (4-hit)"
     },
     {
       "code": "GRTVY",
@@ -536,7 +541,7 @@
           "name": "Bogmire"
         }
       ],
-      "note": "Vacuum or use star"
+      "note": "Vacuum (10-hit) or use star"
     },
     {
       "code": "GRBPV",
@@ -1421,7 +1426,7 @@
     {
       "code": "BRYTV",
       "label": "YOSHI E3",
-      "note": "Red Yoshi"
+      "note": "Red Yoshi. Lego 71410 Series 5"
     },
     {
       "code": "BRYPL",
@@ -1436,7 +1441,7 @@
     {
       "code": "BRVTP",
       "label": "",
-      "note": "4-hit"
+      "note": "4-hit.  Hammer bro?  Lego 71410 Series 5"
     },
     {
       "code": "BRVTY",
@@ -1486,12 +1491,12 @@
     {
       "code": "BRYGV",
       "label": "PRESENT2",
-      "note": "Present icon 2 (sometimes empty, can put fruit in it?)"
+      "note": "Present icon 2 (sometimes empty, can put fruit or cake in it)"
     },
     {
       "code": "BRYGT",
       "label": "",
-      "note": "Chubby Yellow Yoshi"
+      "note": "Chubby Baby Yellow Yoshi. Lego 71410 Series 5"
     },
     {
       "code": "BRYLG",
@@ -1501,7 +1506,7 @@
     {
       "code": "BRYLP",
       "label": "PRESENT",
-      "note": "Present icon.  Peach starter set. 71403"
+      "note": "Present icon.  Peach starter set. Lego 71403, 71406"
     },
     {
       "code": "BRYLV",
@@ -1511,17 +1516,17 @@
     {
       "code": "BRYLT",
       "label": "FRUIT GR",
-      "note": "Green fruit"
+      "note": "Green fruit.  Fruit can be burnt or poisoned if standing on a red or purple brick for two ticks.  Tastes bad."
     },
     {
       "code": "BRYPV",
-      "label": "",
-      "note": "Purple Rabbid.  Gives random item or coins when not scanning"
+      "label": "NABBIT",
+      "note": "Gives random item or coins when removed from the code. Lego 71410 Series 5"
     },
     {
       "code": "BRYPT",
       "label": "",
-      "note": "goes 'ooh', clicks when rotated.  Plays coin heaven music if you have yoshi"
+      "note": "Golden fruit grower.  Rotate after picking up a fruit to coat it with gold. Can also coat the cake.  Lego 71406"
     },
     {
       "code": "BRYVG",
@@ -1531,7 +1536,7 @@
     {
       "code": "BRYVL",
       "label": "",
-      "note": "Cake slice.  Yoshi eats it"
+      "note": "Cake slice.  Yoshi eats it.  Tipping motion can eat it.  Can catch it on fire and burn it or poison it for two red or purple brick ticks.  It tastes bad if you eat it"
     },
     {
       "code": "BRYVP",
@@ -1551,7 +1556,7 @@
     {
       "code": "BRYTL",
       "label": "",
-      "note": "Yellow fruit"
+      "note": "Yellow fruit. Tipping motion can eat it."
     },
     {
       "code": "BRYTP",
@@ -1560,8 +1565,8 @@
     },
     {
       "code": "GRBVT",
-      "label": "",
-      "note": "Sky Land 1 music."
+      "label": "SHOE",
+      "note": "Sky Land 1 music. Probably the shoe. Lego 71404"
     }
   ]
 }
