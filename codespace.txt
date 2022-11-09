@@ -316,7 +316,7 @@ i	code	mirror	label		scanner hex	binary
 314	-----	     	        	0x3a 0x01	100111010
 315	-----	     	        	0x3b 0x01	100111011
 316	BRYGV	     	PRESENT2	0x3c 0x01	100111100
-317	BRYPV	     	x_BRYPV_	0x3d 0x01	100111101
+317	BRYPV	     	NABBIT  	0x3d 0x01	100111101
 318	-----	     	        	0x3e 0x01	100111110
 319	BRYTV	     	YOSHI E3	0x3f 0x01	100111111
 320	BRYLV	     	x_BRYLV_	0x40 0x01	101000000
@@ -349,7 +349,7 @@ i	code	mirror	label		scanner hex	binary
 347	BRVPY	     	x_BRVPY_	0x5b 0x01	101011011
 348	-----	     	        	0x5c 0x01	101011100
 349	BRVTY	     	x_BRVTY_	0x5d 0x01	101011101
-350	BRVLY	     	x_BRVLY_	0x5e 0x01	101011110
+350	BRVLY	     	MIGTYBOW	0x5e 0x01	101011110
 351	BRVGT	     	x_BRVGT_	0x5f 0x01	101011111
 352	BRVPT	     	x_BRVPT_	0x60 0x01	101100000
 353	-----	     	        	0x61 0x01	101100001
