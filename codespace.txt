@@ -349,7 +349,7 @@ i	code	mirror	label		scanner hex	binary
 347	BRVPY	     	x_BRVPY_	0x5b 0x01	101011011
 348	-----	     	        	0x5c 0x01	101011100
 349	BRVTY	     	x_BRVTY_	0x5d 0x01	101011101
-350	BRVLY	     	MIGTYBOW	0x5e 0x01	101011110
+350	BRVLY	     	BIGBOWSR	0x5e 0x01	101011110
 351	BRVGT	     	x_BRVGT_	0x5f 0x01	101011111
 352	BRVPT	     	x_BRVPT_	0x60 0x01	101100000
 353	-----	     	        	0x61 0x01	101100001
