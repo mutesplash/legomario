@@ -4,7 +4,7 @@
     "5 Positions",
     "Start with GR or BR",
     "GR Codespace is 512 with prefix (8^3) (not accounting for no-repeats or uniques,, narrows to 120 (6*5*4))",
-    "Searched Bricklink on May 17, 2021 and found 84 parts matching 'scanner code'",
+    "Searched Bricklink on November 10, 2022 and found 196 parts matching 'scanner code'",
     "Sources:",
     "https://www.reddit.com/r/lego/comments/iaahnr/lego_mario_barcode_coloring_list/",
     "https://studioplayfool.medium.com/can-you-play-with-lego-super-mario-without-lego-551f74dfcd77",
@@ -15,8 +15,7 @@
     "Version 5 added optional use text",
     "Version 6 added provisional label to unidentified",
     "Version 7 first codes starting with BR show up",
-    "Copyright (c) 2021, mutesplash",
-    "Future notes to self for Aug 1 update: BPYs: Luigi Bone goomba, bullet bill in 71389, Boss Sumo Crowber, Series 3 (Buzzy, Galoomba, Crowber, Scuttlebug, Swoop), Fuzzy (30389) "
+    "Copyright (c) 2021-2022, mutesplash"
   ],
   "version": 7,
   "codes": [
@@ -43,6 +42,17 @@
       "note": "60 second start: Luigi starter set"
     },
     {
+      "code": "BRVYG",
+      "label": "START3",
+      "blpns": [
+        {
+          "blpn": "3068bpb2093",
+          "name": "Start 60 (Peach)"
+        }
+      ],
+      "note": "60-second start: Peach starter set"
+    },
+    {
       "code": "GRVPL",
       "label": "START 30",
       "blpns": [
@@ -63,6 +73,16 @@
         }
       ],
       "note": "Collect 50 coins to complete.  Fail if you scan the goal code"
+    },
+    {
+      "code": "BRVTG",
+      "label": "START 80",
+      "blpns": [
+        {
+          "blpn": "3068bpb2060",
+          "name": "Peach castle start"
+        }
+      ]
     },
     {
       "code": "GRTBP",
@@ -103,6 +123,10 @@
         {
           "blpn": "3068bpb1402",
           "name": "Speech Bubble Toad"
+        },
+        {
+          "blpn": "3068bpb2053",
+          "name": "Purple & Yellow Toad / Toadette Speech Bubble"
         }
       ]
     },
@@ -149,6 +173,16 @@
       "note": "Plays music.  Rideable"
     },
     {
+      "code": "BRYGT",
+      "label": "BABYOSHI",
+      "blpns": [
+        {
+          "blpn": "3068bpb2064",
+          "name": "Chubby Baby Yoshi, yellow"
+        }
+      ]
+    },
+    {
       "code": "GRTPV",
       "label": "YOSHIEGG",
       "blpns": [
@@ -166,6 +200,26 @@
         {
           "blpn": "3068bpb1977",
           "name": "Yellow Yoshi egg"
+        }
+      ]
+    },
+    {
+      "code": "BRYTV",
+      "label": "YOSHI E3",
+      "blpns": [
+        {
+          "blpn": "3068bpb2065",
+          "name": "Red Yoshi egg"
+        }
+      ]
+    },
+    {
+      "code": "BRYPL",
+      "label": "YOSHI E4",
+      "blpns": [
+        {
+          "blpn": "3068bpb2072",
+          "name": "Green Yoshi egg"
         }
       ]
     },
@@ -209,6 +263,17 @@
           "name": "Baby penguin"
         }
       ]
+    },
+    {
+      "code": "BRYPV",
+      "label": "NABBIT",
+      "blpns": [
+        {
+          "blpn": "3068bpb2063",
+          "name": "Nabbit"
+        }
+      ],
+      "note": "Gives random item or coins when removed from the code"
     },
     {
       "code": "GRPBV",
@@ -276,7 +341,7 @@
       "blpns": [
         {
           "blpn": "3068bpb1485",
-          "name": "Red Coin Block"
+          "name": "Red Coin Block Rounded (green tile)"
         },
         {
           "blpn": "3068bpb1970",
@@ -290,7 +355,7 @@
       "blpns": [
         {
           "blpn": "3068bpb1487",
-          "name": "Red Coin Block 2"
+          "name": "Red Coin Block Triange (green tile)"
         },
         {
           "blpn": "11203pb082",
@@ -304,13 +369,100 @@
       "blpns": [
         {
           "blpn": "3068bpb1486",
-          "name": "Red Coin Block 3"
+          "name": "Red Coin Block Square (green tile)"
         },
         {
           "blpn": "3068bpb1971",
           "name": "Red Coin Block Square"
         }
       ]
+    },
+    {
+      "code": "BRYPT",
+      "label": "GOLDGROW",
+      "blpns": [
+        {
+          "blpn": "3068bpb2071",
+          "name": "Treat Carousel"
+        }
+      ],
+      "note": "Rotate after picking up a fruit to coat it with gold. Can also coat the cake."
+    },
+    {
+      "code": "BRYLP",
+      "label": "PRESENT",
+      "blpns": [
+        {
+          "blpn": "3068bpb2095",
+          "name": "Gift box 1"
+        }
+      ]
+    },
+    {
+      "code": "BRYGV",
+      "label": "PRESENT2",
+      "blpns": [
+        {
+          "blpn": "3068bpb2070",
+          "name": "Gift box 2"
+        }
+      ],
+      "note": "Fruit or cake will fit in a gift box"
+    },
+    {
+      "code": "BRYVL",
+      "label": "CAKE",
+      "blpns": [
+        {
+          "blpn": "11203pb088",
+          "name": "Cake slice"
+        }
+      ],
+      "note": "Along with fruit, this can be coated in gold with the Treat Carousel.  Golden cake and fruit can also be burnt or wrapped in a present."
+    },
+    {
+      "code": "BRYGL",
+      "label": "FRUIT PR",
+      "blpns": [
+        {
+          "blpn": "14769pb550",
+          "name": "Purple Fruit"
+        }
+      ],
+      "note": "Fruit can be given to yoshi: plays music and says 'for you', or 'you're welcome'"
+    },
+    {
+      "code": "BRYLT",
+      "label": "FRUIT GR",
+      "blpns": [
+        {
+          "blpn": "14769pb551",
+          "name": "Green Fruit"
+        }
+      ],
+      "note": "Fruit can be burnt or poisoned if standing on a red or purple brick for two ticks.  Tastes bad to whoever eats it."
+    },
+    {
+      "code": "BRYVT",
+      "label": "FRUIT RE",
+      "blpns": [
+        {
+          "blpn": "14769pb546",
+          "name": "Red Fruit"
+        }
+      ],
+      "note": "Fruit can be put in a gift box"
+    },
+    {
+      "code": "BRYTL",
+      "label": "FRUIT YL",
+      "blpns": [
+        {
+          "blpn": "14769pb556",
+          "name": "Yellow Fruit"
+        }
+      ],
+      "note": "Fruit can be eaten by making a tipping motion"
     },
     {
       "code": "GRYPT",
@@ -349,7 +501,7 @@
       "blpns": [
         {
           "blpn": "14769pb379",
-          "name": "Poison"
+          "name": "Poison Mushroom"
         }
       ]
     },
@@ -381,6 +533,17 @@
         {
           "blpn": "3068bpb1855",
           "name": "Timer 2"
+        }
+      ],
+      "note": "Add 30 seconds"
+    },
+    {
+      "code": "BRYTP",
+      "label": "TIMER 3",
+      "blpns": [
+        {
+          "blpn": "3068bpb2083",
+          "name": "Timer 3"
         }
       ],
       "note": "Add 30 seconds"
@@ -470,6 +633,10 @@
       "blpns": [
         {
           "blpn": "3068bpb1527",
+          "name": "Coin 3"
+        },
+        {
+          "blpn": "3068bpb2079",
           "name": "Coin 3"
         }
       ]
@@ -562,6 +729,10 @@
           "name": "Goomba"
         },
         {
+          "blpn": "3068bpb1505",
+          "name": "Bone Goomba"
+        },
+        {
           "blpn": "3068bpb1501",
           "name": "Ninji"
         },
@@ -586,12 +757,60 @@
           "name": "Foo"
         },
         {
+          "blpn": "3068bpb1904",
+          "name": "Crowber"
+        },
+        {
+          "blpn": "3068bpb1915",
+          "name": "Para-Biddybud"
+        },
+        {
           "blpn": "3068bpb1499",
           "name": "Parachute Goomba"
         },
         {
           "blpn": "3068bpb1916",
           "name": "Scaredy Rat"
+        },
+        {
+          "blpn": "3068bpb2096",
+          "name": "Cat Goomba"
+        },
+        {
+          "blpn": "14769pb548",
+          "name": "Shy Guy"
+        },
+        {
+          "blpn": "3068bpb2054",
+          "name": "Toady"
+        },
+        {
+          "blpn": "3068bpb1798",
+          "name": "Swoop"
+        },
+        {
+          "blpn": "3068bpb1932",
+          "name": "Stingby"
+        },
+        {
+          "blpn": "3068bpb1905",
+          "name": "Galoomba"
+        },
+        {
+          "blpn": "3068bpb1888",
+          "name": "Goombrat"
+        },
+        {
+          "blpn": "3068bpb1908",
+          "name": "Ant Trooper"
+        },
+        {
+          "blpn": "3068bpb2062",
+          "name": "Waddlewing"
+        },
+        {
+          "blpn": "3068bpb1797",
+          "name": "Scuttlebug"
         }
       ]
     },
@@ -642,9 +861,12 @@
         {
           "blpn": "3068bpb1521",
           "name": "Spiny Cheep Cheep"
+        },
+        {
+          "blpn": "3068bpb1796",
+          "name": "Torpedo Ted"
         }
-      ],
-      "note": "Also series 3 Torpedo Ted"
+      ]
     },
     {
       "code": "GRPVY",
@@ -661,9 +883,16 @@
         {
           "blpn": "3068bpb1364",
           "name": "Spiny"
+        },
+        {
+          "blpn": "3068bpb1964",
+          "name": "Mechakoopa"
+        },
+        {
+          "blpn": "3068bpb1907",
+          "name": "Bony Beetle"
         }
-      ],
-      "note": "Also Series 3 Bony Beetle, Series 4 Mechakoopa"
+      ]
     },
     {
       "code": "GRPTB",
@@ -686,10 +915,6 @@
         {
           "blpn": "3068bpb1414",
           "name": "Paragoomba"
-        },
-        {
-          "blpn": "3068bpb1505",
-          "name": "Bone Goomba"
         },
         {
           "blpn": "3068bpb1397",
@@ -851,6 +1076,17 @@
       ]
     },
     {
+      "code": "BRYTG",
+      "label": "EXPLODE2",
+      "blpns": [
+        {
+          "blpn": "68869pb010",
+          "name": "Big Spike Explosion"
+        }
+      ],
+      "note": "Hit animation, Launching sound and 'go go go'"
+    },
+    {
       "code": "GRYVP",
       "label": "STONE",
       "blpns": [
@@ -891,7 +1127,7 @@
           "name": "Bully"
         }
       ],
-      "note": "Have to do a flip before stomping for coinss"
+      "note": "Have to do a flip before stomping for coins"
     },
     {
       "code": "GRYLT",
@@ -933,9 +1169,57 @@
         {
           "blpn": "3068bpb1955",
           "name": "Grrrol"
+        },
+        {
+          "blpn": "3068bpb2075",
+          "name": "Piranha Plant"
         }
       ],
       "note": "3-hit"
+    },
+    {
+      "code": "BRVYP",
+      "label": "BIG GOOM",
+      "blpns": [
+        {
+          "blpn": "3068bpb2076",
+          "name": "Big Goomba"
+        }
+      ],
+      "note": "3-hit"
+    },
+    {
+      "code": "BRYGP",
+      "label": "BIGKOOPA",
+      "blpns": [
+        {
+          "blpn": "3068bpb2078",
+          "name": "Big Koopa"
+        }
+      ],
+      "note": "3-hit"
+    },
+    {
+      "code": "BRVTP",
+      "label": "BOOMRBRO",
+      "blpns": [
+        {
+          "blpn": "3068bpb2073",
+          "name": "Boomerang Bro"
+        }
+      ],
+      "note": "4-hit"
+    },
+    {
+      "code": "BRVLP",
+      "label": "HAMMRBRO",
+      "blpns": [
+        {
+          "blpn": "3068bpb2055",
+          "name": "Hammer Bro"
+        }
+      ],
+      "note": "4-hit"
     },
     {
       "code": "GRTLV",
@@ -947,6 +1231,17 @@
         }
       ],
       "note": "4-hit"
+    },
+    {
+      "code": "BRYVP",
+      "label": "BIGSPIKE",
+      "blpns": [
+        {
+          "blpn": "3068bpb2074",
+          "name": "Big Spike"
+        }
+      ],
+      "note": "4-hit dramatic music cue"
     },
     {
       "code": "GRLPY",
@@ -1100,6 +1395,10 @@
         {
           "blpn": "66792pb004",
           "name": "Side-to-side Waggle Arrows"
+        },
+        {
+          "blpn": "3068bpb2067",
+          "name": "Biased Directional Arrows"
         }
       ],
       "note": "Drawbridge piece that wiggles to defeat bowser. Plays serious music"
@@ -1260,12 +1559,27 @@
       "note": "Ominous Music. Cooperates with Gear and Nut spinning"
     },
     {
+      "code": "BRYVG",
+      "label": "SWING",
+      "blpns": [
+        {
+          "blpn": "3068bpb2094",
+          "name": "Peach swing"
+        }
+      ],
+      "note": "Sky Land 1 music.  Clinking sound of glass when tipped.  Coins when you do a flip."
+    },
+    {
       "code": "GRTYL",
       "label": "BIASDIR",
       "blpns": [
         {
           "blpn": "3068bpb1853",
           "name": "Biased directional Arrows"
+        },
+        {
+          "blpn": "66792pb010",
+          "name": "Directional Arrows"
         }
       ]
     },
@@ -1279,6 +1593,17 @@
         }
       ],
       "note": "Plays Sky Land 1 music"
+    },
+    {
+      "code": "BRYLG",
+      "label": "BOMBWARP",
+      "blpns": [
+        {
+          "blpn": "11203pb089",
+          "name": "Bob-omb painting"
+        }
+      ],
+      "note": "Twirly Magic, music plays. Stomp Bob-omb for lots of coins"
     },
     {
       "code": "GRYLV",
@@ -1303,6 +1628,17 @@
       "note": "Scan blue to dive into the water for coins"
     },
     {
+      "code": "BRVGY",
+      "label": "PCTHRONE",
+      "blpns": [
+        {
+          "blpn": "3068bpb2066",
+          "name": "Peach throne"
+        }
+      ],
+      "note": "Ending music, coins."
+    },
+    {
       "code": "GRLBP",
       "label": "BROOM",
       "note": "Up/down movement",
@@ -1323,6 +1659,17 @@
         }
       ],
       "note": "Play Sky Land 1 music.  Lift up rapidly to take off.  Sputter noise."
+    },
+    {
+      "code": "GRBVT",
+      "label": "SHOE",
+      "blpns": [
+        {
+          "blpn": "3068bpb2084",
+          "name": "Kuribo's shoe"
+        }
+      ],
+      "note": "Sky Land 1 music."
     },
     {
       "code": "GRLBT",
@@ -1364,6 +1711,39 @@
         {
           "blpn": "3068bpb1534",
           "name": "Larry"
+        }
+      ],
+      "note": "6-hit"
+    },
+    {
+      "code": "BRVGP",
+      "label": "LUDWIG",
+      "blpns": [
+        {
+          "blpn": "3068bpb2058",
+          "name": "Ludwig von Koopa"
+        }
+      ],
+      "note": "6-hit"
+    },
+    {
+      "code": "BRVPG",
+      "label": "LEMMY",
+      "blpns": [
+        {
+          "blpn": "14769pb555",
+          "name": "Lemmy"
+        }
+      ],
+      "note": "6-hit"
+    },
+    {
+      "code": "BRVTY",
+      "label": "IGGY",
+      "blpns": [
+        {
+          "blpn": "3068bpb2077",
+          "name": "Iggy"
         }
       ],
       "note": "6-hit"
@@ -1411,6 +1791,17 @@
       ]
     },
     {
+      "code": "BRYLV",
+      "label": "BOWSER 2",
+      "blpns": [
+        {
+          "blpn": "3068bpb2059",
+          "name": "Bowser"
+        }
+      ],
+      "note": "10-hit"
+    },
+    {
       "code": "GRLBY",
       "label": "GOAL",
       "blpns": [
@@ -1423,151 +1814,6 @@
   ],
   "undeciphered": [],
   "unidentified": [
-    {
-      "code": "BRYTV",
-      "label": "YOSHI E3",
-      "note": "Red Yoshi. Lego 71410 Series 5"
-    },
-    {
-      "code": "BRYPL",
-      "label": "YOSHI E4",
-      "note": "Green Yoshi"
-    },
-    {
-      "code": "BRVTG",
-      "label": "START 80",
-      "note": "Peach castle?"
-    },
-    {
-      "code": "BRVTP",
-      "label": "",
-      "note": "4-hit.  Hammer bro?  Lego 71410 Series 5"
-    },
-    {
-      "code": "BRVTY",
-      "label": "",
-      "note": "6-hit"
-    },
-    {
-      "code": "BRVLP",
-      "label": "",
-      "note": "4-hit"
-    },
-    {
-      "code": "BRVGY",
-      "label": "",
-      "note": "Ending music, coins"
-    },
-    {
-      "code": "BRVGP",
-      "label": "",
-      "note": "6-hit."
-    },
-    {
-      "code": "BRVPG",
-      "label": "",
-      "note": "6-hit. Peach starter Lemmy?"
-    },
-    {
-      "code": "BRVYG",
-      "label": "START3",
-      "note": "60-second start: Peach starter set?"
-    },
-    {
-      "code": "BRVYP",
-      "label": "",
-      "note": "3-hit"
-    },
-    {
-      "code": "BRYGL",
-      "label": "FRUIT PR",
-      "note": "Purple fruit (give to yoshi, plays music and says 'for you', or 'you're welcome')"
-    },
-    {
-      "code": "BRYGP",
-      "label": "",
-      "note": "3-hit (sounds like a koopa shell)"
-    },
-    {
-      "code": "BRYGV",
-      "label": "PRESENT2",
-      "note": "Present icon 2 (sometimes empty, can put fruit or cake in it)"
-    },
-    {
-      "code": "BRYGT",
-      "label": "",
-      "note": "Chubby Baby Yellow Yoshi. Lego 71410 Series 5"
-    },
-    {
-      "code": "BRYLG",
-      "label": "",
-      "note": "Twirly Magic, music plays"
-    },
-    {
-      "code": "BRYLP",
-      "label": "PRESENT",
-      "note": "Present icon.  Peach starter set. Lego 71403, 71406"
-    },
-    {
-      "code": "BRYLV",
-      "label": "",
-      "note": "10-hit bowser growl"
-    },
-    {
-      "code": "BRYLT",
-      "label": "FRUIT GR",
-      "note": "Green fruit.  Fruit can be burnt or poisoned if standing on a red or purple brick for two ticks.  Tastes bad."
-    },
-    {
-      "code": "BRYPV",
-      "label": "NABBIT",
-      "note": "Gives random item or coins when removed from the code. Lego 71410 Series 5"
-    },
-    {
-      "code": "BRYPT",
-      "label": "",
-      "note": "Golden fruit grower.  Rotate after picking up a fruit to coat it with gold. Can also coat the cake.  Lego 71406"
-    },
-    {
-      "code": "BRYVG",
-      "label": "SWING",
-      "note": "Sky Land 1 music.  Clinking sound of glass when tipped.  Coins when you do a flip. Peach swing. 71403"
-    },
-    {
-      "code": "BRYVL",
-      "label": "",
-      "note": "Cake slice.  Yoshi eats it.  Tipping motion can eat it.  Can catch it on fire and burn it or poison it for two red or purple brick ticks.  It tastes bad if you eat it"
-    },
-    {
-      "code": "BRYVP",
-      "label": "",
-      "note": "4-hit dramatic music cue"
-    },
-    {
-      "code": "BRYVT",
-      "label": "FRUIT RE",
-      "note": "Red fruit.  Peach starter set. 71403"
-    },
-    {
-      "code": "BRYTG",
-      "label": "",
-      "note": "Hit animation, Launching sound and 'go go go'"
-    },
-    {
-      "code": "BRYTL",
-      "label": "",
-      "note": "Yellow fruit. Tipping motion can eat it."
-    },
-    {
-      "code": "BRYTP",
-      "label": "",
-      "note": "Boop.  Yellow exclamation point"
-    },
-    {
-      "code": "GRBVT",
-      "label": "SHOE",
-      "note": "Sky Land 1 music. Probably the shoe. Lego 71404"
-    },
     {
       "code": "BRVLY",
       "label": "BIGBOWSR",
