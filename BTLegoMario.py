@@ -259,11 +259,14 @@ class BTLegoMario(BTLego):
 			# ff Last network ID (FF is not implemented)
 			# ff Status (I can be everything)
 			# 00 Option (unused)
-			if advertisement_data.manufacturer_data[919][1] == 0x44:
-				return 'luigi'
-			elif advertisement_data.manufacturer_data[919][1] == 0x43:
+			if advertisement_data.manufacturer_data[919][1] == 0x43:
 				return 'mario'
+			elif advertisement_data.manufacturer_data[919][1] == 0x44:
+				return 'luigi'
+			elif advertisement_data.manufacturer_data[919][1] == 0x45:
+				return 'peach'
 			else:
+				BTLegoMario.dp("Detected unknown player: "+str(hex(advertisement_data.manufacturer_data[919][1])))
 				return 'UNKNOWN_MARIO'
 		return None
 
@@ -745,7 +748,12 @@ class BTLegoMario(BTLego):
 		#LEGO Mario_j_r
 
 		if name.startswith("LEGO Mario_") == False or len(name) != 14:
-			BTLegoMario.dp("Unusual advertising name set:"+name)
+			# print(name.encode("utf-8").hex())
+			if name == "LEGO Peach    ":
+				# Four spaces after the name
+				BTLegoMario.dp("Unable to decode stock lego peach icon")
+			else:
+				BTLegoMario.dp("Unusual advertising name set:"+name)
 			return
 
 		icon = ord(name[11])
