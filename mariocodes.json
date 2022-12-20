@@ -1312,6 +1312,17 @@
       "use": "Place on purple brick to fight bowser.  Other colors to gain red coins"
     },
     {
+      "code": "BRVLY",
+      "label": "BIGBOWSR",
+      "blpns": [
+        {
+          "blpn": "3068bpb2113",
+          "name": "Mighty Bowser"
+        }
+      ],
+      "use": "?"
+    },
+    {
       "code": "GRBLP",
       "label": "HAMMER",
       "blpns": [
@@ -1815,9 +1826,62 @@
   "undeciphered": [],
   "unidentified": [
     {
-      "code": "BRVLY",
-      "label": "BIGBOWSR",
-      "note": "Mighty Bowser. Lego 71411"
+      "code": "BRTYG",
+      "label": "CAMPFIRE",
+      "note": "Camfire. Probably Set 71417"
+    },
+    {
+      "code": "BRTVG",
+      "note": "Exclamation point, boss music"
+    },
+    {
+      "code": "BRTPG",
+      "note": "3-hit"
+    },
+    {
+      "code": "BRTLG",
+      "note": "Weird noise and coin"
+    },
+    {
+      "code": "BRTGP",
+      "label": "PRESENT3",
+      "note": "Gift Box 3"
+    },
+    {
+      "code": "BRVTL",
+      "label": "FRUIT BL",
+      "note": "Blue Fruit.  Probably Set 71417"
+    },
+    {
+      "code": "BRVYT",
+      "note": "6-hit"
+    },
+    {
+      "code": "BRVGT",
+      "note": "Music, lava noise.  Probably the slide in Set 71416"
+    },
+    {
+      "code": "BRVGL",
+      "note": "Get hit with Birdo egg.  Probably Series 6 Character pack 71413"
+    },
+    {
+      "code": "BRVLT",
+      "label": "YOSHI E5",
+      "note": "Blue Yoshi.  Probably Set 71418"
+    },
+    {
+      "code": "BRVPL",
+      "note": "4-hit"
+    },
+    {
+      "code": "BRVYL",
+      "label": "CHKPOINT",
+      "note": "Checkpoint Bowser flag turns to character flag (+20 sec)"
+    },
+    {
+      "code": "GRLPV",
+      "label": "TURNIP",
+      "note": "Turnip.  You can throw it just like in SMB2.  Set 71419"
     }
   ]
 }
