@@ -160,7 +160,7 @@ class BTLego():
 		unused_hub_id = message_bytes[1]
 		if len(message_bytes) != length:
 			bt_message['error'] = True
-			bt_message['readable'] = "CORRUPTED MESSAGE: stated len "+length+" != "+str(len(message_bytes))+" ".join(hex(n) for n in message_bytes)
+			bt_message['readable'] = "CORRUPTED MESSAGE: stated len "+str(length)+" != "+str(len(message_bytes))+" ".join(hex(n) for n in message_bytes)
 			return bt_message
 		bt_message['type']  = message_bytes[2]
 		bt_message['readable'] = BTLego.int8_dict_to_str(BTLego.message_type_str, bt_message['type']) + " "
@@ -346,7 +346,7 @@ class BTLego():
 		elif property_involved == 0xd:
 			# 5 + 6
 			if length != 11:
-				bt_message['readable'] += "CORRUPTED MESSAGE: payload len "+str(length)+" is wrong for a uint[15] property: "+" ".join(hex(n) for n in payload)
+				bt_message['readable'] += "CORRUPTED MESSAGE: payload len "+str(length)+" is wrong for a MAC address property: "+" ".join(hex(n) for n in payload)
 				bt_message['error'] = True
 				return
 			property_value = ":".join(hexlify(n.to_bytes(1,byteorder='little')).decode('ascii') for n in payload[2:])
