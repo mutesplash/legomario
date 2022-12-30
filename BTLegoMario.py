@@ -570,9 +570,12 @@ class BTLegoMario(BTLego):
 
 		if scantype == 'barcode':
 			barcode_int = BTLegoMario.mario_bytes_to_int(data[0:2])
-			code_info = BTLegoMario.get_code_info(barcode_int)
-			BTLegoMario.dp(self.which_brother+" scanned "+code_info['label']+" (" + code_info['barcode']+ " "+str(barcode_int)+")",2)
-			self.message_queue.put(('scanner','code',(code_info['barcode'], barcode_int)))
+			if barcode_int != 32767:
+				code_info = BTLegoMario.get_code_info(barcode_int)
+				BTLegoMario.dp(self.which_brother+" scanned "+code_info['label']+" (" + code_info['barcode']+ " "+str(barcode_int)+")",2)
+				self.message_queue.put(('scanner','code',(code_info['barcode'], barcode_int)))
+			else:
+				self.message_queue.put(('error','message','Scanned malformed code'))
 		elif scantype == 'color':
 			color = BTLegoMario.mario_bytes_to_solid_color(data[2:4])
 			BTLegoMario.dp(self.which_brother+" scanned color "+color,2)
