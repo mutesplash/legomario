@@ -854,7 +854,10 @@ class BTLegoMario(BTLego):
 		if not 'label' in info:
 			for code in BTLegoMario.code_data['unidentified']:
 				if code['code'] == info['barcode']:
-					info['label'] = code['label']
+					if 'label' in code:
+						info['label'] = code['label']
+					else:
+						info['label'] = None
 					if 'note' in code:
 						info['note'] = code['note']
 		return info
