@@ -41,7 +41,7 @@ class BTLegoMario(BTLego):
 	# 4:	Why did you even put this level in?
 	DEBUG = 0
 
-	which_brother = None
+	which_player = None
 	address = None
 	lock = None
 	client = None
@@ -67,7 +67,7 @@ class BTLegoMario(BTLego):
 	# pants
 	#	'pants': (pants_codes)
 	# info
-	#	'brother':		'mario', 'luigi', 'peach'
+	#	'player':		'mario', 'luigi', 'peach'
 	#	'icon': 		((app_icon_names),(app_icon_color_names))
 	#	'batt':			(percentage)
 	#	'power': 		'turning_off', 'disconnecting'
@@ -297,8 +297,8 @@ class BTLegoMario(BTLego):
 
 	async def connect(self, device, advertisement_data):
 		async with self.lock:
-			self.which_brother = BTLegoMario.which_device(advertisement_data)
-			BTLegoMario.dp("Connecting to "+str(self.which_brother)+"...",2)
+			self.which_player = BTLegoMario.which_device(advertisement_data)
+			BTLegoMario.dp("Connecting to "+str(self.which_player)+"...",2)
 			self.device = device
 			self.advertisement = advertisement_data
 			try:
@@ -306,8 +306,8 @@ class BTLegoMario(BTLego):
 					if not self.client.is_connected:
 						BTLegoMario.dp("Failed to connect after client creation")
 						return
-					BTLegoMario.dp("Connected to "+self.which_brother+"! ("+str(device.name)+")",2)
-					self.message_queue.put(('info','brother',self.which_brother))
+					BTLegoMario.dp("Connected to "+self.which_player+"! ("+str(device.name)+")",2)
+					self.message_queue.put(('info','player',self.which_player))
 					self.connected = True
 					await self.client.start_notify(BTLegoMario.characteristic_uuid, self.mario_events)
 					await asyncio.sleep(0.1)
@@ -325,7 +325,7 @@ class BTLegoMario(BTLego):
 					while self.client.is_connected:
 						await asyncio.sleep(0.05)
 					self.connected = False
-					BTLegoMario.dp(self.which_brother+" has disconnected.",2)
+					BTLegoMario.dp(self.which_player+" has disconnected.",2)
 
 			except Exception as e:
 				BTLegoMario.dp("Unable to connect to "+str(device.address) + ": "+str(e))
@@ -417,7 +417,7 @@ class BTLegoMario(BTLego):
 	async def mario_events(self, sender, data):
 
 		bt_message = BTLego.decode_payload(data)
-		msg_prefix = self.which_brother+" "
+		msg_prefix = self.which_player+" "
 
 		if bt_message['error']:
 			BTLegoMario.dp(msg_prefix+"ERR:"+bt_message['readable'])
@@ -541,18 +541,18 @@ class BTLegoMario(BTLego):
 
 	def decode_pants_data(self, data):
 		if len(data) == 1:
-			BTLegoMario.dp(self.which_brother+" put on "+BTLegoMario.mario_pants_to_string(data[0])+" pants",2)
+			BTLegoMario.dp(self.which_player+" put on "+BTLegoMario.mario_pants_to_string(data[0])+" pants",2)
 			if data[0] in self.pants_codes:
 				self.message_queue.put(('pants','pants',data[0]))
 			else:
-				BTLegoMario.dp(self.which_brother+" put on unknown pants code "+str(hex(data[0])))
+				BTLegoMario.dp(self.which_player+" put on unknown pants code "+str(hex(data[0])))
 		else:
-			BTLegoMario.dp(self.which_brother+" UNKNOWN PANTS DATA, WEIRD LENGTH OF "+len(data)+":"+" ".join(hex(n) for n in data))
+			BTLegoMario.dp(self.which_player+" UNKNOWN PANTS DATA, WEIRD LENGTH OF "+len(data)+":"+" ".join(hex(n) for n in data))
 
 	# RGB Mode 0
 	def decode_scanner_data(self, data):
 		if len(data) != 4:
-			BTLegoMario.dp(self.which_brother+" UNKNOWN SCANNER DATA, WEIRD LENGTH OF "+len(data)+":"+" ".join(hex(n) for n in data))
+			BTLegoMario.dp(self.which_player+" UNKNOWN SCANNER DATA, WEIRD LENGTH OF "+len(data)+":"+" ".join(hex(n) for n in data))
 			return
 
 		scantype = None
@@ -565,24 +565,24 @@ class BTLegoMario(BTLego):
 				scantype = 'color'
 
 		if not scantype:
-			BTLegoMario.dp(self.which_brother+" UNKNOWN SCANNER DATA:"+" ".join(hex(n) for n in data))
+			BTLegoMario.dp(self.which_player+" UNKNOWN SCANNER DATA:"+" ".join(hex(n) for n in data))
 			return
 
 		if scantype == 'barcode':
 			barcode_int = BTLegoMario.mario_bytes_to_int(data[0:2])
 			if barcode_int != 32767:
 				code_info = BTLegoMario.get_code_info(barcode_int)
-				BTLegoMario.dp(self.which_brother+" scanned "+code_info['label']+" (" + code_info['barcode']+ " "+str(barcode_int)+")",2)
+				BTLegoMario.dp(self.which_player+" scanned "+code_info['label']+" (" + code_info['barcode']+ " "+str(barcode_int)+")",2)
 				self.message_queue.put(('scanner','code',(code_info['barcode'], barcode_int)))
 			else:
 				self.message_queue.put(('error','message','Scanned malformed code'))
 		elif scantype == 'color':
 			color = BTLegoMario.mario_bytes_to_solid_color(data[2:4])
-			BTLegoMario.dp(self.which_brother+" scanned color "+color,2)
+			BTLegoMario.dp(self.which_player+" scanned color "+color,2)
 			self.message_queue.put(('scanner','color',color))
 		else:
 			#scantype == 'nothing':
-			BTLegoMario.dp(self.which_brother+" scanned nothing",2)
+			BTLegoMario.dp(self.which_player+" scanned nothing",2)
 
 	# IMU Mode 0,1
 	def decode_accel_data(self, data):
@@ -607,7 +607,7 @@ class BTLegoMario(BTLego):
 			if fb_accel > 127:
 				fb_accel = -(127-(fb_accel>>1))
 
-			BTLegoMario.dp(self.which_brother+" accel down "+str(ud_accel)+" accel right "+str(lr_accel)+" accel backwards "+str(fb_accel),2)
+			BTLegoMario.dp(self.which_player+" accel down "+str(ud_accel)+" accel right "+str(lr_accel)+" accel backwards "+str(fb_accel),2)
 
 		# GEST: Mode 1
 		# 0x8 0x0 0x45 0x0 [ 0x0 0x80 0x0 0x80 ]
@@ -658,18 +658,18 @@ class BTLegoMario(BTLego):
 				}
 
 				if notes:
-					BTLegoMario.dp(self.which_brother+" gesture data:"+notes+" ".join(hex(n) for n in data),2)
+					BTLegoMario.dp(self.which_player+" gesture data:"+notes+" ".join(hex(n) for n in data),2)
 				else:
 					if data[0]:
-						BTLegoMario.dp(self.which_brother+" gesture data ODD:"+str(data[0])+" ("+str(hex(data[0]))+")",2)
+						BTLegoMario.dp(self.which_player+" gesture data ODD:"+str(data[0])+" ("+str(hex(data[0]))+")",2)
 					elif data[1]:
 						if data[1] in gest_second_byte:
 							if data[1] == 0x4:
 								# ignore this crap
 								return
-							BTLegoMario.dp(self.which_brother+" "+gest_second_byte[data[1]],2)
+							BTLegoMario.dp(self.which_player+" "+gest_second_byte[data[1]],2)
 						else:
-							BTLegoMario.dp(self.which_brother+" gesture data EVEN: ("+str(hex(data[1]))+")",2)
+							BTLegoMario.dp(self.which_player+" gesture data EVEN: ("+str(hex(data[1]))+")",2)
 							# at least emit the ones that can be detected reliably
 							if data[1] == 0x1:
 								self.message_queue.put(('gesture','turn','clockwise'))
@@ -677,7 +677,7 @@ class BTLegoMario(BTLego):
 								self.message_queue.put(('gesture','turn','counterclockwise'))
 
 					else:
-						BTLegoMario.dp(self.which_brother+" gesture data logic failure:"+" ".join(hex(n) for n in data),2)
+						BTLegoMario.dp(self.which_player+" gesture data logic failure:"+" ".join(hex(n) for n in data),2)
 
 	def decode_event_data(self, data):
 
@@ -698,11 +698,11 @@ class BTLegoMario(BTLego):
 					#0x2 0x18 0x2 0x0
 					#0x2 0x18 0x1 0x0
 					if value == 2:
-						BTLegoMario.dp(self.which_brother+" fell asleep",2)
+						BTLegoMario.dp(self.which_player+" fell asleep",2)
 						self.message_queue.put(('event','consciousness','asleep'))
 						decoded_something = True
 					elif value == 1:
-						BTLegoMario.dp(self.which_brother+" woke up",2)
+						BTLegoMario.dp(self.which_player+" woke up",2)
 						self.message_queue.put(('event','consciousness','awake'))
 						decoded_something = True
 			elif event_type == 0x1:
@@ -710,12 +710,12 @@ class BTLegoMario(BTLego):
 					if value == 0:
 						# 0x1 0x18 0x0 0x0
 						# Happens a little while after the flag, sometimes on bootup too
-						BTLegoMario.dp(self.which_brother+" course status has been reset",2)
+						BTLegoMario.dp(self.which_player+" course status has been reset",2)
 						decoded_something = True
 
 			if event_key == 0x20:
 				# hat tip to https://github.com/bhawkes/lego-mario-web-bluetooth/blob/master/pages/index.vue
-				BTLegoMario.dp(self.which_brother+" now has "+str(value)+" coins (obtained via "+str(hex(event_type))+")",2)
+				BTLegoMario.dp(self.which_player+" now has "+str(value)+" coins (obtained via "+str(hex(event_type))+")",2)
 				self.message_queue.put(('event','coincount',(value, event_type)))
 					# via:
 					# 0x9:	Bouncing around randomly
@@ -772,9 +772,9 @@ class BTLegoMario(BTLego):
 
 
 			if not decoded_something:
-				BTLegoMario.dp(self.which_brother+" event data:"+" ".join(hex(n) for n in data),2)
+				BTLegoMario.dp(self.which_player+" event data:"+" ".join(hex(n) for n in data),2)
 		else:
-			BTLegoMario.dp(self.which_brother+" non-mode-2-style event data:"+" ".join(hex(n) for n in data),2)
+			BTLegoMario.dp(self.which_player+" non-mode-2-style event data:"+" ".join(hex(n) for n in data),2)
 
 		pass
 
@@ -804,12 +804,12 @@ class BTLegoMario(BTLego):
 		if BTLegoMario.DEBUG >= 2:
 			color_str =  BTLegoMario.app_icon_color_names[color]
 			icon_str =  BTLegoMario.app_icon_names[icon]
-			BTLegoMario.dp(self.which_brother+" icon is set to "+color_str+" "+icon_str,2)
+			BTLegoMario.dp(self.which_player+" icon is set to "+color_str+" "+icon_str,2)
 
 		self.message_queue.put(('info','icon',(icon,color)))
 
 	def decode_hub_action(self, bt_message):
-		BTLegoMario.dp(self.which_brother+" "+bt_message['action_str'],2)
+		BTLegoMario.dp(self.which_player+" "+bt_message['action_str'],2)
 		# BTLego.hub_action_type
 		if bt_message['action'] == 0x30:
 			self.message_queue.put(('event','power','turned_off'))
@@ -891,6 +891,8 @@ class BTLegoMario(BTLego):
 							code = code+"\t"
 					else:
 						# Contains forbidden "color"
+						# Theorized to be black through experimentation, by @tomalphin on github, coincidentally(?) colored as black by @bricklife
+						# Other colors don't even generate bluetooth responses?
 						code = "-----\t"
 					mario_hex = BTLegoMario.int_to_mario_bytes(count)
 					BTLegoMario.dp(str(count)+"\t"+code+"\t"+" ".join('0x{:02x}'.format(n) for n in mario_hex),4)
@@ -1067,8 +1069,8 @@ class BTLegoMario(BTLego):
 		await asyncio.sleep(0.1)
 
 	async def erase_icon(self):
-		if self.which_brother != 'peach':
-			BTLegoMario.dp("ERROR: Don't know how to erase any brother except peach")
+		if self.which_player != 'peach':
+			BTLegoMario.dp("ERROR: Don't know how to erase any player except peach")
 			return
 
 		set_name_bytes = bytearray([
