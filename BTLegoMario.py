@@ -38,7 +38,7 @@ class BTLegoMario(BTLego):
 	# 1:	Print weird stuff
 	# 2:	Print most of the information flow
 	# 3:	Print stuff even you the debugger probably don't need
-	# 4:	Why did you even put this level in?
+	# 4:	Debug the code table generation too (mostly useless)
 	DEBUG = 0
 
 	which_player = None
@@ -1008,7 +1008,26 @@ class BTLegoMario(BTLego):
 						info['note'] = code['note']
 		return info
 
+	# P(n,k) or nPr (partial permutation) where n=3 and k=7 (9-2 prefix colors) is 210,
+	# corresponding to the output of 210 entries.  Actual valid codes (no black) should be
+	# n=3, k=6 which is 120 that matches up to the algorithmic answer of 100
+	# if you eliminate the mirrors that are generated (20).
+
+	# That's great and all but I still can't figure out how to go directly from
+	# a code in Color Base-9 to the corresponding integer due to:
+	# * Last two positions invert their significance in the BR codespace
+	# * Detect when blacklisted black shows up
+	# * Sorting out all the mirrors
+	# * Can't count straight since repetition eliminates numbers from being used
+	#		https://en.wikipedia.org/wiki/Factorial_number_system
+	#		The Art of Computer Programming, Volume 4, Fascicle 2: Generating All Tuples and Permutations
+
+	# So, tables it is...
+
 	def generate_gr_codespace():
+		valid_codes = 0
+		forbidden_codes = 0
+		mirrored_codes = 0
 		prefix = "GR"
 		# Lowest value to highest value
 		mario_numbers = ['B','P','?','Y','V','T','L']
@@ -1030,20 +1049,28 @@ class BTLegoMario(BTLego):
 							# When scanned backwards, this code will read as the BR code in mirrorcode
 							# But the number returned is associated with the GR codespace
 							code = code+"\t"+mirrorcode
+							mirrored_codes += 1
 						else:
 							code = code+"\t"
+							valid_codes += 1
 					else:
 						# Contains forbidden "color"
 						# Theorized to be black through experimentation, by @tomalphin on github, coincidentally(?) colored as black by @bricklife
 						# https://github.com/mutesplash/legomario/issues/4#issuecomment-1368106277
 						# Other colors don't even generate bluetooth responses?
 						code = "-----\t"
+						forbidden_codes += 1
 					mario_hex = BTLegoMario.int_to_mario_bytes(count)
 					BTLegoMario.dp(str(count)+"\t"+code+"\t"+" ".join('0x{:02x}'.format(n) for n in mario_hex),4)
 					BTLegoMario.gr_codespace[count] = code
 					count += 1
+		#print("Valid GR codes :"+str(valid_codes)+" Invalid: "+str(forbidden_codes+mirrored_codes)+" ("+str(forbidden_codes)+" contain black, "+str(mirrored_codes)+" have mirrors)")
+		# Valid GR codes: 100 Invalid: 110 (90 contain black, 20 have mirrors)
 
 	def generate_br_codespace():
+		valid_codes = 0
+		forbidden_codes = 0
+		mirrored_codes = 0
 		prefix = "BR"
 		mario_numbers = ['G','P','?','Y','V','T','L']
 		potential_position_1 = mario_numbers[:]
@@ -1066,14 +1093,20 @@ class BTLegoMario(BTLego):
 							# When scanned "backwards" this code is equivalent to a GR code in mirrorcode
 							# Ignore it because the GR code's number is the one that is returned
 							code = "--M--\t"+mirrorcode
+							mirrored_codes += 1
 						else:
 							code = code+"\t"
+							valid_codes += 1
 					else:
 						code = "-----\t"
+						forbidden_codes += 1
 					mario_hex = BTLegoMario.int_to_mario_bytes(count)
 					BTLegoMario.dp(str(count)+"\t"+code+"\t"+" ".join('0x{:02x}'.format(n) for n in mario_hex),4)
 					BTLegoMario.br_codespace[count] = code
 					count += 1
+
+		#print("Valid BR codes: "+str(valid_codes)+" Invalid: "+str(forbidden_codes+mirrored_codes)+" ("+str(forbidden_codes)+" contain black, "+str(mirrored_codes)+" have mirrors)")
+		# Valid BR codes: 100 Invalid: 110 (90 contain black, 20 have mirrors)
 
 	def print_codespace():
 		# i\tcode\tmirror\tlabel\tscanner hex\tbinary
