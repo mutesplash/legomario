@@ -109,7 +109,7 @@ class BTLegoMario(BTLego):
 		# Mode 3: DEBUG
 	ALT_EVENTS_PORT = 4
 		# Mode 0: Events
-			# More different events?
+			# More different events?  Might be bluetooth events.
 	VOLTS_PORT = 6		# Constant stream of confusing data
 		# Mode 0: VLT L
 		# Mode 1: VLT S
@@ -828,21 +828,27 @@ class BTLegoMario(BTLego):
 
 			elif event_type == 0x4:
 				if event_key == 0x50:
-						self.message_queue.put(('event','multiplayer',('coincount',value)))
-						decoded_something = True
+					self.message_queue.put(('event','multiplayer',('coincount',value)))
+					decoded_something = True
 
 			elif event_type == 0x5:
 				if event_key == 0x50:
-						# Somehow more special coins.  Different sound
-						self.message_queue.put(('event','multiplayer',('double_coincount',value)))
-						decoded_something = True
+					# Somehow more special coins.  Different sound
+					self.message_queue.put(('event','multiplayer',('double_coincount',value)))
+					decoded_something = True
 
 			elif event_type == 0x6:
 				if event_key == 0x50:
-						# Both cheer "teamwork"  I guess you have to build up?  Not clear.
-						# Maybe the quality of the collaborative jump sync?
-						self.message_queue.put(('event','multiplayer',('triple_coincount',value)))
-						decoded_something = True
+					# Both cheer "teamwork"  I guess you have to build up?  Not clear.
+					# Maybe the quality of the collaborative jump sync?
+					self.message_queue.put(('event','multiplayer',('triple_coincount',value)))
+					decoded_something = True
+
+			elif event_type == 0x59:
+				if event_key == 0x38:
+					# Tap on the table to "walk" the player
+					self.message_queue.put(('event','multiplayer',('steps',value)))
+					decoded_something = True
 
 			if event_key == 0x20:
 				# hat tip to https://github.com/bhawkes/lego-mario-web-bluetooth/blob/master/pages/index.vue
