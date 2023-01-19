@@ -570,7 +570,9 @@ class BTLegoMario(BTLego):
 
 		if scantype == 'barcode':
 			barcode_int = BTLegoMario.mario_bytes_to_int(data[0:2])
+			# Max 16-bit signed int, Github Issue #4
 			if barcode_int != 32767:
+				# Happens when Black is used as a color
 				code_info = BTLegoMario.get_code_info(barcode_int)
 				BTLegoMario.dp(self.which_player+" scanned "+code_info['label']+" (" + code_info['barcode']+ " "+str(barcode_int)+")",2)
 				self.message_queue.put(('scanner','code',(code_info['barcode'], barcode_int)))
@@ -612,72 +614,164 @@ class BTLegoMario(BTLego):
 		# GEST: Mode 1
 		# 0x8 0x0 0x45 0x0 [ 0x0 0x80 0x0 0x80 ]
 		elif len(data) == 4:
+
+			little_32b_int = int.from_bytes(data, byteorder="little", signed=False)
+			if not little_32b_int == 0x0:
+				#print("full: "+'{:032b}'.format(little_32b_int))
+
+				first_16b_int = int.from_bytes(data[:2], byteorder="little", signed=False)
+				last_16b_int = int.from_bytes(data[2:], byteorder="little", signed=False)
+				if (first_16b_int != last_16b_int):
+					print("split ints: "+'{:016b}'.format(first_16b_int)+'_'+'{:016b}'.format(last_16b_int))
+				else:
+					# https://github.com/djipko/legomario.py/blob/master/legomario.py
+					# https://github.com/benthomasson/legomario/commit/16670878fb0be28481733fefee7754adc8820e1a
+
+					detect_bit = True
+					#print("matched ints: "+'{:016b}'.format(first_16b_int))
+
+					# bump?						0000 0000_0x00000x
+					# Odd that I've never seen 0x1 or 0x40 by themselves
+					# djipko claims 0x1 is bump
+					PLAYER_BUMP_XX_WAT			= 0x40 + 0x1
+
+					# Seen live after a slam 	0000 0000_000000x0
+					PLAYER_DUNNO_2				= 0x2
+
+					# Seen live	after jump		0000 0000_00000100
+					# benthomasson (fly) if paired with direction change 0x1000
+					PLAYER_DUNNO_4				= 0x4
+
+					# hard shake?				0000 0000_0000x000	benthomasson (hardshake)
+					PLAYER_HARD_SHAKE_XX_WAT	= 0x8
+
+					# shake						0000 0000_00010000	djipko (shake), benthomasson (flip) (if split and lower are 0x0?)
+					# benthomasson has "flip" as 0x100000 in a 32-bit int, which is 0x10 if the high bits are actually a 16-bit int
+					#	This showed up on peach as a matched set of 0x10
+					PLAYER_SHAKE_XX_WAT			= 0x10
+
+					# Seen live, dunno what		0000 0000_00100000	benthomasson (spin)
+					PLAYER_DUNNO_20				= 0x20
+
+					# 0x40?	bump?
+
+					# 0x80?
+
+					# Turn (clockwise)			0000 000x_00000000	djipko (turning)
+					PLAYER_CLOCKWISE			= 0x100
+
+					# Move quickly				0000 00x0_00000000	djipko (fastmove)
+					PLAYER_JERK					= 0x200
+
+					# Disturbed					0000 0x00_00000000	djipko (translation)
+					PLAYER_DISTURBED			= 0x400
+
+					# high fall crash?			0000 x000_00000000	djipko (high fall crash)
+					PLAYER_CRASH_XX_WAT			= 0x800
+
+					# direction change?			000x 0000_00000000	djipko (direction change)
+					PLAYER_DIRECTION_CHANGE_XX_WAT	= 0x1000
+
+					# Inverse turn				00x0 000x_00000000	djipko (reverse)
+					PLAYER_INVERT_TURN			= 0x2000 # + 0x100 Mask to check only if turn inverts
+
+					# Dunno						0x00 0000_00000000	benthomasson (roll)
+					# Seen live while making circles
+					PLAYER_DUNNO_4000			= 0x4000
+
+					# Jump						x000 0000_00000000	djipko (jump)
+					PLAYER_JUMP					= 0x8000
+
+					# "Throw" or "tip" is JERK then JUMP?  Mario's internal code for dealing with
+					# throwing turnips or eating cake and fruit seems to not reliably match
+					# the bluetooth data, which isn't a new phenomenon...
+
+					# I'm only going to send the messages if I can actually get mario to reproduce them on demand
+					# You can fiddle around in here if you've figured out how to make these things happen
+					# or open a really descriptive issue
+					# Sometimes mario can return a bunch of nonsense like, clockwise jump direction change
+					# Debating how to message that
+
+					if bool (first_16b_int & PLAYER_CLOCKWISE ):
+						if bool (first_16b_int & PLAYER_INVERT_TURN ):
+							#print("BIT: turn & invert (counterclockwise)")
+							self.message_queue.put(('gesture','turn','counterclockwise'))
+						else:
+							#print("BIT: turn (clockwise)")
+							self.message_queue.put(('gesture','turn','clockwise'))
+
+					elif bool (first_16b_int & PLAYER_DISTURBED ):
+						#print("BIT: disturbed")
+						self.message_queue.put(('gesture','disturbed',None))
+
+					elif bool (first_16b_int & PLAYER_JERK ):
+						#print("BIT: jerked")
+						pass
+
+					elif bool (first_16b_int & PLAYER_JUMP ):
+						#print("BIT: jumped")
+						pass
+
+					elif bool (first_16b_int & PLAYER_BUMP_XX_WAT ):
+						#print("BIT: bumped?")
+						pass
+
+					elif bool (first_16b_int & PLAYER_SHAKE_XX_WAT ):
+						#print("BIT: shake?")
+						pass
+
+					elif bool (first_16b_int & PLAYER_HARD_SHAKE_XX_WAT ):
+						#print("BIT: hard shake?")
+						pass
+
+					elif bool (first_16b_int & PLAYER_DIRECTION_CHANGE_XX_WAT ):
+						#print("BIT: direction change")
+						pass
+
+					elif bool (first_16b_int & PLAYER_CRASH_XX_WAT ):
+						#print("BIT: crash?")
+						pass
+
+					elif bool (first_16b_int & PLAYER_DUNNO_20 ):
+						#print("BIT: dunno?")
+						pass
+
+					elif bool (first_16b_int & PLAYER_DUNNO_4000 ):
+						#print("BIT: dunno4000?")
+						pass
+
+					elif bool (first_16b_int & PLAYER_DUNNO_4 ):
+						#print("BIT: dunno4?")
+						pass
+
+					elif bool (first_16b_int & PLAYER_DUNNO_2 ):
+						#print("BIT: dunno2?")
+						pass
+
+					elif bool (first_16b_int & (0x1 | 0x40 | 0x80) ):
+						print("WHAT DID YOU DO?!  matched ints: "+'{:08b}'.format(data[1])+'_'+'{:08b}'.format(data[0]))
+
+					else:
+						detect_bit = False
+						print("matched ints: "+'{:08b}'.format(data[1])+'_'+'{:08b}'.format(data[0]))
+
+			else:
+				# Maybe this is "done?", as sometimes you'll see a bunch of gestures and then this
+				#print("ignoring empty gesture")
+				return
+
 			notes= ""
 			if data[0] != data[2]:
 				notes += "NOTE:odd mismatch:"
 			if data[1] != data[3]:
 				notes += "NOTE:even mismatch:"
 			if (data[0] and data[1]) or (data[2] and data[3]) or (data[0] and data[3]) or (data[1] and data[2]):
-				notes += "NOTE:dual paring:"
-				# 0x41 0x2 0x41 0x2
-				# 0x2 0x4 0x2 0x4			# while jumping
-				# 0x2 0x2 0x2 0x2			# while jumping
-				# 0x41 0x8 0x41 0x8
-				# 0x41 0x1 0x41 0x1
-			# Ignore "no gesture"
-			if not int.from_bytes(data, byteorder="little", signed=False) == 0x0:
-				# Not exactly helpful, can't really replicate https://github.com/djipko/legomario.py/blob/master/legomario.py
+				# "matched ints"
+				#notes += "NOTE:dual paring:"
+				pass
 
-				# Odd
-				gest_first_byte = {
-					# 0x2
-					# 0x10								# 0001 0000
-					# 0x41: '?? up/down					# 0100 0001
-					# 0x81								# 1000 0001
-				}
-
-				# Even
-				gest_second_byte = {
-					0x1:	'Turns clockwise',			# 0000 0000 0000 0001
-					0x2:	'Changes direction',		# 0000 0000 0000 0010
-					0x4:	'?? base state noise',		# 0000 0000 0000 0100
-					#0x5								# 0000 0000 0000 0101
-					#0x6								# 0000 0000 0000 0110
-					#0x8	shake?						# 0000 0000 0000 1000
-					#0xa
-					#0xc
-					#0x10:	'?? sideways move/tilt',	# 0000 0000 0001 0000
-					#0x11								# 0000 0000
-					#0x12
-					#0x14								# 0000 0000
-					0x21:	'Turns counterclockwise',	# 0000 0000 0010 0001
-					#0x25
-					0x80:	'Suddenly changes directon'	# 0000 0000 1000 0000
-					#0x82								# 0000 0000 1000 0010
-					#0x92
-				}
-
-				if notes:
-					BTLegoMario.dp(self.which_player+" gesture data:"+notes+" ".join(hex(n) for n in data),2)
-				else:
-					if data[0]:
-						BTLegoMario.dp(self.which_player+" gesture data ODD:"+str(data[0])+" ("+str(hex(data[0]))+")",2)
-					elif data[1]:
-						if data[1] in gest_second_byte:
-							if data[1] == 0x4:
-								# ignore this crap
-								return
-							BTLegoMario.dp(self.which_player+" "+gest_second_byte[data[1]],2)
-						else:
-							BTLegoMario.dp(self.which_player+" gesture data EVEN: ("+str(hex(data[1]))+")",2)
-							# at least emit the ones that can be detected reliably
-							if data[1] == 0x1:
-								self.message_queue.put(('gesture','turn','clockwise'))
-							elif data[1] == 0x21:
-								self.message_queue.put(('gesture','turn','counterclockwise'))
-
-					else:
-						BTLegoMario.dp(self.which_player+" gesture data logic failure:"+" ".join(hex(n) for n in data),2)
+			if notes:
+				BTLegoMario.dp(self.which_player+" gesture data:"+notes+" ".join(hex(n) for n in data),2)
 
 	def decode_event_data(self, data):
 
@@ -892,6 +986,7 @@ class BTLegoMario(BTLego):
 					else:
 						# Contains forbidden "color"
 						# Theorized to be black through experimentation, by @tomalphin on github, coincidentally(?) colored as black by @bricklife
+						# https://github.com/mutesplash/legomario/issues/4#issuecomment-1368106277
 						# Other colors don't even generate bluetooth responses?
 						code = "-----\t"
 					mario_hex = BTLegoMario.int_to_mario_bytes(count)
