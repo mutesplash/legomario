@@ -630,10 +630,12 @@ class BTLegoMario(BTLego):
 					detect_bit = True
 					#print("matched ints: "+'{:016b}'.format(first_16b_int))
 
-					# bump?						0000 0000_0x00000x
+					# Walk						0000 0000_0x00000x
 					# Odd that I've never seen 0x1 or 0x40 by themselves
 					# djipko claims 0x1 is bump
-					PLAYER_BUMP_XX_WAT			= 0x40 + 0x1
+					# Just walk the player side to side on a surface
+					# Can also generate by wobbling a rail car front to back within it's limits
+					PLAYER_WALK					= 0x40 + 0x1
 
 					# Seen live after a slam 	0000 0000_000000x0
 					PLAYER_DUNNO_2				= 0x2
@@ -642,110 +644,125 @@ class BTLegoMario(BTLego):
 					# benthomasson (fly) if paired with direction change 0x1000
 					PLAYER_DUNNO_4				= 0x4
 
-					# hard shake?				0000 0000_0000x000	benthomasson (hardshake)
-					PLAYER_HARD_SHAKE_XX_WAT	= 0x8
+					# Flip						0000 0000_0000x000	benthomasson (hardshake)
+					# Do a flip on peach's swing (BRYVG) and it will make a magic sound
+					# and emit this gesture.  Doesn't seem to matter which direction (front or back)
+					# Sideways does not work
+					PLAYER_FLIP					= 0x8
 
-					# shake						0000 0000_00010000	djipko (shake), benthomasson (flip) (if split and lower are 0x0?)
+					# Shake						0000 0000_00010000	djipko (shake), benthomasson (flip) (if split and lower are 0x0?)
 					# benthomasson has "flip" as 0x100000 in a 32-bit int, which is 0x10 if the high bits are actually a 16-bit int
 					#	This showed up on peach as a matched set of 0x10
-					PLAYER_SHAKE_XX_WAT			= 0x10
+					# Use the peach swing quickly
+					# Enough of these make the player "dizzy"
+					PLAYER_SHAKE				= 0x10
 
-					# Seen live, dunno what		0000 0000_00100000	benthomasson (spin)
-					PLAYER_DUNNO_20				= 0x20
+					# Tornado spin				0000 0000_00100000	benthomasson (spin)
+					# Hold the player upright in your hand, put your elbow on a table as a pivot,
+					# then move the player around in a circle (~4in diameter)
+					# Usually also makes them dizzy
+					# Doesn't seem to work inverted (holding the player above the table with your elbow in the air)
+					# Not sure how this would be generated in a set
+					PLAYER_TORNADO				= 0x20
 
-					# 0x40?	bump?
+					# 0x40? Never seen
 
-					# 0x80?
+					# 0x80? Never seen
 
 					# Turn (clockwise)			0000 000x_00000000	djipko (turning)
 					PLAYER_CLOCKWISE			= 0x100
 
 					# Move quickly				0000 00x0_00000000	djipko (fastmove)
-					PLAYER_JERK					= 0x200
+					# Peach swing when done moderately quickly
+					# Emitted constantly on the Piranha Plant Power Slide (GRPLB)
+					# Triggers for "ouch" on this code seem to be anything that is not PLAYER_JUMP or PLAYER_WALK
+					PLAYER_MOVING				= 0x200
 
 					# Disturbed					0000 0x00_00000000	djipko (translation)
 					PLAYER_DISTURBED			= 0x400
 
-					# high fall crash?			0000 x000_00000000	djipko (high fall crash)
-					PLAYER_CRASH_XX_WAT			= 0x800
+					# Crash	(violent stop)		0000 x000_00000000	djipko (high fall crash)
+					# Side to side shaking on a rail generates this
+					PLAYER_CRASH				= 0x800
 
-					# direction change?			000x 0000_00000000	djipko (direction change)
-					PLAYER_DIRECTION_CHANGE_XX_WAT	= 0x1000
+					# Sudden stop				000x 0000_00000000	djipko (direction change)
+					# Easy to replicate on Piranha Plant Power Slide (GRPLB)
+					# Ride Peach's swing sideways to constantly generate, so detection seems directionally biased
+					# Moving up and down quickly generates it a lot
+					PLAYER_SUDDEN_STOP			= 0x1000
 
 					# Inverse turn				00x0 000x_00000000	djipko (reverse)
 					PLAYER_INVERT_TURN			= 0x2000 # + 0x100 Mask to check only if turn inverts
 
-					# Dunno						0x00 0000_00000000	benthomasson (roll)
-					# Seen live while making circles
-					PLAYER_DUNNO_4000			= 0x4000
+					# Flying roll				0x00 0000_00000000	benthomasson (roll)
+					# Player needs to be horizontal like they're flying and then quickly rolled
+					PLAYER_ROLL					= 0x4000
 
 					# Jump						x000 0000_00000000	djipko (jump)
 					PLAYER_JUMP					= 0x8000
 
-					# "Throw" or "tip" is JERK then JUMP?  Mario's internal code for dealing with
+					# "Throw" or "tip" is MOVE then JUMP?  Mario's internal code for dealing with
 					# throwing turnips or eating cake and fruit seems to not reliably match
 					# the bluetooth data, which isn't a new phenomenon...
 
-					# I'm only going to send the messages if I can actually get mario to reproduce them on demand
-					# You can fiddle around in here if you've figured out how to make these things happen
-					# or open a really descriptive issue
-					# Sometimes mario can return a bunch of nonsense like, clockwise jump direction change
+					# Sometimes mario can return a bunch of nonsense at the same time like, clockwise jump direction change
+					# This elif ladder obviously only dones one of them at a time
 					# Debating how to message that
 
 					if bool (first_16b_int & PLAYER_CLOCKWISE ):
 						if bool (first_16b_int & PLAYER_INVERT_TURN ):
-							#print("BIT: turn & invert (counterclockwise)")
 							self.message_queue.put(('gesture','turn','counterclockwise'))
+							pass
 						else:
-							#print("BIT: turn (clockwise)")
 							self.message_queue.put(('gesture','turn','clockwise'))
+							pass
 
 					elif bool (first_16b_int & PLAYER_DISTURBED ):
-						#print("BIT: disturbed")
 						self.message_queue.put(('gesture','disturbed',None))
+						pass
 
-					elif bool (first_16b_int & PLAYER_JERK ):
-						#print("BIT: jerked")
+					elif bool (first_16b_int & PLAYER_MOVING ):
+						self.message_queue.put(('gesture','moving',None))
 						pass
 
 					elif bool (first_16b_int & PLAYER_JUMP ):
-						#print("BIT: jumped")
+						self.message_queue.put(('gesture','jump',None))
 						pass
 
-					elif bool (first_16b_int & PLAYER_BUMP_XX_WAT ):
-						#print("BIT: bumped?")
+					elif bool (first_16b_int & PLAYER_WALK ):
+						self.message_queue.put(('gesture','walk',None))
 						pass
 
-					elif bool (first_16b_int & PLAYER_SHAKE_XX_WAT ):
-						#print("BIT: shake?")
+					elif bool (first_16b_int & PLAYER_SHAKE ):
+						self.message_queue.put(('gesture','shake',None))
 						pass
 
-					elif bool (first_16b_int & PLAYER_HARD_SHAKE_XX_WAT ):
-						#print("BIT: hard shake?")
+					elif bool (first_16b_int & PLAYER_FLIP ):
+						self.message_queue.put(('gesture','flip',None))
 						pass
 
-					elif bool (first_16b_int & PLAYER_DIRECTION_CHANGE_XX_WAT ):
-						#print("BIT: direction change")
+					elif bool (first_16b_int & PLAYER_SUDDEN_STOP ):
+						self.message_queue.put(('gesture','stop',None))
 						pass
 
-					elif bool (first_16b_int & PLAYER_CRASH_XX_WAT ):
-						#print("BIT: crash?")
+					elif bool (first_16b_int & PLAYER_CRASH ):
+						self.message_queue.put(('gesture','crash',None))
 						pass
 
-					elif bool (first_16b_int & PLAYER_DUNNO_20 ):
-						#print("BIT: dunno?")
+					elif bool (first_16b_int & PLAYER_TORNADO ):
+						self.message_queue.put(('gesture','tornado',None))
 						pass
 
-					elif bool (first_16b_int & PLAYER_DUNNO_4000 ):
-						#print("BIT: dunno4000?")
+					elif bool (first_16b_int & PLAYER_ROLL ):
+						self.message_queue.put(('gesture','roll',None))
 						pass
 
 					elif bool (first_16b_int & PLAYER_DUNNO_4 ):
-						#print("BIT: dunno4?")
+						print("BIT: dunno4?")
 						pass
 
 					elif bool (first_16b_int & PLAYER_DUNNO_2 ):
-						#print("BIT: dunno2?")
+						print("BIT: dunno2?")
 						pass
 
 					elif bool (first_16b_int & (0x1 | 0x40 | 0x80) ):
