@@ -58,6 +58,7 @@ class BTLegoMario(BTLego):
 	#	'coincount':		(count_int, last_obtained_via_int)
 	#	'power':			'turned_off'
 	#	'bt':				'disconnected'
+	#	'multiplayer':		('coincount', count), ('double_coincount', count),  ('triple_coincount', count)
 	# motion
 	#	TODO raw data
 	#	TODO gesture
@@ -321,6 +322,7 @@ class BTLegoMario(BTLego):
 					# Definitely not sent on connect
 					await self.request_volume_update()
 					await self.request_version_update()
+					await self.request_battery_update()
 
 					while self.client.is_connected:
 						await asyncio.sleep(0.05)
@@ -824,6 +826,24 @@ class BTLegoMario(BTLego):
 						BTLegoMario.dp(self.which_player+" course status has been reset",2)
 						decoded_something = True
 
+			elif event_type == 0x4:
+				if event_key == 0x50:
+						self.message_queue.put(('event','multiplayer',('coincount',value)))
+						decoded_something = True
+
+			elif event_type == 0x5:
+				if event_key == 0x50:
+						# Somehow more special coins.  Different sound
+						self.message_queue.put(('event','multiplayer',('double_coincount',value)))
+						decoded_something = True
+
+			elif event_type == 0x6:
+				if event_key == 0x50:
+						# Both cheer "teamwork"  I guess you have to build up?  Not clear.
+						# Maybe the quality of the collaborative jump sync?
+						self.message_queue.put(('event','multiplayer',('triple_coincount',value)))
+						decoded_something = True
+
 			if event_key == 0x20:
 				# hat tip to https://github.com/bhawkes/lego-mario-web-bluetooth/blob/master/pages/index.vue
 				BTLegoMario.dp(self.which_player+" now has "+str(value)+" coins (obtained via "+str(hex(event_type))+")",2)
@@ -833,6 +853,12 @@ class BTLegoMario(BTLego):
 					# 0x42:	Goomba
 					# 0x44:	Whatever complexity stomping a Spiny is
 					# 0xb0: Fireball blip nothing
+					# 0x3e	Action tile?
+					# 0x3a	Friend?
+					# 0x65	Boss defeat
+					# 0x5d	Boss defeat
+					# 0x6f	Boss defeat (Ok, obviously unique per boss code)
+
 				decoded_something = True
 
 			# Start a course
@@ -1300,6 +1326,17 @@ class BTLegoMario(BTLego):
 		await self.client.write_gatt_char(BTLegoMario.characteristic_uuid, name_update_bytes)
 		await asyncio.sleep(0.1)
 
+	async def request_battery_update(self):
+		# Triggers hub_properties message
+		name_update_bytes = bytearray([
+			0x05,	# len
+			0x00,	# padding but maybe stuff in the future (:
+			0x1,	# 'hub_properties'
+			0x6,	# 'Battery Percentage'
+			0x5		# 'Request Update'
+		])
+		await self.client.write_gatt_char(BTLegoMario.characteristic_uuid, name_update_bytes)
+		await asyncio.sleep(0.1)
 
 	def port_inport_format_setup_bytes(port, mode, enable):
 		# original hint from https://github.com/salendron/pyLegoMario
