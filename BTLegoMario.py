@@ -881,6 +881,7 @@ class BTLegoMario(BTLego):
 						BTLegoMario.dp(self.which_player+" event: put on unknown pants:"+str(value),2)
 
 			# Jumps: Small and large (that make the jump noise)
+			# 0x57 0x38 0x1 0x0		# SOMETIMES a wild 0x1 appears!
 			elif event_type == 0x57:
 				if event_key == 0x38:
 					self.message_queue.put(('event','move','jump'))
@@ -892,24 +893,45 @@ class BTLegoMario(BTLego):
 					self.message_queue.put(('event','multiplayer',('steps',value)))
 					decoded_something = True
 
+			# maybe related to low battery flashing
 			elif event_type == 0x61:
 				if event_key == 0x38:
 					if value == 0x5:
-						self.message_queue.put(('event','move','laying_down'))
+						self.message_queue.put(('event','prone','laying_down'))
+						decoded_something = True
+					# "I'm sleepy"
+					elif value == 0x3:
+						self.message_queue.put(('event','prone','sleepy'))
+						decoded_something = True
+					# "oh" Usually first before sleepy, but not always.  Sometimes repeated
+					# Basically, unreliable
+					elif value == 0x8:
+						self.message_queue.put(('event','prone','maybe_sleep'))
 						decoded_something = True
 
 			# kind of like noise, so maybe this is "done" doing stuff
 			elif event_type == 0x62:
 				if event_key == 0x38:
-					BTLegoMario.dp(self.which_player+" ... events ...",2)
-					decoded_something = True
+					if value == 0x0:
+						BTLegoMario.dp(self.which_player+" ... events ...",2)
+						decoded_something = True
+
+			# But... WHY?
+			elif event_type == 0x66:
+				if event_key == 0x38:
+					if value == 0:
+						self.message_queue.put(('event','consciousness_2','asleep'))
+						decoded_something = True
+					elif value == 1:
+						self.message_queue.put(('event','consciousness_2','awake'))
+						decoded_something = True
 
 			# Poltergust stop
 			elif event_type == 0x6e:
 				if event_key == 0x38:
 					if value == 0x0:
 						# Also sent when poltergust pants are taken off
-						self.message_queue.put(('event','pants','stop_vac'))
+						self.message_queue.put(('event','vacuum','stop'))
 						decoded_something = True
 
 			if event_key == 0x20:
@@ -931,17 +953,6 @@ class BTLegoMario(BTLego):
 
 				decoded_something = True
 
-			# sleep related
-			# 0x66 0x38 0x1 0x0
-
-			# more position related stuff
-			#peach event data:0x61 0x38 0x1 0x0
-			#peach event data:0x61 0x38 0x8 0x0
-			#peach event data:0x61 0x38 0x3 0x0
-			#peach event data:0x61 0x38 0x8 0x0
-			#peach event data:0x61 0x38 0x3 0x0
-			#peach event data:0x66 0x38 0x0 0x0
-
 			# Start a course
 			# 0x72 0x38 0x2 0x0	First this
 			# 0x1 0x18 0x1 0x0	Then this
@@ -949,26 +960,8 @@ class BTLegoMario(BTLego):
 			# Last message before powered off via button
 			# 0x73 0x38 0x0 0x0
 
-			# Unidentified "Idle" or jumping around chatter
-			# 0x0 0x0 0x0 0x0		Probably init response when subscribed to port
-			# 0x62 0x38 0x0 0x0
-			# 0x57 0x38 0x0 0x0
-			# 0x57 0x38 0x1 0x0		# SOMETIMES a wild 0x1 appears!
-
-			# maybe related to low battery flashing
-			# 0x61 0x38 0x8 0x0
-			# 0x61 0x38 0x3 0x0
-			# 0x61 0x38 0x8 0x0
-
 			# Hanging out and doing nothing with fire pants on
-			# 0x62 0x38 0x0 0x0
-			# 0x61 0x38 0x5 0x0
 			# 0x5e 0x38 0x0 0x0
-			# 0x61 0x38 0x8 0x0
-			# 0x61 0x38 0x3 0x0
-			# 0x61 0x38 0x8 0x0
-			# 0x61 0x38 0x3 0x0
-			# 0x66 0x38 0x0 0x0
 
 			# 0x5e 0x38 0x0 0x0		a little while after first powered on
 
@@ -978,16 +971,9 @@ class BTLegoMario(BTLego):
 			# 0x10 0x19 0x1 0x0
 			# 0x11 0x19 0x7 0x0
 			# 0x80 0x1 0x0 0x0
-			# 0x15 0x1 0x8 0x0		Pants related (power up/down?)
-			# 0x1 0x18 0x0 0x0		DONE: Course status reset
 			# 0x1 0x40 0x1 0x0
 			# 0x2 0x40 0x1 0x0
 			# 0x1 0x30 0x0 0x0
-
-			# Abrupt jump
-			#peach event data:0x57 0x38 0x0 0x0
-			#peach event data:0x62 0x38 0x0 0x0
-
 
 			if not decoded_something:
 				BTLegoMario.dp(self.which_player+" event data:"+" ".join(hex(n) for n in data),2)
