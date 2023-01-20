@@ -209,6 +209,27 @@ class BTLegoMario(BTLego):
 #		0x38:'?56?'			# 111 000
 	}
 
+	# I don't know why pants codes are transmitted over the events port,
+	# or why they are different numbers, but here we are
+	event_pants_codes = {
+		0x0:'no',
+		0x1:'mario',
+		0x2:'propeller',
+		0x3:'cat',
+		0x4:'fire',
+		0x5:'builder',
+		0x6:'penguin',
+		0x7:'tanooki',
+		0x8:'luigi',
+		0x9:'bee',
+		0xa:'frog',
+		0xb:'vacuum',	# Triggers on EITHER pin.  Both pins down trigger the vacuum
+		0xc:'invalid',	# Not just any invalid pin combo, ALL of them
+		0xd:'dress',
+		0xe:'cat',		# Peach's cat
+		0xf:'ice'
+	}
+
 	# Set in the advertising name
 	app_icon_names = {
 		0x61: 'flag',		# a
@@ -803,13 +824,26 @@ class BTLegoMario(BTLego):
 			event_key = data[1]
 			value = BTLegoMario.mario_bytes_to_int(data[2:])
 
-			# 0x0 0x0 0x0 0x0	when powered on or when subscribed?  FIXME: after callbacks get set, check which one
-
 			decoded_something = False
-			if event_type == 0x2:
+
+			# FIXME: Maybe have the type and key backwards??
+
+			# When powered on and BT connected (reconnects do not seem to generate)
+			if event_type == 0x0:
+				if event_key == 0x0:
+					if value == 0:
+						BTLegoMario.dp(self.which_player+" events ready!",2)
+						decoded_something = True
+
+			elif event_type == 0x1:
 				if event_key == 0x18:
-					#0x2 0x18 0x2 0x0
-					#0x2 0x18 0x1 0x0
+					if value == 0:
+						# Happens a little while after the flag, sometimes on bootup too
+						BTLegoMario.dp(self.which_player+" course status has been reset",2)
+						decoded_something = True
+
+			elif event_type == 0x2:
+				if event_key == 0x18:
 					if value == 2:
 						BTLegoMario.dp(self.which_player+" fell asleep",2)
 						self.message_queue.put(('event','consciousness','asleep'))
@@ -817,13 +851,6 @@ class BTLegoMario(BTLego):
 					elif value == 1:
 						BTLegoMario.dp(self.which_player+" woke up",2)
 						self.message_queue.put(('event','consciousness','awake'))
-						decoded_something = True
-			elif event_type == 0x1:
-				if event_key == 0x18:
-					if value == 0:
-						# 0x1 0x18 0x0 0x0
-						# Happens a little while after the flag, sometimes on bootup too
-						BTLegoMario.dp(self.which_player+" course status has been reset",2)
 						decoded_something = True
 
 			elif event_type == 0x4:
@@ -844,11 +871,46 @@ class BTLegoMario(BTLego):
 					self.message_queue.put(('event','multiplayer',('triple_coincount',value)))
 					decoded_something = True
 
+			elif event_type == 0x15:
+				# pants status (completely different than pants ports status)
+				if event_key == 0x1:
+					if value in BTLegoMario.event_pants_codes:
+						self.message_queue.put(('event','pants',BTLegoMario.event_pants_codes[value]))
+						decoded_something = True
+					else:
+						BTLegoMario.dp(self.which_player+" event: put on unknown pants:"+str(value),2)
+
+			# Jumps: Small and large (that make the jump noise)
+			elif event_type == 0x57:
+				if event_key == 0x38:
+					self.message_queue.put(('event','move','jump'))
+					decoded_something = True
+
 			elif event_type == 0x59:
 				if event_key == 0x38:
 					# Tap on the table to "walk" the player
 					self.message_queue.put(('event','multiplayer',('steps',value)))
 					decoded_something = True
+
+			elif event_type == 0x61:
+				if event_key == 0x38:
+					if value == 0x5:
+						self.message_queue.put(('event','move','laying_down'))
+						decoded_something = True
+
+			# kind of like noise, so maybe this is "done" doing stuff
+			elif event_type == 0x62:
+				if event_key == 0x38:
+					BTLegoMario.dp(self.which_player+" ... events ...",2)
+					decoded_something = True
+
+			# Poltergust stop
+			elif event_type == 0x6e:
+				if event_key == 0x38:
+					if value == 0x0:
+						# Also sent when poltergust pants are taken off
+						self.message_queue.put(('event','pants','stop_vac'))
+						decoded_something = True
 
 			if event_key == 0x20:
 				# hat tip to https://github.com/bhawkes/lego-mario-web-bluetooth/blob/master/pages/index.vue
@@ -857,8 +919,10 @@ class BTLegoMario(BTLego):
 					# via:
 					# 0x9:	Bouncing around randomly
 					# 0x42:	Goomba
+					# 0xb0: Fireball pants blip nothing
+					# 0xb3: Propeller pants flying
+					# 0xb6: Bee pants flying
 					# 0x44:	Whatever complexity stomping a Spiny is
-					# 0xb0: Fireball blip nothing
 					# 0x3e	Action tile?
 					# 0x3a	Friend?
 					# 0x65	Boss defeat
@@ -866,6 +930,17 @@ class BTLegoMario(BTLego):
 					# 0x6f	Boss defeat (Ok, obviously unique per boss code)
 
 				decoded_something = True
+
+			# sleep related
+			# 0x66 0x38 0x1 0x0
+
+			# more position related stuff
+			#peach event data:0x61 0x38 0x1 0x0
+			#peach event data:0x61 0x38 0x8 0x0
+			#peach event data:0x61 0x38 0x3 0x0
+			#peach event data:0x61 0x38 0x8 0x0
+			#peach event data:0x61 0x38 0x3 0x0
+			#peach event data:0x66 0x38 0x0 0x0
 
 			# Start a course
 			# 0x72 0x38 0x2 0x0	First this
