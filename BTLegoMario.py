@@ -233,35 +233,97 @@ class BTLegoMario(BTLego):
 	# FIXME: Incomplete and don't rely on this not changing
 	event_scanner_coinsource = {
 		9:'free',			# Just hopping around
+		33:'BDARR 2',
+		34:'SPIN 1',
+		36:'SPIN 2',
 		37:'WAGGLE',		# 1, 2, 3, 4
+		39:'SPIN 3',
+		40:'SPIN 4',
+		42:'BDARR 5',
+		43:'NES',
+		44:'BDARR 1',
 		45:'red coins',		# 10 if complete
-		65:'SUMO',
-		66:'GOOMBA',		# 1
-		68:'SPINY',			# 1
-		70:'GHOST',			# Need to use a star
+		46:'RAFT',
+		48:'GEAR',
+		49:'NUT',
+		50:'SEESAW',
+		51:'SKEWER',
+		52:'BROOM',
+		53:'SPIN 5',
+		54:'BIASDIR',
+		55:'FERRIS',
+		56:'STEERING',
+		59:'CLOWN',
+		66:'GOOMBA or LAVA',		# 1
+		68:'SPINY or BUZZY',			# 1
+		67:'BOB-OMB or BOMB 2 or BOMB 3 or PARABOMB',
+		69:'BLOOPER',
+		70:'GHOST or BOO',			# Need to use a star
 		71:'GLDGHOST',		# star
 		72:'GRBG GHO',		# star
 		73:'GRBGHOST',		# star
+		74:'BOGMIRE',
+		75:'SWING',			# varies
 		80:'SHY GUY',		# 1
+		81:'WHOMP',
+		82:'DRY BONE',
+		83:'BOWSER 2',		# ? seems inconsistent, or maybe coin count outside of the course is
+		84:'KOOPA 1 or KOOPA 2',
+		85:'THWOMP',
 		87:'YOSHI',			# 5, 2 when scanned again
 		86:'TOAD',			# 5
 		88:'POKEY',			# 1
-		89:'EXPLODE'		# 1
+		89:'EXPLODE',		# 1
 		90:'KING BOO',		# star
-		92:'TOADETTE',		#5
+		92:'TOADETTE',		# 5
+		93:'IGGY or BRVYT or LARRY',			# 10
+		94:'THWIMP',
+		96:'BRAMBALL',
+		97:'KPARAT 1 or KPARAT 2',
+		98:'CHOMP',
 		58:'DORRIE',		# 5
+		100:'BOOMBOOM',
+		101:'SUMO',
+		102:'REZNOR 2',		# Another backwards numbering...
+		103:'REZNOR 1',
+		104:'LAKITU',
+		105:'ROCKY',
+		106:'AMP',
+		107:'KAMEK',
+		109:'SHIPHEAD',
+		110:'CLAW',
+		111:'MAST',
+		112:'GRRROL',
+		113:'TOAD 2',
+		114:'FREEZIE',
+		116:'BULLY',
 		117:'EGADD',		# 3 if again
 		118:'KINGBOO2',		# star
+		119:'POLTER',
+		124:'BPENGUIN',
 		132:'P-Switch jumping',	# 1, 3, 5, all sorts....
 		134:'COIN 1, 2 or 3',	# 10
+		135:'PIRANHA',
+		136:'STONE',
+		138:'jumping on a course',
 		139:'139?',			# jumping around with the star???
 		129:'1,2,3 Blocks',	# 3 each and then 10 if completed
 		147:'COINCOFF',		# 1
-		155:'YOSHI E2',		# 5 if already riding
+		148:'BIG URCH',
+		149:'FRUIT BL, PR, or GR',		# 10
+		151:'PRESENT 2',
+		152:'PRESENT 3',
+		155:'YOSHI E2 or when you eat all the CAKE',		# 5 if already riding
+		156:'BOMBWARP',		# 8????
+		157:'BABYOSHI',		# 5
+		159:'BOOMRBRO',		# 5
 		146:'blue, purple, or green gem',	# multiple codes
+		163:'BIGKOOPA',
 		176:'fireball pants blip',
 		179:'propeller pants flying',
-		182:'bee pants flying'
+		182:'bee pants flying',
+		187:'NABBIT',
+		188:'TURNIP throw'
 	}
 
 	# Set in the advertising name
@@ -898,6 +960,11 @@ class BTLegoMario(BTLego):
 						# Happens a little while after the flag, sometimes on bootup too
 						BTLegoMario.dp(self.which_player+" course status has been reset",2)
 						decoded_something = True
+					elif value == 1:
+						# turns "ride", "music", and "vacuum" off before starting
+						self.message_queue.put(('event','course','start'))
+						decoded_something = True
+
 
 				# Player alert level
 				elif event_type == 0x2:
@@ -910,6 +977,37 @@ class BTLegoMario(BTLego):
 						self.message_queue.put(('event','consciousness','awake'))
 						decoded_something = True
 
+				elif event_type == 0x3:
+					if value == 0:
+						BTLegoMario.dp(self.which_player+" course status REALLY FINISHED",2) # Screen goes back to normal, sometimes 0x1 0x18 instead of this
+						decoded_something = True
+					# Sometimes get set when course starts.
+					# Always gets set when a timer gets you out of the warning music
+					# Can be seen multiple times, unlike time_warn
+					elif value == 1:
+						self.message_queue.put(('event','music','normal'))
+						decoded_something = True
+					elif value == 2:
+						self.message_queue.put(('event','course','goal'))
+						decoded_something = True
+					elif value == 3:
+						self.message_queue.put(('event','course','failed'))
+						decoded_something = True
+					# Warning music has started
+					# Will NOT get set twice in a course
+					# ie: get music warning (event sent), add +30s, music goes back to normal, get music warning again (NO EVENT SENT THIS TIME)
+					elif value == 4:
+						self.message_queue.put(('event','music','warning'))
+						decoded_something = True
+					elif value == 5:
+						BTLegoMario.dp(self.which_player+" course status FINISHED",2)	# Done with the coin count
+						decoded_something = True
+
+
+				elif event_type == 0x4:
+					self.message_queue.put(('event','course_clock',('add_seconds',value/10)))
+					decoded_something = True
+
 			# Coin counts and sources
 			elif event_key == 0x20:
 				# hat tip to https://github.com/bhawkes/lego-mario-web-bluetooth/blob/master/pages/index.vue
@@ -917,10 +1015,23 @@ class BTLegoMario(BTLego):
 				self.message_queue.put(('event','coincount',(value, event_type)))
 				decoded_something = True
 
+			elif event_key == 0x30:
+				if event_type == 0x4:
+					# SOMETIMES, on a successful finish, data[3] is 0x2, but most of the time it's 0x0
+					# on failure, 0,1,2,3
+					# 0x4 for STARTC50 ?
+					BTLegoMario.dp(self.which_player+" unknown goal status: "+str(value)+": ("+str(data[2])+","+str(data[3])+") :"+" ".join(hex(n) for n in [data[2],data[3]]),2)
+					decoded_something = True
+
+			elif event_key == 0x37:
+				if event_type == 0x12:
+					self.message_queue.put(('event','last_scan_count',value))
+					decoded_something = True
+
 			# Most actual events are stuffed under here
 			elif event_key == 0x38:
 
-				# Player is going for a ride... SHOE, DORRIE, CLOWN, SPIN 1, SPIN 2, SPIN 3, SPIN 4, WAGGLE, HAMMER
+				# Player is going for a ride... SHOE, DORRIE, CLOWN, SPIN 1, SPIN 2, SPIN 3, SPIN 4, WAGGLE, HAMMER, BOMBWARP
 				if event_type == 0x3:
 					if value == 0x0:
 						self.message_queue.put(('event','ride','in'))
@@ -929,13 +1040,35 @@ class BTLegoMario(BTLego):
 						self.message_queue.put(('event','ride','out'))
 						decoded_something = True
 
+				elif event_type == 0x30:
+					# Hahaha, did I label these backwards?
+					if value == 0x1:
+						self.message_queue.put(('event','lit','BOMB 2'))
+						decoded_something = True
+					elif value == 0x2:
+						self.message_queue.put(('event','lit','BOB-OMB'))
+						decoded_something = True
+					elif value == 0x3:
+						self.message_queue.put(('event','lit','PARABOMB'))
+						decoded_something = True
+					elif value == 0x4:
+						self.message_queue.put(('event','lit','BOMB 3'))
+						decoded_something = True
+
 				# Seems to be for anything, red coins, star, P-Block, etc
-				if event_type == 0x52:
+				# Triggers after you eat all the CAKE (stops when the stars stop)
+				elif event_type == 0x52:
 					if value == 1:
 						self.message_queue.put(('event','music','start'))
 						decoded_something = True
 					elif value == 0:
 						self.message_queue.put(('event','music','stop'))
+						decoded_something = True
+
+				# Hit the programmable timer block with the timer in it (shortens the clock)
+				elif event_type == 0x54:
+					if value == 1:
+						self.message_queue.put(('event','course_clock','time_shortened'))
 						decoded_something = True
 
 				# Jumps: Small and large (that make the jump noise)
@@ -954,6 +1087,12 @@ class BTLegoMario(BTLego):
 					if value == 0x0:
 						self.message_queue.put(('event','pow','hit'))
 						decoded_something = True
+
+				# Current coin count for STARTC50
+				# FIXME: bad name
+				elif event_type == 0x5b:
+					self.message_queue.put(('event','coin50_count',value))
+					decoded_something = True
 
 				# maybe related to low battery flashing
 				elif event_type == 0x61:
@@ -997,25 +1136,19 @@ class BTLegoMario(BTLego):
 						self.message_queue.put(('event','red_coin',2))
 						decoded_something = True
 
-				# ? Block reward
+				# ? Block reward (duplicate of 0x4 0x40)
 				elif event_type == 0x6a:
-					if value == 0x0:
-						self.message_queue.put(('event','q_block','1 coin'))
+					if value == 0x0:	# 1 coin
 						decoded_something = True
-					elif value == 0x1:
-						self.message_queue.put(('event','q_block','star'))
+					elif value == 0x1:	# star
 						decoded_something = True
-					elif value == 0x2:
-						self.message_queue.put(('event','q_block','mushroom'))
+					elif value == 0x2:	# mushroom
 						decoded_something = True
-					elif value == 0x3:
-						self.message_queue.put(('event','q_block','NOT SEEN'))
+#					elif value == 0x3:
+#						self.message_queue.put(('event','q_block','NOT SEEN'))
+					elif value == 0x4:	# 5 coins
 						decoded_something = True
-					elif value == 0x4:
-						self.message_queue.put(('event','q_block','5 coins'))
-						decoded_something = True
-					elif value == 0x5:
-						self.message_queue.put(('event','q_block','10 coins'))
+					elif value == 0x5:	# 10 coins
 						decoded_something = True
 
 				# ? Block
@@ -1029,6 +1162,84 @@ class BTLegoMario(BTLego):
 					if value == 0x0:
 						# Also sent when poltergust pants are taken off
 						self.message_queue.put(('event','vacuum','stop'))
+						decoded_something = True
+
+				elif event_type == 0x73:
+					self.message_queue.put(('event','course_clock',('timer_number',value+1)))
+					decoded_something = True
+
+				# Contents of PRESENT
+				elif event_type == 0x74:
+					if value == 0x0:
+						self.message_queue.put(('event','present','empty'))
+						decoded_something = True
+					elif value == 0x5:
+						self.message_queue.put(('event','present','CAKE'))
+						decoded_something = True
+					elif value == 0x6:
+						self.message_queue.put(('event','present','FRUIT BL'))
+						decoded_something = True
+
+				# Lost possession of whatever item you had to PRESENT
+				elif event_type == 0x75:
+					if value == 0x0:
+						self.message_queue.put(('event','wrapped','present'))
+						decoded_something = True
+
+				# Contents of PRESENT2
+				elif event_type == 0x77:
+					if value == 0x0:
+						self.message_queue.put(('event','present_2','empty'))
+						decoded_something = True
+					elif value == 0x5:
+						self.message_queue.put(('event','present_2','CAKE'))
+						decoded_something = True
+					elif value == 0x6:
+						self.message_queue.put(('event','present_2','FRUIT BL'))
+						decoded_something = True
+
+				# Lost possession of whatever item you had to PRESENT 2
+				elif event_type == 0x78:
+					if value == 0x0:
+						self.message_queue.put(('event','wrapped','present_2'))
+						decoded_something = True
+
+				elif event_type == 0x7d:
+					if value == 0x2:
+						self.message_queue.put(('event','ate','FRUIT GR'))
+						decoded_something = True
+
+				elif event_type == 0x7f:
+					if value == 0x4:
+						self.message_queue.put(('event','ate','FRUIT PR'))
+						decoded_something = True
+
+				elif event_type == 0x80:
+					# ?  put Fruit BL in present 2.  Bug?  ate nothing??
+					#peach event data:0x80 0x38 0x0 0x0
+
+					if value == 0x5:
+						self.message_queue.put(('event','ate','CAKE'))
+						decoded_something = True
+
+				# Redundant code, prefer the one in the "random" section
+				elif event_type == 0x81:
+					if value == 0x0:	# 1 coin
+						decoded_something = True
+					elif value == 0x1:	# star
+						decoded_something = True
+					elif value == 0x2:	# mushroom
+						decoded_something = True
+#					elif value == 0x3:
+#						self.message_queue.put(('event','nabbit','REDUNDANT NOT SEEN'))
+					elif value == 0x4:	# 5 coins
+						decoded_something = True
+					elif value == 0x5:	# 10 coins
+						decoded_something = True
+
+				elif event_type == 0x82:
+					if value == 0x0:
+						self.message_queue.put(('event','nabbit','start'))
 						decoded_something = True
 
 				# 1 BLOCK, 2 BLOCK, 3 BLOCK
@@ -1052,9 +1263,81 @@ class BTLegoMario(BTLego):
 						self.message_queue.put(('event','number_block','complete'))
 						decoded_something = True
 
+				# Warming up by the fire BRTYG
+				elif event_type == 0x89:
+					if value == 0x0:
+						self.message_queue.put(('event','fire','warming'))
+						decoded_something = True
+
+				elif event_type == 0x8e:
+					if value == 0x0:
+						self.message_queue.put(('event','turnip','from present_1'))
+						decoded_something = True
+					elif value == 0x4:
+						self.message_queue.put(('event','present_1','turnip'))
+						decoded_something = True
+
+				elif event_type == 0x8f:
+					# Got the turnip out of PRESENT 2
+					if value == 0x0:
+						self.message_queue.put(('event','turnip','from present_2'))
+						decoded_something = True
+					elif value == 0x4:
+						self.message_queue.put(('event','present_2','turnip'))
+						decoded_something = True
+
+				# They must have given up organizing this
 				elif event_type == 0x91:
-					if value == 0x1:
+					if value == 0x0:
+						self.message_queue.put(('event','wrapped','present_3'))
+						decoded_something = True
+					elif value == 0x1:
 						self.message_queue.put(('event','checkpoint','flag'))
+						decoded_something = True
+
+				elif event_type == 0x92:
+					if value == 0x6:
+						self.message_queue.put(('event','ate','FRUIT BL'))
+						decoded_something = True
+
+				elif event_type == 0x94:
+					if value == 0x0:
+						self.message_queue.put(('event','turnip','threw'))
+						decoded_something = True
+
+			# Did they run out of room in their rubbish bin of 0x38?
+			elif event_key == 0x39:
+
+				# Contents of PRESENT3
+				if event_type == 0x90:
+					if value == 0x0:
+						self.message_queue.put(('event','present_3','empty'))
+						decoded_something = True
+					elif value == 0x4:
+						self.message_queue.put(('event','present_3','FRUIT PR'))
+						decoded_something = True
+					elif value == 0x5:
+						self.message_queue.put(('event','present_3','CAKE'))
+						decoded_something = True
+					elif value == 0x6:
+						self.message_queue.put(('event','present_3','FRUIT BL'))
+						decoded_something = True
+
+				elif event_type == 0x91:
+					if value == 0x0:
+						self.message_queue.put(('event','wrapped','present_3'))
+						decoded_something = True
+
+				elif event_type == 0x93:
+					if value == 0x0:
+						self.message_queue.put(('event','turnip','from present_3'))
+						decoded_something = True
+
+					# Scanned PRESENT3 and got this somehow
+					# peach event data:0x93 0x39 0x1 0x0
+
+					elif value == 0x4:
+						self.message_queue.put(('event','present_3','turnip'))
 						decoded_something = True
 
 			# Randomized and customizable things?
@@ -1102,22 +1385,53 @@ class BTLegoMario(BTLego):
 						self.message_queue.put(('event','program_timer','30 seconds'))
 						decoded_something = True
 					elif value == 0x3:
-						self.message_queue.put(('event','program_timer','clock'))
+						self.message_queue.put(('event','program_timer','clock'))	# Shortens clock to 15s on Start 60 or 90, 5s on Start 30
 						decoded_something = True
 
 				# Complete duplicate of 0x6a 0x38 (? BLOCK reward)
 				elif event_type == 0x4:
-					if value == 0x0:	# 1 coin
+					if value == 0x0:
+						self.message_queue.put(('event','q_block','1 coin'))
 						decoded_something = True
-					elif value == 0x1:	# star
+					elif value == 0x1:
+						self.message_queue.put(('event','q_block','star'))
 						decoded_something = True
-					elif value == 0x2:	# mushroom
+					elif value == 0x2:
+						self.message_queue.put(('event','q_block','mushroom'))
 						decoded_something = True
-#					elif value == 0x3:
-#						self.message_queue.put(('event','q_block','NOT SEEN'))
-					elif value == 0x4:	# 5 coins
+					elif value == 0x3:
+						#self.message_queue.put(('event','q_block','NOT SEEN'))
+						#decoded_something = True
+						pass
+					elif value == 0x4:
+						self.message_queue.put(('event','q_block','5 coins'))
 						decoded_something = True
-					elif value == 0x5:	# 10 coins
+					elif value == 0x5:
+						self.message_queue.put(('event','q_block','10 coins'))
+						decoded_something = True
+
+				# NABBIT randomizer
+				# Duplicate data in 0x81 0x38
+				# Hey look, it's just like ? BLOCK
+				elif event_type == 0x6:
+					if value == 0x0:
+						self.message_queue.put(('event','nabbit','1 coin'))
+						decoded_something = True
+					elif value == 0x1:
+						self.message_queue.put(('event','nabbit','star'))
+						decoded_something = True
+					elif value == 0x2:
+						self.message_queue.put(('event','nabbit','mushroom'))
+						decoded_something = True
+					elif value == 0x3:
+						#self.message_queue.put(('event','nabbit','NOT SEEN'))
+						#decoded_something = True
+						pass
+					elif value == 0x4:
+						self.message_queue.put(('event','nabbit','5 coins'))
+						decoded_something = True
+					elif value == 0x5:
+						self.message_queue.put(('event','nabbit','10 coins'))
 						decoded_something = True
 
 			# Multiplayer coins (and a duplicate message type)
@@ -1137,8 +1451,10 @@ class BTLegoMario(BTLego):
 					self.message_queue.put(('event','multiplayer',('triple_coincount',value)))
 					decoded_something = True
 
-#
-#
+# WAGGLE 2, but not reproducible
+#peach event data:0x1 0x30 0x0 0x0
+#peach event data:0x42 0x38 0x0 0x0
+
 # scan the ghost (recognized)
 # first the ghost noise...
 #peach event data:0x6f 0x38 0x0 0x0
@@ -1150,12 +1466,26 @@ class BTLegoMario(BTLego):
 # Sequence seems to be the same for all ghosts
 # Probably changes with the poltergust or star (no)??
 	# Defeat ghost with star no difference in above events, just sounds
+# Watch what happens when you scan KINGBOO2, same thing, over and over
+
+# CHOMP bark
+#peach event data:0x1 0x30 0x3 0x0
+#peach event data:0x41 0x38 0x3 0x0
+# ... then yelp
+#peach event data:0x1 0x30 0x0 0x0
+#peach event data:0x42 0x38 0x0 0x0
+#	Same codes if you defeat with a star
+
 
 # idle (4 beep battery alert? Might not be.  1 beep doesn't seem to send a message.  heard four with no message)
 #peach event data:0x12 0x37 0x1 0x0
 
 # TOAD 2 while on yoshi (unable to replicate)
 #peach event data:0x72 0x38 0x1 0x0
+
+# Scanned TOAD 2 (not on yoshi)
+#peach event data:0x72 0x38 0x1 0x0
+
 
 # COIN 1 or COIN 2 scan
 #peach event data:0x1 0x30 0x2 0x0
