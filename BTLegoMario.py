@@ -254,6 +254,9 @@ class BTLegoMario(BTLego):
 		55:'FERRIS',
 		56:'STEERING',
 		59:'CLOWN',
+		62:'SHOE',
+		63:'PCTHRONE',
+		65:'x_BRVGT_',		# Hot air balloon?
 		66:'GOOMBA or LAVA',		# 1
 		68:'SPINY or BUZZY',			# 1
 		67:'BOB-OMB or BOMB 2 or BOMB 3 or PARABOMB',
@@ -276,12 +279,13 @@ class BTLegoMario(BTLego):
 		89:'EXPLODE',		# 1
 		90:'KING BOO',		# star
 		92:'TOADETTE',		# 5
-		93:'IGGY or BRVYT or LARRY',			# 10
+		93:'IGGY or BRVYT or LARRY or LUDWIG or LEMMY',			# 10
 		94:'THWIMP',
 		96:'BRAMBALL',
 		97:'KPARAT 1 or KPARAT 2',
 		98:'CHOMP',
 		58:'DORRIE',		# 5
+		99:'YOSHIEGG',
 		100:'BOOMBOOM',
 		101:'SUMO',
 		102:'REZNOR 2',		# Another backwards numbering...
@@ -296,10 +300,12 @@ class BTLegoMario(BTLego):
 		112:'GRRROL',
 		113:'TOAD 2',
 		114:'FREEZIE',
+		115:'YOSHI E2',
 		116:'BULLY',
 		117:'EGADD',		# 3 if again
 		118:'KINGBOO2',		# star
 		119:'POLTER',
+		121:'YOSHI E3',
 		124:'BPENGUIN',
 		132:'P-Switch jumping',	# 1, 3, 5, all sorts....
 		134:'COIN 1, 2 or 3',	# 10
@@ -309,16 +315,26 @@ class BTLegoMario(BTLego):
 		139:'139?',			# jumping around with the star???
 		129:'1,2,3 Blocks',	# 3 each and then 10 if completed
 		147:'COINCOFF',		# 1
+		146:'blue, purple, or green gem',	# multiple codes
 		148:'BIG URCH',
-		149:'FRUIT BL, PR, or GR',		# 10
+		149:'eating any of the FRUITs',		# 10
 		151:'PRESENT 2',
 		152:'PRESENT 3',
-		155:'YOSHI E2 or when you eat all the CAKE',		# 5 if already riding
+		155:'eating the CAKE',		# 5 if already riding
 		156:'BOMBWARP',		# 8????
 		157:'BABYOSHI',		# 5
+		158:'BIGSPIKE',
 		159:'BOOMRBRO',		# 5
-		146:'blue, purple, or green gem',	# multiple codes
+		160:'HAMMRBRO',
 		163:'BIGKOOPA',
+		164:'YOSHI E4',
+		165:'BIG GOOM',
+		166:'x_BRVGL_',		# Throw Birdo's egg back at them
+		167:'x_BRVPL_',
+		168:'x_BRTLG_',
+		169:'x_BRTPG_',
+		174:'x_BRTVG_',
+		175:'YOSHI E5',
 		176:'fireball pants blip',
 		179:'propeller pants flying',
 		182:'bee pants flying',
@@ -1173,6 +1189,18 @@ class BTLegoMario(BTLego):
 					if value == 0x0:
 						self.message_queue.put(('event','present','empty'))
 						decoded_something = True
+					elif value == 0x1:
+						self.message_queue.put(('event','present','FRUIT RE'))
+						decoded_something = True
+					elif value == 0x2:
+						self.message_queue.put(('event','present','FRUIT GR'))
+						decoded_something = True
+					elif value == 0x3:
+						self.message_queue.put(('event','present','FRUIT YL'))
+						decoded_something = True
+					elif value == 0x4:
+						self.message_queue.put(('event','present','FRUIT PR'))
+						decoded_something = True
 					elif value == 0x5:
 						self.message_queue.put(('event','present','CAKE'))
 						decoded_something = True
@@ -1191,6 +1219,18 @@ class BTLegoMario(BTLego):
 					if value == 0x0:
 						self.message_queue.put(('event','present_2','empty'))
 						decoded_something = True
+					elif value == 0x1:
+						self.message_queue.put(('event','present_2','FRUIT RE'))
+						decoded_something = True
+					elif value == 0x2:
+						self.message_queue.put(('event','present_2','FRUIT GR'))
+						decoded_something = True
+					elif value == 0x3:
+						self.message_queue.put(('event','present_2','FRUIT YL'))
+						decoded_something = True
+					elif value == 0x4:
+						self.message_queue.put(('event','present_2','FRUIT PR'))
+						decoded_something = True
 					elif value == 0x5:
 						self.message_queue.put(('event','present_2','CAKE'))
 						decoded_something = True
@@ -1204,20 +1244,47 @@ class BTLegoMario(BTLego):
 						self.message_queue.put(('event','wrapped','present_2'))
 						decoded_something = True
 
+				elif event_type == 0x7c:
+					if value == 0x0:
+						# Doesn't always signal
+						self.message_queue.put(('event','lost','FRUIT RE'))
+						decoded_something = True
+					elif value == 0x1:
+						self.message_queue.put(('event','ate','FRUIT RE'))
+						decoded_something = True
+
 				elif event_type == 0x7d:
-					if value == 0x2:
+					if value == 0x0:
+						# Doesn't always signal
+						self.message_queue.put(('event','lost','FRUIT GR'))
+						decoded_something = True
+					elif value == 0x2:
 						self.message_queue.put(('event','ate','FRUIT GR'))
 						decoded_something = True
 
+				elif event_type == 0x7e:
+					if value == 0x0:
+						# Doesn't always signal
+						self.message_queue.put(('event','lost','FRUIT YL'))
+						decoded_something = True
+					elif value == 0x3:
+						self.message_queue.put(('event','ate','FRUIT YL'))
+						decoded_something = True
+
 				elif event_type == 0x7f:
-					if value == 0x4:
+					if value == 0x0:
+						# Doesn't always signal
+						self.message_queue.put(('event','lost','FRUIT PR'))
+						decoded_something = True
+					elif value == 0x4:
 						self.message_queue.put(('event','ate','FRUIT PR'))
 						decoded_something = True
 
 				elif event_type == 0x80:
-					# ?  put Fruit BL in present 2.  Bug?  ate nothing??
-					#peach event data:0x80 0x38 0x0 0x0
-
+					if value == 0x0:
+						# Doesn't always signal
+						self.message_queue.put(('event','lost','CAKE'))
+						decoded_something = True
 					if value == 0x5:
 						self.message_queue.put(('event','ate','CAKE'))
 						decoded_something = True
@@ -1296,7 +1363,11 @@ class BTLegoMario(BTLego):
 						decoded_something = True
 
 				elif event_type == 0x92:
-					if value == 0x6:
+					if value == 0x0:
+						# Doesn't always signal
+						self.message_queue.put(('event','lost','FRUIT BL'))
+						decoded_something = True
+					elif value == 0x6:
 						self.message_queue.put(('event','ate','FRUIT BL'))
 						decoded_something = True
 
@@ -1312,6 +1383,15 @@ class BTLegoMario(BTLego):
 				if event_type == 0x90:
 					if value == 0x0:
 						self.message_queue.put(('event','present_3','empty'))
+						decoded_something = True
+					elif value == 0x1:
+						self.message_queue.put(('event','present_3','FRUIT RE'))
+						decoded_something = True
+					elif value == 0x2:
+						self.message_queue.put(('event','present_3','FRUIT GR'))
+						decoded_something = True
+					elif value == 0x3:
+						self.message_queue.put(('event','present_3','FRUIT YL'))
 						decoded_something = True
 					elif value == 0x4:
 						self.message_queue.put(('event','present_3','FRUIT PR'))
@@ -1486,6 +1566,8 @@ class BTLegoMario(BTLego):
 # Scanned TOAD 2 (not on yoshi)
 #peach event data:0x72 0x38 0x1 0x0
 
+# BOMB 3 scan, with the star
+#peach event data:0x31 0x38 0x4 0x0
 
 # COIN 1 or COIN 2 scan
 #peach event data:0x1 0x30 0x2 0x0
