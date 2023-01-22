@@ -254,6 +254,7 @@ class BTLegoMario(BTLego):
 		55:'FERRIS',
 		56:'STEERING',
 		59:'CLOWN',
+		60:'DIVING',
 		62:'SHOE',
 		63:'PCTHRONE',
 		65:'x_BRVGT_',		# Hot air balloon?
@@ -278,6 +279,7 @@ class BTLegoMario(BTLego):
 		88:'POKEY',			# 1
 		89:'EXPLODE',		# 1
 		90:'KING BOO',		# star
+		91:'JrBOWSER',
 		92:'TOADETTE',		# 5
 		93:'IGGY or BRVYT or LARRY or LUDWIG or LEMMY',			# 10
 		94:'THWIMP',
@@ -318,6 +320,7 @@ class BTLegoMario(BTLego):
 		146:'blue, purple, or green gem',	# multiple codes
 		148:'BIG URCH',
 		149:'eating any of the FRUITs',		# 10
+		150:'PRESENT',
 		151:'PRESENT 2',
 		152:'PRESENT 3',
 		155:'eating the CAKE',		# 5 if already riding
@@ -338,6 +341,7 @@ class BTLegoMario(BTLego):
 		176:'fireball pants blip',
 		179:'propeller pants flying',
 		182:'bee pants flying',
+		184:'vacuumed any ghost',
 		187:'NABBIT',
 		188:'TURNIP throw'
 	}
@@ -974,7 +978,7 @@ class BTLegoMario(BTLego):
 				if event_type == 0x1:
 					if value == 0:
 						# Happens a little while after the flag, sometimes on bootup too
-						BTLegoMario.dp(self.which_player+" course status has been reset",2)
+						self.message_queue.put(('event','course','reset'))
 						decoded_something = True
 					elif value == 1:
 						# turns "ride", "music", and "vacuum" off before starting
@@ -985,11 +989,11 @@ class BTLegoMario(BTLego):
 				# Player alert level
 				elif event_type == 0x2:
 					if value == 2:
-						BTLegoMario.dp(self.which_player+" fell asleep",2)
+						# BTLegoMario.dp(self.which_player+" fell asleep",2)
 						self.message_queue.put(('event','consciousness','asleep'))
 						decoded_something = True
 					elif value == 1:
-						BTLegoMario.dp(self.which_player+" woke up",2)
+						# BTLegoMario.dp(self.which_player+" woke up",2)
 						self.message_queue.put(('event','consciousness','awake'))
 						decoded_something = True
 
@@ -1016,7 +1020,8 @@ class BTLegoMario(BTLego):
 						self.message_queue.put(('event','music','warning'))
 						decoded_something = True
 					elif value == 5:
-						BTLegoMario.dp(self.which_player+" course status FINISHED",2)	# Done with the coin count
+						# Done with the coin count (only if goal attained)
+						self.message_queue.put(('event','course','coins_counted'))
 						decoded_something = True
 
 
@@ -1032,7 +1037,19 @@ class BTLegoMario(BTLego):
 				decoded_something = True
 
 			elif event_key == 0x30:
-				if event_type == 0x4:
+				if event_type == 0x1:
+					if value == 0x0:
+						# Don't really know why there are two of these
+						self.message_queue.put(('event','encounter_end','message_1'))
+						decoded_something = True
+					elif value == 0x1:
+						self.message_queue.put(('event','encounter_start','message_2'))
+						decoded_something = True
+					elif value == 0x3:
+						self.message_queue.put(('event','encounter_chomp_start','message_1'))
+						decoded_something = True
+
+				elif event_type == 0x4:
 					# SOMETIMES, on a successful finish, data[3] is 0x2, but most of the time it's 0x0
 					# on failure, 0,1,2,3
 					# 0x4 for STARTC50 ?
@@ -1071,13 +1088,29 @@ class BTLegoMario(BTLego):
 						self.message_queue.put(('event','lit','BOMB 3'))
 						decoded_something = True
 
+				elif event_type == 0x41:
+					if value == 0x1:
+						self.message_queue.put(('event','encounter_start','message_3'))
+						decoded_something = True
+					elif value == 0x3:
+						self.message_queue.put(('event','encounter_chomp_start','message_2'))
+						decoded_something = True
+
+				elif event_type == 0x42:
+					if value == 0x0:
+						# Don't really know why there are two of these
+						# Sometimes this one doesn't send
+						self.message_queue.put(('event','encounter_end','message_2'))
+						decoded_something = True
+
 				# Seems to be for anything, red coins, star, P-Block, etc
-				# Triggers after you eat all the CAKE (stops when the stars stop)
+				# Triggers after you eat all the CAKE or fruits (stops when the stars stop)
 				elif event_type == 0x52:
 					if value == 1:
 						self.message_queue.put(('event','music','start'))
 						decoded_something = True
 					elif value == 0:
+						# Doesn't always trigger
 						self.message_queue.put(('event','music','stop'))
 						decoded_something = True
 
@@ -1093,8 +1126,16 @@ class BTLegoMario(BTLego):
 					self.message_queue.put(('event','move','jump'))
 					decoded_something = True
 
+				# Getting hurt in multi? "are you ok" from other player
+				# Frozen from FREEZIE triggers this
+				elif event_type == 0x58:
+					if value == 0x0:
+						self.message_queue.put(('event','move','hurt'))
+						decoded_something = True
+
 				# Tap on the table to "walk" the player
 				# Only in multiplayer?
+				# You can get the players completely confused and emit (steps,1) constantly if you swap presents back and forth "too soon"
 				elif event_type == 0x59:
 					self.message_queue.put(('event','multiplayer',('steps',value)))
 					decoded_something = True
@@ -1105,6 +1146,10 @@ class BTLegoMario(BTLego):
 						decoded_something = True
 
 				# Current coin count for STARTC50
+				# Oddly, there's no way to tell you've _started_ this mode
+				# (aside from checking the scanner code)
+				# Timer blocks don't work in this mode because it counts up
+				# Scanning one throws a value of 16382 (a suspicious number, but the other scanner values are correct)
 				# FIXME: bad name
 				elif event_type == 0x5b:
 					self.message_queue.put(('event','coin50_count',value))
@@ -1128,16 +1173,16 @@ class BTLegoMario(BTLego):
 				# kind of like noise, so maybe this is "done" doing stuff
 				elif event_type == 0x62:
 					if value == 0x0:
-						BTLegoMario.dp(self.which_player+" ... events ...",2)
+						# BTLegoMario.dp(self.which_player+" ... events ...",2)
 						decoded_something = True
 
-				# But... WHY?
+				# But... WHY is this duplicated?  Don't bother sending...
 				elif event_type == 0x66:
 					if value == 0:
-						self.message_queue.put(('event','consciousness_2','asleep'))
+						# self.message_queue.put(('event','consciousness_2','asleep'))
 						decoded_something = True
 					elif value == 1:
-						self.message_queue.put(('event','consciousness_2','awake'))
+						# self.message_queue.put(('event','consciousness_2','awake'))
 						decoded_something = True
 
 				# Red coin scanned
@@ -1170,7 +1215,7 @@ class BTLegoMario(BTLego):
 				# ? Block
 				elif event_type == 0x6d:
 					if value == 0:
-						self.message_queue.put(('event','q_block','choosing'))
+						self.message_queue.put(('event','q_block','start'))
 						decoded_something = True
 
 				# Poltergust stop
@@ -1179,9 +1224,22 @@ class BTLegoMario(BTLego):
 						# Also sent when poltergust pants are taken off
 						self.message_queue.put(('event','vacuum','stop'))
 						decoded_something = True
+					else:
+						# Returns scanner code of ghost vacuumed
+						self.message_queue.put(('event','vacuumed',value))
+						decoded_something = True
+
+				elif event_type == 0x6f:
+					if value == 0x0:
+						self.message_queue.put(('event','encounter_start','message_1'))
+						decoded_something = True
 
 				elif event_type == 0x73:
 					self.message_queue.put(('event','course_clock',('timer_number',value+1)))
+					decoded_something = True
+
+				elif event_type == 0x70:
+					self.message_queue.put(('event','vacuum','DUNNO_WHAT'))
 					decoded_something = True
 
 				# Contents of PRESENT
@@ -1213,6 +1271,21 @@ class BTLegoMario(BTLego):
 					if value == 0x0:
 						self.message_queue.put(('event','wrapped','present'))
 						decoded_something = True
+					elif value == 0x1:
+						self.message_queue.put(('event','burnt_wrapped','present'))
+						decoded_something = True
+					elif value == 0x3:
+						self.message_queue.put(('event','gold_wrapped','present'))
+						decoded_something = True
+
+				elif event_type == 0x76:
+					if value == 0x1:
+						self.message_queue.put(('event','multiplayer',('burnt_wrapped','present')))
+						decoded_something = True
+					elif value == 0x3:
+						self.message_queue.put(('event','multiplayer',('wrapped','present')))
+						decoded_something = True
+					# umm, won't emit gold_wrapped in multiplayer?
 
 				# Contents of PRESENT2
 				elif event_type == 0x77:
@@ -1243,10 +1316,29 @@ class BTLegoMario(BTLego):
 					if value == 0x0:
 						self.message_queue.put(('event','wrapped','present_2'))
 						decoded_something = True
+					elif value == 0x1:
+						self.message_queue.put(('event','burnt_wrapped','present_2'))
+						decoded_something = True
+					elif value == 0x3:
+						self.message_queue.put(('event','gold_wrapped','present_2'))
+						decoded_something = True
+					elif value == 0x4:
+						# what?
+						self.message_queue.put(('event','gold_wrapped_2','present_2'))
+						decoded_something = True
 
+				elif event_type == 0x79:
+					if value == 0x1:
+						self.message_queue.put(('event','multiplayer',('burnt_wrapped','present_2')))
+						decoded_something = True
+					elif value == 0x3:
+						self.message_queue.put(('event','multiplayer',('wrapped','present_2')))
+						decoded_something = True
+					# umm, won't emit gold_wrapped in multiplayer?
+
+				# All 'lost' events are unreliably sent
 				elif event_type == 0x7c:
 					if value == 0x0:
-						# Doesn't always signal
 						self.message_queue.put(('event','lost','FRUIT RE'))
 						decoded_something = True
 					elif value == 0x1:
@@ -1255,7 +1347,6 @@ class BTLegoMario(BTLego):
 
 				elif event_type == 0x7d:
 					if value == 0x0:
-						# Doesn't always signal
 						self.message_queue.put(('event','lost','FRUIT GR'))
 						decoded_something = True
 					elif value == 0x2:
@@ -1264,7 +1355,6 @@ class BTLegoMario(BTLego):
 
 				elif event_type == 0x7e:
 					if value == 0x0:
-						# Doesn't always signal
 						self.message_queue.put(('event','lost','FRUIT YL'))
 						decoded_something = True
 					elif value == 0x3:
@@ -1273,7 +1363,6 @@ class BTLegoMario(BTLego):
 
 				elif event_type == 0x7f:
 					if value == 0x0:
-						# Doesn't always signal
 						self.message_queue.put(('event','lost','FRUIT PR'))
 						decoded_something = True
 					elif value == 0x4:
@@ -1282,7 +1371,6 @@ class BTLegoMario(BTLego):
 
 				elif event_type == 0x80:
 					if value == 0x0:
-						# Doesn't always signal
 						self.message_queue.put(('event','lost','CAKE'))
 						decoded_something = True
 					if value == 0x5:
@@ -1338,10 +1426,10 @@ class BTLegoMario(BTLego):
 
 				elif event_type == 0x8e:
 					if value == 0x0:
-						self.message_queue.put(('event','turnip','from present_1'))
+						self.message_queue.put(('event','turnip','from present'))
 						decoded_something = True
 					elif value == 0x4:
-						self.message_queue.put(('event','present_1','turnip'))
+						self.message_queue.put(('event','present','turnip'))
 						decoded_something = True
 
 				elif event_type == 0x8f:
@@ -1355,10 +1443,7 @@ class BTLegoMario(BTLego):
 
 				# They must have given up organizing this
 				elif event_type == 0x91:
-					if value == 0x0:
-						self.message_queue.put(('event','wrapped','present_3'))
-						decoded_something = True
-					elif value == 0x1:
+					if value == 0x1:
 						self.message_queue.put(('event','checkpoint','flag'))
 						decoded_something = True
 
@@ -1403,9 +1488,28 @@ class BTLegoMario(BTLego):
 						self.message_queue.put(('event','present_3','FRUIT BL'))
 						decoded_something = True
 
+				# 'wrapped' events seem unreliably sent, but the player interprets the present correctly
 				elif event_type == 0x91:
 					if value == 0x0:
 						self.message_queue.put(('event','wrapped','present_3'))
+						decoded_something = True
+					elif value == 0x1:
+						self.message_queue.put(('event','burnt_wrapped','present_3'))
+						decoded_something = True
+					elif value == 0x3:
+						self.message_queue.put(('event','gold_wrapped','present_3'))
+						decoded_something = True
+					# gold wrapped present 3 again???
+					elif value == 0x4:
+						self.message_queue.put(('event','gold_wrapped_2','present_3'))
+						decoded_something = True
+
+				elif event_type == 0x92:
+					if value == 0x1:
+						self.message_queue.put(('event','multiplayer',('burnt_wrapped','present_3')))
+						decoded_something = True
+					elif value == 0x3:
+						self.message_queue.put(('event','multiplayer',('wrapped','present_3')))
 						decoded_something = True
 
 				elif event_type == 0x93:
@@ -1531,31 +1635,29 @@ class BTLegoMario(BTLego):
 					self.message_queue.put(('event','multiplayer',('triple_coincount',value)))
 					decoded_something = True
 
+
+
+# Trying to do the red coin event in multiplyer, alternating who got what coin
+# This doesn't seem to work?
+#mario event data:0x69 0x38 0x4 0x0
+
 # WAGGLE 2, but not reproducible
 #peach event data:0x1 0x30 0x0 0x0
 #peach event data:0x42 0x38 0x0 0x0
 
-# scan the ghost (recognized)
-# first the ghost noise...
-#peach event data:0x6f 0x38 0x0 0x0
-#peach event data:0x1 0x30 0x1 0x0
-#peach event data:0x41 0x38 0x1 0x0
-# ... then the yell
-#peach event data:0x1 0x30 0x0 0x0
-#peach event data:0x42 0x38 0x0 0x0		#sometimes this one doesn't send?
-# Sequence seems to be the same for all ghosts
-# Probably changes with the poltergust or star (no)??
-	# Defeat ghost with star no difference in above events, just sounds
-# Watch what happens when you scan KINGBOO2, same thing, over and over
+# idle?
+#mario event data:0x62 0x38 0x2 0x0
+#mario event data:0x62 0x38 0x2 0x0
 
-# CHOMP bark
-#peach event data:0x1 0x30 0x3 0x0
-#peach event data:0x41 0x38 0x3 0x0
-# ... then yelp
-#peach event data:0x1 0x30 0x0 0x0
-#peach event data:0x42 0x38 0x0 0x0
-#	Same codes if you defeat with a star
-
+#course failure
+#CALLBACK:('mario', 'event', 'multiplayer', ('steps', 2))
+#mario unknown goal status: 301: (45,1) :0x2d 0x1
+#CALLBACK:('peach', 'event', 'course', 'failed')
+#peach unknown goal status: 301: (45,1) :0x2d 0x1
+#mario event data:0x60 0x38 0xf 0x0
+#CALLBACK:('mario', 'event', 'course', 'failed')
+#CALLBACK:('peach', 'event', 'music', 'stop')
+#peach event data:0x60 0x38 0x0 0x0
 
 # idle (4 beep battery alert? Might not be.  1 beep doesn't seem to send a message.  heard four with no message)
 #peach event data:0x12 0x37 0x1 0x0
@@ -1575,27 +1677,27 @@ class BTLegoMario(BTLego):
 #peach event data:0x1 0x30 0x0 0x0
 #peach event data:0x42 0x38 0x0 0x0
 
-			# Start a course
-			# 0x72 0x38 0x2 0x0	First this
-			# 0x1 0x18 0x1 0x0	Then this
+# Start a course
+# 0x72 0x38 0x2 0x0	First this
+# 0x1 0x18 0x1 0x0	Then this
 
-			# Last message before powered off via button
-			# 0x73 0x38 0x0 0x0
+# Last message before powered off via button
+# 0x73 0x38 0x0 0x0
 
-			# Hanging out and doing nothing with fire pants on
-			# 0x5e 0x38 0x0 0x0
+# Hanging out and doing nothing with fire pants on
+# 0x5e 0x38 0x0 0x0
 
-			# 0x5e 0x38 0x0 0x0		a little while after first powered on
+# 0x5e 0x38 0x0 0x0		a little while after first powered on
 
-			# Dumped on app connect
-			# 0x1 0x19 0x3 0x0
-			# 0x2 0x19 0x8 0x0
-			# 0x10 0x19 0x1 0x0
-			# 0x11 0x19 0x7 0x0
-			# 0x80 0x1 0x0 0x0
-			# 0x1 0x40 0x1 0x0
-			# 0x2 0x40 0x1 0x0
-			# 0x1 0x30 0x0 0x0
+# Dumped on app connect
+# 0x1 0x19 0x3 0x0
+# 0x2 0x19 0x8 0x0
+# 0x10 0x19 0x1 0x0
+# 0x11 0x19 0x7 0x0
+# 0x80 0x1 0x0 0x0
+# 0x1 0x40 0x1 0x0
+# 0x2 0x40 0x1 0x0
+# 0x1 0x30 0x0 0x0
 
 			if not decoded_something:
 				BTLegoMario.dp(self.which_player+" event data:"+" ".join(hex(n) for n in data),2)
