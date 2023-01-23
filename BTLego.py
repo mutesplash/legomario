@@ -69,8 +69,12 @@ class BTLego():
 		0x27:'Internal Motor with Tacho',
 		0x28:'Internal Tilt',
 
+		# Pybricks
+		0x37:'Powered Up Handset Buttons',
+		0x38:'Powered Up hub Bluetooth RSSI',	# 88010 also has this
+
 		# My names
-		0x46:'Mario Events',
+		0x46:'LEGO Events',			# Events from 88010 Powered Up controller and LEGO Mario
 		0x47:'Mario Tilt Sensor',
 		0x49:'Mario RGB Scanner',
 		0x4A:'Mario Pants Sensor',
@@ -145,6 +149,47 @@ class BTLego():
 		0x32:'Hub Will Go Into Boot Mode'
 	}
 
+	generic_errors = {
+		0x1:'ACK',
+		0x2:'Multiple ACK',
+		0x3:'Buffer Overflow',
+		0x4:'Timeout',
+		0x5:'Command was not recognized',
+		0x6:'Invalid use of command',
+		0x7:'Overcurrent',
+		0x8:'Internal Error'
+	}
+
+	hw_network_command_type = {
+		0x2:'Connection Request',
+		0x3:'Family Request [New family if available]',
+		0x4:'Family Set',
+		0x5:'Join Denied',
+		0x6:'Get Family',
+		0x7:'Family',
+		0x8:'Get SubFamily',
+		0x9:'SubFamily',
+		0xA:'SubFamily Set',
+		0xB:'Get Extended Family',
+		0xC:'Extended Family',
+		0xD:'Extended Family Set',
+		0xE:'Reset Long Press Timing'
+	}
+
+	rgb_light_colors = {
+		0x0:'none',
+		0x1:'pink',
+		0x2:'lilac',
+		0x3:'blue',
+		0x4:'cyan',
+		0x5:'turquoise',
+		0x6:'green',
+		0x7:'yellow',
+		0x8:'orange',
+		0x9:'red',
+		0xa:'white'
+	}
+
 	def __init__(self):
 		# reverse map some dicts so you can index them either way
 		self.message_type_ints = dict(map(reversed, self.message_type_str.items()))
@@ -156,6 +201,8 @@ class BTLego():
 			'error': False,
 			'raw':message_bytes
 		}
+		# FIXME: Doesn't detect lengths over 127
+		# https://lego.github.io/lego-ble-wireless-protocol-docs/index.html#message-length-encoding
 		length = message_bytes[0]
 		unused_hub_id = message_bytes[1]
 		if len(message_bytes) != length:
@@ -163,7 +210,7 @@ class BTLego():
 			bt_message['readable'] = "CORRUPTED MESSAGE: stated len "+str(length)+" != "+str(len(message_bytes))+" ".join(hex(n) for n in message_bytes)
 			return bt_message
 		bt_message['type']  = message_bytes[2]
-		bt_message['readable'] = BTLego.int8_dict_to_str(BTLego.message_type_str, bt_message['type']) + " "
+		bt_message['readable'] = BTLego.int8_dict_to_str(BTLego.message_type_str, bt_message['type']) + " - "
 
 		if bt_message['type'] == 0x1:
 			BTLego.decode_hub_properties(bt_message)
@@ -173,11 +220,18 @@ class BTLego():
 			BTLego.decode_hub_alert(bt_message)
 		elif bt_message['type'] == 0x4:
 			BTLego.decode_hub_attached_io(bt_message)
+		elif bt_message['type'] == 0x5:
+			BTLego.decode_generic_error(bt_message)
+		elif bt_message['type'] == 0x8:
+			BTLego.decode_hw_network_command(bt_message)
+
 
 		# Undocumented mario messages
 		#elif bt_message['type'] == 0x7:
 		#elif bt_message['type'] == 0xb:
 
+		elif bt_message['type'] == 0x43:
+			BTLego.decode_port_mode_info(bt_message)
 		elif bt_message['type'] == 0x44:
 			BTLego.decode_port_mode_info_request(bt_message)
 		elif bt_message['type'] == 0x45:
@@ -433,6 +487,70 @@ class BTLego():
 			bt_message['error'] = True
 			bt_message['readable'] += "INVALID IO LENGTH ("+str(io_size_indicator)+"):  "+" ".join(hex(n) for n in payload)
 
+	def decode_generic_error(bt_message):
+		if len(bt_message['raw']) != 5:
+			bt_message['readable'] += "CORRUPTED MESSAGE: message len "+str(len(bt_message['raw']))+" is wrong for a hub error: "+" ".join(hex(n) for n in bt_message['raw'])
+			bt_message['error'] = True
+			return
+
+		bt_message['error'] = True
+		error_cause = bt_message['raw'][3]
+		error_code = bt_message['raw'][4]
+		readable = hex(error_code)
+		if error_code in BTLego.generic_errors:
+			readable = BTLego.generic_errors[error_code]
+		bt_message['readable'] += "Command "+hex(error_cause)+" caused error "+readable
+
+	def decode_hw_network_command(bt_message):
+		if len(bt_message['raw']) != 5 and len(bt_message['raw']) != 4:
+			bt_message['readable'] += "CORRUPTED MESSAGE: message len "+str(len(bt_message['raw']))+" is wrong for a hw network command (4 or 5): "+" ".join(hex(n) for n in bt_message['raw'])
+			bt_message['error'] = True
+			return
+		payload = bt_message['raw'][3:]
+
+		command_token = payload[0]
+		if command_token in BTLego.hw_network_command_type:
+			bt_message['readable'] += " command: "+BTLego.hw_network_command_type[command_token]
+
+		# Connection Request
+		if command_token == 0x2:
+			# Button State
+			if payload[1] == 0x0:
+				bt_message['readable'] += ": Button Released"
+			elif payload[1] == 0x1:
+				bt_message['readable'] += ": Button Pressed"
+			else:
+				bt_message['readable'] += ": INVALID BUTTON STATE"
+		# Family Request
+		elif command_token == 0x3:
+			return
+		else:
+			bt_message['readable'] += " hw command payload: "+" ".join(hex(n) for n in payload)
+
+	def decode_port_mode_info(bt_message):
+		#0x8 0x0 0x43 [ 0x0 0x0 0x5 0x84 0x0 ]
+		payload = bt_message['raw'][3:]
+		bt_message['readable'] += "port "+str(payload[0])
+		bt_message['port'] = payload[0]
+
+		# Mode info
+		if payload[1] == 0x1:
+			#bt_message['readable'] += " mode info: "+" ".join(hex(n) for n in payload[2:])
+			bt_message['readable'] += " capabilities: "+hex(payload[2])
+			bt_message['readable'] += " mode count: "+str(payload[3])
+			bt_message['num_modes'] = payload[3]
+			input_bitfield = BTLego.uint16_bytes_to_int(payload[4:6])
+			output_bitfield = BTLego.uint16_bytes_to_int(payload[6:8])
+			bt_message['readable'] += " input modes available (bitmask): "+str(input_bitfield)
+			bt_message['readable'] += " output modes available (bitmask): "+str(output_bitfield)
+			bt_message['input_bitfield'] = input_bitfield
+			bt_message['output_bitfield'] = output_bitfield
+
+		# Mode combinations
+		elif payload[1] == 0x2:
+			bt_message['readable'] += " mode combinations: "+" ".join(hex(n) for n in payload[2:])
+			# FIXME: not parsed out
+
 	def decode_port_mode_info_request(bt_message):
 		#0x8 0x0 0x44 [ 0x0 0x0 0x5 0x84 0x0 ]
 		payload = bt_message['raw'][3:]
@@ -461,6 +579,22 @@ class BTLego():
 		if mode_info_type == 0x0 or mode_info_type == 0x4:
 			# NAME or SYMBOL
 			bt_message['readable'] += bytearray(payload[3:]).decode()
+		elif mode_info_type == 0x80:
+			# Value Format
+			bt_message['datasets'] = payload[3]
+			if payload[4] == 0x0:
+				bt_message['dataset_type'] = '8bit'
+			elif payload[4] == 0x1:
+				bt_message['dataset_type'] = '16bit'
+			elif payload[4] == 0x2:
+				bt_message['dataset_type'] = '32bit'
+			elif payload[4] == 0x3:
+				bt_message['dataset_type'] = 'FLOAT'
+			else:
+				bt_message['dataset_type'] = 'UNKNOWN'
+			bt_message['total_figures'] = payload[5]
+			bt_message['decimals'] = payload[6]
+			bt_message['readable'] += " Datasets: "+str(bt_message['datasets'])+" Type: "+bt_message['dataset_type']+" Decimals: "+str(bt_message['decimals'])
 		else:
 			bt_message['readable'] += " ".join(hex(n) for n in payload[3:])
 
