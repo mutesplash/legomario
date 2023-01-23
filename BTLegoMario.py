@@ -612,7 +612,7 @@ class BTLegoMario(BTLego):
 						self.decode_scanner_data(bt_message['value'])
 					elif pd['name'] == 'Mario Tilt Sensor':
 						self.decode_accel_data(bt_message['value'])
-					elif pd['name'] == 'Mario Events':
+					elif pd['name'] == 'LEGO Events':
 						self.decode_event_data(bt_message['value'])
 					else:
 						if BTLegoMario.DEBUG >= 2:
@@ -1039,10 +1039,12 @@ class BTLegoMario(BTLego):
 			elif event_key == 0x30:
 				if event_type == 0x1:
 					if value == 0x0:
-						# Don't really know why there are two of these
+						# Don't really know why there are two of these.  Ends both chomp and ghost encounters
 						self.message_queue.put(('event','encounter_end','message_1'))
 						decoded_something = True
 					elif value == 0x1:
+						# This should probably be message_1 but it always seems to come in second
+						# Doesn't really matter because I'm not sure what these are, just that there are three of them
 						self.message_queue.put(('event','encounter_start','message_2'))
 						decoded_something = True
 					elif value == 0x3:
@@ -1063,9 +1065,13 @@ class BTLegoMario(BTLego):
 
 			# Most actual events are stuffed under here
 			elif event_key == 0x38:
+				if event_type == 0x1:
+					if value == 0x3:
+						self.message_queue.put(('event','toad_trap','unlocked'))
+						decoded_something = True
 
 				# Player is going for a ride... SHOE, DORRIE, CLOWN, SPIN 1, SPIN 2, SPIN 3, SPIN 4, WAGGLE, HAMMER, BOMBWARP
-				if event_type == 0x3:
+				elif event_type == 0x3:
 					if value == 0x0:
 						self.message_queue.put(('event','ride','in'))
 						decoded_something = True
@@ -1103,6 +1109,16 @@ class BTLegoMario(BTLego):
 						self.message_queue.put(('event','encounter_end','message_2'))
 						decoded_something = True
 
+#				elif event_type == 0x50:
+					# Not reliable
+					# So unreliable I might have hallucinated this...
+#					if value == 0x0:
+#						self.message_queue.put(('event','keyhole','out'))
+#						decoded_something = True
+#					elif value == 0x1:
+#						self.message_queue.put(('event','keyhole','in'))
+#						decoded_something = True
+
 				# Seems to be for anything, red coins, star, P-Block, etc
 				# Triggers after you eat all the CAKE or fruits (stops when the stars stop)
 				elif event_type == 0x52:
@@ -1126,7 +1142,7 @@ class BTLegoMario(BTLego):
 					self.message_queue.put(('event','move','jump'))
 					decoded_something = True
 
-				# Getting hurt in multi? "are you ok" from other player
+				# Getting hurt in multi by falling over.  Elicits "are you ok" from other player
 				# Frozen from FREEZIE triggers this
 				elif event_type == 0x58:
 					if value == 0x0:
@@ -1234,10 +1250,19 @@ class BTLegoMario(BTLego):
 						self.message_queue.put(('event','encounter_start','message_1'))
 						decoded_something = True
 
+				elif event_type == 0x72:
+					if value == 0x0:
+						self.message_queue.put(('event','toad_trap','locked'))
+						decoded_something = True
+					elif value == 0x1:
+						self.message_queue.put(('event','toad_trap','start'))
+						decoded_something = True
+
 				elif event_type == 0x73:
 					self.message_queue.put(('event','course_clock',('timer_number',value+1)))
 					decoded_something = True
 
+				# Annoyingly unable to replicate
 				elif event_type == 0x70:
 					self.message_queue.put(('event','vacuum','DUNNO_WHAT'))
 					decoded_something = True
@@ -1620,7 +1645,12 @@ class BTLegoMario(BTLego):
 
 			# Multiplayer coins (and a duplicate message type)
 			elif event_key == 0x50:
-				if event_type == 0x4:
+				if event_type == 0x3:
+					# 3 coins per unlock
+					self.message_queue.put(('event','multiplayer',('trap_coincount?',value)))
+					decoded_something = True
+
+				elif event_type == 0x4:
 					self.message_queue.put(('event','multiplayer',('coincount',value)))
 					decoded_something = True
 
