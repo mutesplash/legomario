@@ -1,4 +1,5 @@
 from binascii import hexlify
+import struct	# bin to FP32
 
 # FIXME: Completely confused on upstream/downstream, fix the nomenclature in the comments
 
@@ -499,7 +500,11 @@ class BTLego():
 		readable = hex(error_code)
 		if error_code in BTLego.generic_errors:
 			readable = BTLego.generic_errors[error_code]
-		bt_message['readable'] += "Command "+hex(error_cause)+" caused error "+readable
+		if error_cause in BTLego.message_type_str:
+			error_cause = BTLego.message_type_str[error_cause]
+		else:
+			error_cause = hex(error_cause)
+		bt_message['readable'] += "Command "+error_cause+" caused error: "+readable
 
 	def decode_hw_network_command(bt_message):
 		if len(bt_message['raw']) != 5 and len(bt_message['raw']) != 4:
@@ -536,9 +541,31 @@ class BTLego():
 		# Mode info
 		if payload[1] == 0x1:
 			#bt_message['readable'] += " mode info: "+" ".join(hex(n) for n in payload[2:])
-			bt_message['readable'] += " capabilities: "+hex(payload[2])
-			bt_message['readable'] += " mode count: "+str(payload[3])
 			bt_message['num_modes'] = payload[3]
+			bt_message['port_mode_capabilities'] = {
+			}
+			if payload[2] & 1:
+				bt_message['port_mode_capabilities']['output'] = True
+			else:
+				bt_message['port_mode_capabilities']['output'] = False
+
+			if payload[2] & 2:
+				bt_message['port_mode_capabilities']['input'] = True
+			else:
+				bt_message['port_mode_capabilities']['input'] = False
+
+			if payload[2] & 4:
+				bt_message['port_mode_capabilities']['logic_combineable'] = True
+			else:
+				bt_message['port_mode_capabilities']['logic_combineable'] = False
+
+			if payload[2] & 8:
+				bt_message['port_mode_capabilities']['logic_synchronizeable'] = True
+			else:
+				bt_message['port_mode_capabilities']['logic_synchronizeable'] = False
+
+			bt_message['readable'] += " capabilities: "+hex(payload[2])
+			bt_message['readable'] += " mode count: "+str(bt_message['num_modes'])
 			input_bitfield = BTLego.uint16_bytes_to_int(payload[4:6])
 			output_bitfield = BTLego.uint16_bytes_to_int(payload[6:8])
 			bt_message['readable'] += " input modes available (bitmask): "+str(input_bitfield)
@@ -576,9 +603,49 @@ class BTLego():
 		#luigi port_mode_info port 0 mode 0 infotype: VALUE_FORMAT0x3: 0x0: 0x3: 0x0
 
 		bt_message['readable'] += "port "+str(port)+" mode " + str(mode) + " infotype: " + BTLego.int8_dict_to_str(BTLego.mode_info_type_str,mode_info_type) + " "
-		if mode_info_type == 0x0 or mode_info_type == 0x4:
-			# NAME or SYMBOL
-			bt_message['readable'] += bytearray(payload[3:]).decode()
+		if mode_info_type == 0x0:
+			# NAME
+			bt_message['name'] = bytearray(payload[3:]).decode()
+			while bt_message['name'][-1] == '\u0000':
+				bt_message['name'] = bt_message['name'][:-1]
+			bt_message['readable'] += bt_message['name']
+		# Assuming this is FP32 for FLOAT
+		elif mode_info_type == 0x1:
+			# RAW
+			bt_message['readable'] += ' Min:'+' '.join(hex(n) for n in payload[3:7])+' Max:'+' '.join(hex(n) for n in payload[7:11])
+			bt_message['raw'] = {}
+			bt_message['raw']['min'] = struct.unpack('f', payload[3:7])[0]
+			bt_message['raw']['max'] = struct.unpack('f', payload[7:11])[0]
+		elif mode_info_type == 0x2:
+			# PCT (Percentage)
+			bt_message['readable'] += ' Min:'+' '.join(hex(n) for n in payload[3:7])+' Max:'+' '.join(hex(n) for n in payload[7:11])
+			bt_message['pct'] = {}
+			bt_message['pct']['min'] = struct.unpack('f', payload[3:7])[0]
+			bt_message['pct']['max'] = struct.unpack('f', payload[7:11])[0]
+		elif mode_info_type == 0x3:
+			# SI (?Systeme International?)
+			bt_message['readable'] += ' Min:'+' '.join(hex(n) for n in payload[3:7])+' Max:'+' '.join(hex(n) for n in payload[7:11])
+			bt_message['si'] = {}
+			bt_message['si']['min'] = struct.unpack('f', payload[3:7])[0]
+			bt_message['si']['max'] = struct.unpack('f', payload[7:11])[0]
+		elif mode_info_type == 0x4:
+			# SYMBOL
+			bt_message['symbol'] = bytearray(payload[3:]).decode()
+			while bt_message['symbol'][-1] == '\u0000':
+				bt_message['symbol'] = bt_message['symbol'][:-1]
+			bt_message['readable'] += bt_message['symbol']
+		elif mode_info_type == 0x5:
+			# Mapping, 16 bits
+			# FIXME
+			bt_message['readable'] += ' Mapping:'+' '.join(hex(n) for n in payload[3:])
+		elif mode_info_type == 0x7:
+			# Motor Bias, 8 bits, 0-100%
+			bt_message['motor_bias'] = int(payload[3:4])
+		elif mode_info_type == 0x8:
+			# Capability bits 8[6]
+			# FIXME
+			bt_message['readable'] += ' Capabilities:'+' '.join(hex(n) for n in payload[3:9])
+
 		elif mode_info_type == 0x80:
 			# Value Format
 			bt_message['datasets'] = payload[3]
