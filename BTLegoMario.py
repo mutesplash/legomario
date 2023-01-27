@@ -3,6 +3,8 @@ import uuid
 from queue import SimpleQueue
 from collections.abc import Iterable
 
+import json
+
 from bleak import BleakClient
 from BTLego import BTLego
 
@@ -41,16 +43,6 @@ class BTLegoMario(BTLego):
 	# 4:	Debug the code table generation too (mostly useless)
 	DEBUG = 0
 
-	which_player = None
-	address = None
-	lock = None
-	client = None
-	connected = False
-
-	# keep around for whatever
-	device = None
-	advertisement = None
-
 	# MESSAGE TYPES ( type, key, value )
 	# event:
 	#	'button':			'pressed'
@@ -76,9 +68,7 @@ class BTLegoMario(BTLego):
 	#	TODO
 	# error
 	#	message:	(str)
-	message_queue = None
 
-	callbacks = None
 	message_types = (
 		'event',
 		'motion',
@@ -121,10 +111,6 @@ class BTLegoMario(BTLego):
 		3:'events',
 		4:'alt_events',
 		6:'volts'
-	}
-
-	# populated in __init__
-	port_data = {
 	}
 
 	code_data = None
@@ -232,6 +218,7 @@ class BTLegoMario(BTLego):
 
 	# FIXME: Incomplete and don't rely on this not changing
 	event_scanner_coinsource = {
+		6:'GOAL',
 		9:'free',			# Just hopping around
 		33:'BDARR 2',
 		34:'SPIN 1',
@@ -309,6 +296,7 @@ class BTLegoMario(BTLego):
 		119:'POLTER',
 		121:'YOSHI E3',
 		124:'BPENGUIN',
+		128:'? BLOCK',
 		132:'P-Switch jumping',	# 1, 3, 5, all sorts....
 		134:'COIN 1, 2 or 3',	# 10
 		135:'PIRANHA',
@@ -373,6 +361,25 @@ class BTLegoMario(BTLego):
 	def __init__(self,json_code_dict=None):
 		super().__init__()
 
+		self.which_player = None
+		self.address = None
+		self.lock = None
+		self.client = None
+		self.connected = False
+
+		# keep around for whatever
+		self.device = None
+		self.advertisement = None
+		self.message_queue = None
+		self.callbacks = None
+
+		self.port_data = {
+		}
+
+		# Translates static event sequences into messages
+		self.event_data_dispatch = {
+		}
+
 		if not BTLegoMario.code_data:
 			BTLegoMario.code_data = json_code_dict
 
@@ -396,7 +403,558 @@ class BTLegoMario(BTLego):
 		self.message_queue = SimpleQueue()
 		self.callbacks = {}
 
+		self.__init_data_dispatch()
+
 		self.lock = asyncio.Lock()
+
+	def __init_data_dispatch(self):
+
+		# ( key, type, value)
+		# NOTE: The line data is in type, key, value order, but they are reasonably grouped around keys
+
+		# 0x0
+		self.event_data_dispatch[(0x0,0x0,0x0)] = lambda dispatch_key: {
+			# When powered on and BT connected (reconnects do not seem to generate)
+			BTLegoMario.dp(self.which_player+" events ready!",2)
+		}
+
+		# 0x18: General statuses?
+		self.event_data_dispatch[(0x18,0x1,0x0)] = lambda dispatch_key: {
+			# Course reset
+			# Happens a little while after the flag, sometimes on bootup too
+			self.message_queue.put(('event','course','reset'))
+		}
+		self.event_data_dispatch[(0x18,0x1,0x1)] = lambda dispatch_key: {
+			# turns "ride", "music", and "vacuum" off before starting
+			self.message_queue.put(('event','course','start'))
+		}
+		self.event_data_dispatch[(0x18,0x2,0x2)] = lambda dispatch_key: {
+			self.message_queue.put(('event','consciousness','asleep'))
+		}
+		self.event_data_dispatch[(0x18,0x2,0x1)] = lambda dispatch_key: {
+			self.message_queue.put(('event','consciousness','awake'))
+		}
+		self.event_data_dispatch[(0x18,0x3,0x0)] = lambda dispatch_key: {
+			BTLegoMario.dp(self.which_player+" course status REALLY FINISHED",2) # Screen goes back to normal, sometimes 0x1 0x18 instead of this
+		}
+		self.event_data_dispatch[(0x18,0x3,0x1)] = lambda dispatch_key: {
+			# Sometimes get set when course starts.
+			# Always gets set when a timer gets you out of the warning music
+			# Can be seen multiple times, unlike time_warn
+			self.message_queue.put(('event','music','normal'))
+		}
+		self.event_data_dispatch[(0x18,0x3,0x2)] = lambda dispatch_key: {
+			self.message_queue.put(('event','course','goal'))
+		}
+		self.event_data_dispatch[(0x18,0x3,0x3)] = lambda dispatch_key: {
+			self.message_queue.put(('event','course','failed'))
+		}
+		self.event_data_dispatch[(0x18,0x3,0x4)] = lambda dispatch_key: {
+			# Warning music has started
+			# Will NOT get set twice in a course
+			# ie: get music warning (event sent), add +30s, music goes back to normal, get music warning again (NO EVENT SENT THIS TIME)
+			self.message_queue.put(('event','music','warning'))
+		}
+		self.event_data_dispatch[(0x18,0x3,0x5)] = lambda dispatch_key: {
+			# Done with the coin count (only if goal attained)
+			self.message_queue.put(('event','course','coins_counted'))
+		}
+
+		# 0x30: Goals and ghosts
+		self.event_data_dispatch[(0x30,0x1,0x0)] = lambda dispatch_key: {
+			# Don't really know why there are two of these.  Ends both chomp and ghost encounters
+			self.message_queue.put(('event','encounter_end','message_1'))
+		}
+		self.event_data_dispatch[(0x30,0x1,0x1)] = lambda dispatch_key: {
+			# This should probably be message_1 but it always seems to come in second
+			# Doesn't really matter because I'm not sure what these are, just that there are three of them
+			self.message_queue.put(('event','encounter_start','message_2'))
+		}
+		# Bug?  Scanned Coin 1
+		# peach event data:0x1 0x30 0x2 0x0
+		self.event_data_dispatch[(0x30,0x1,0x3)] = lambda dispatch_key: {
+			self.message_queue.put(('event','encounter_chomp_start','message_1'))
+		}
+
+		# 0x38: Most actual events are stuffed under here
+		self.event_data_dispatch[(0x38,0x1,0x3)] = lambda dispatch_key: {
+			self.message_queue.put(('event','toad_trap','unlocked'))
+		}
+
+		# Player is going for a ride... SHOE, DORRIE, CLOWN, SPIN 1, SPIN 2, SPIN 3, SPIN 4, WAGGLE, HAMMER, BOMBWARP
+		self.event_data_dispatch[(0x38,0x3,0x0)] = lambda dispatch_key: {
+			self.message_queue.put(('event','ride','in'))
+		}
+		self.event_data_dispatch[(0x38,0x3,0x64)] = lambda dispatch_key: {
+			self.message_queue.put(('event','ride','out'))
+		}
+
+		# Bombs.  Hah, did I label these backwards?
+		self.event_data_dispatch[(0x38,0x30,0x1)] = lambda dispatch_key: {
+			self.message_queue.put(('event','lit','BOMB 2'))
+		}
+		self.event_data_dispatch[(0x38,0x30,0x2)] = lambda dispatch_key: {
+			self.message_queue.put(('event','lit','BOB-OMB'))
+		}
+		self.event_data_dispatch[(0x38,0x30,0x3)] = lambda dispatch_key: {
+			self.message_queue.put(('event','lit','PARABOMB'))
+		}
+		self.event_data_dispatch[(0x38,0x30,0x4)] = lambda dispatch_key: {
+			self.message_queue.put(('event','lit','BOMB 3'))
+		}
+
+		self.event_data_dispatch[(0x38,0x41,0x1)] = lambda dispatch_key: {
+			self.message_queue.put(('event','encounter_start','message_3'))
+		}
+		# Bug?  Scanned Coin 1
+		# peach event data:0x41 0x38 0x2 0x0
+		self.event_data_dispatch[(0x38,0x41,0x3)] = lambda dispatch_key: {
+			self.message_queue.put(('event','encounter_chomp_start','message_2'))
+		}
+
+		self.event_data_dispatch[(0x38,0x42,0x0)] = lambda dispatch_key: {
+			# Don't really know why there are two of these
+			# Sometimes this one doesn't send
+			self.message_queue.put(('event','encounter_end','message_2'))
+		}
+
+		# Not reliable
+		# So unreliable I might have hallucinated this...
+		#self.event_data_dispatch[(0x38,0x50,0x0)] = lambda dispatch_key: {
+		#				self.message_queue.put(('event','keyhole','out'))
+		#}
+		#self.event_data_dispatch[(0x38,0x50,0x1)] = lambda dispatch_key: {
+		#	self.message_queue.put(('event','keyhole','in'))
+		#}
+
+		self.event_data_dispatch[(0x38,0x52,0x1)] = lambda dispatch_key: {
+			# Seems to be for anything, red coins, star, P-Block, etc
+			# Triggers after you eat all the CAKE or fruits (stops when the stars stop)
+			self.message_queue.put(('event','music','start'))
+		}
+		self.event_data_dispatch[(0x38,0x52,0x0)] = lambda dispatch_key: {
+			# Doesn't always trigger
+			self.message_queue.put(('event','music','stop'))
+		}
+
+		self.event_data_dispatch[(0x38,0x54,0x1)] = lambda dispatch_key: {
+			# Hit the programmable timer block with the timer in it (shortens the clock)
+			self.message_queue.put(('event','course_clock','time_shortened'))
+		}
+		self.event_data_dispatch[(0x38,0x58,0x0)] = lambda dispatch_key: {
+			# Getting hurt in multi by falling over.  Elicits "are you ok" from other player
+			# Frozen from FREEZIE triggers this
+			self.message_queue.put(('event','move','hurt'))
+		}
+
+		self.event_data_dispatch[(0x38,0x5a,0x0)] = lambda dispatch_key: {
+			self.message_queue.put(('event','pow','hit'))
+		}
+
+		self.event_data_dispatch[(0x38,0x61,0x5)] = lambda dispatch_key: {
+			self.message_queue.put(('event','prone','laying_down'))
+		}
+
+		self.event_data_dispatch[(0x38,0x61,0x3)] = lambda dispatch_key: {
+			# "I'm sleepy"
+			self.message_queue.put(('event','prone','sleepy'))
+		}
+		self.event_data_dispatch[(0x38,0x61,0x8)] = lambda dispatch_key: {
+			# "oh" Usually first before sleepy, but not always.  Sometimes repeated
+			# Basically, unreliable
+			self.message_queue.put(('event','prone','maybe_sleep'))
+		}
+
+		self.event_data_dispatch[(0x38,0x62,0x0)] = lambda dispatch_key: {
+			# kind of like noise, so maybe this is "done" doing stuff
+			BTLegoMario.dp(self.which_player+" ... events ...",4)
+		}
+
+		# But... WHY is this duplicated?  Don't bother sending...
+		self.event_data_dispatch[(0x38,0x66,0x0)] = lambda dispatch_key: {
+			# self.message_queue.put(('event','consciousness_2','asleep'))
+			None
+		}
+		self.event_data_dispatch[(0x38,0x66,0x1)] = lambda dispatch_key: {
+			# self.message_queue.put(('event','consciousness_2','awake'))
+			None
+		}
+
+		self.event_data_dispatch[(0x38,0x69,0x0)] = lambda dispatch_key: {
+			# Red coin 1 scanned
+			self.message_queue.put(('event','red_coin',1))
+		}
+		self.event_data_dispatch[(0x38,0x69,0x1)] = lambda dispatch_key: {
+			# FIXME: The message number matches the number on the code label+1, NOT THE VALUE HERE
+			self.message_queue.put(('event','red_coin',3))
+		}
+		self.event_data_dispatch[(0x38,0x69,0x2)] = lambda dispatch_key: {
+			self.message_queue.put(('event','red_coin',2))
+		}
+
+		# ? Block reward (duplicate of 0x4 0x40)
+		self.event_data_dispatch[(0x38,0x6a,0x0)] = lambda dispatch_key: None	# 1 coin
+		self.event_data_dispatch[(0x38,0x6a,0x1)] = lambda dispatch_key: None	# star
+		self.event_data_dispatch[(0x38,0x6a,0x2)] = lambda dispatch_key: None	# mushroom
+		# 0x3 NOT SEEN
+		self.event_data_dispatch[(0x38,0x6a,0x4)] = lambda dispatch_key: None	# 5 coins
+		self.event_data_dispatch[(0x38,0x6a,0x5)] = lambda dispatch_key: None	# 10 coins
+
+		# ? Block
+		self.event_data_dispatch[(0x38,0x6d,0x0)] = lambda dispatch_key: {
+			self.message_queue.put(('event','q_block','start'))
+		}
+
+		self.event_data_dispatch[(0x38,0x6f,0x0)] = lambda dispatch_key: {
+			# Message_2 and Message_3 don't seem to be sent in multiplayer course settings?
+			self.message_queue.put(('event','encounter_start','message_1'))
+		}
+
+		self.event_data_dispatch[(0x38,0x72,0x0)] = lambda dispatch_key: {
+			self.message_queue.put(('event','toad_trap','locked'))
+		}
+		self.event_data_dispatch[(0x38,0x72,0x1)] = lambda dispatch_key: {
+			self.message_queue.put(('event','toad_trap','start'))
+		}
+
+		self.event_data_dispatch[(0x38,0x6e,0x0)] = lambda dispatch_key: {
+			# Also sent when poltergust pants are taken off
+			self.message_queue.put(('event','vacuum','stop'))
+		}
+
+		# Contents of PRESENT
+		self.event_data_dispatch[(0x38,0x74,0x0)] = lambda dispatch_key: {
+			self.message_queue.put(('event','present','empty'))
+		}
+		self.event_data_dispatch[(0x38,0x74,0x1)] = lambda dispatch_key: {
+			self.message_queue.put(('event','present','FRUIT RE'))
+		}
+		self.event_data_dispatch[(0x38,0x74,0x2)] = lambda dispatch_key: {
+			self.message_queue.put(('event','present','FRUIT GR'))
+		}
+		self.event_data_dispatch[(0x38,0x74,0x3)] = lambda dispatch_key: {
+			self.message_queue.put(('event','present','FRUIT YL'))
+		}
+		self.event_data_dispatch[(0x38,0x74,0x4)] = lambda dispatch_key: {
+			self.message_queue.put(('event','present','FRUIT PR'))
+		}
+		self.event_data_dispatch[(0x38,0x74,0x5)] = lambda dispatch_key: {
+			self.message_queue.put(('event','present','CAKE'))
+		}
+		self.event_data_dispatch[(0x38,0x74,0x6)] = lambda dispatch_key: {
+			self.message_queue.put(('event','present','FRUIT BL'))
+		}
+
+		# Lost possession of whatever item you had to PRESENT
+		self.event_data_dispatch[(0x38,0x75,0x0)] = lambda dispatch_key: {
+			self.message_queue.put(('event','wrapped','present'))
+		}
+		self.event_data_dispatch[(0x38,0x75,0x1)] = lambda dispatch_key: {
+			self.message_queue.put(('event','burnt_wrapped','present'))
+		}
+		self.event_data_dispatch[(0x38,0x75,0x3)] = lambda dispatch_key: {
+			self.message_queue.put(('event','gold_wrapped','present'))
+		}
+
+		self.event_data_dispatch[(0x38,0x76,0x1)] = lambda dispatch_key: {
+			self.message_queue.put(('event','multiplayer',('burnt_wrapped','present')))
+		}
+		self.event_data_dispatch[(0x38,0x76,0x3)] = lambda dispatch_key: {
+			self.message_queue.put(('event','multiplayer',('wrapped','present')))
+		}
+		# umm, won't emit gold_wrapped in multiplayer?
+
+		# Contents of PRESENT2
+		self.event_data_dispatch[(0x38,0x77,0x0)] = lambda dispatch_key: {
+			self.message_queue.put(('event','present_2','empty'))
+		}
+		self.event_data_dispatch[(0x38,0x77,0x1)] = lambda dispatch_key: {
+			self.message_queue.put(('event','present_2','FRUIT RE'))
+		}
+		self.event_data_dispatch[(0x38,0x77,0x2)] = lambda dispatch_key: {
+			self.message_queue.put(('event','present_2','FRUIT GR'))
+		}
+		self.event_data_dispatch[(0x38,0x77,0x3)] = lambda dispatch_key: {
+			self.message_queue.put(('event','present_2','FRUIT YL'))
+		}
+		self.event_data_dispatch[(0x38,0x77,0x4)] = lambda dispatch_key: {
+			self.message_queue.put(('event','present_2','FRUIT PR'))
+		}
+		self.event_data_dispatch[(0x38,0x77,0x5)] = lambda dispatch_key: {
+			self.message_queue.put(('event','present_2','CAKE'))
+		}
+		self.event_data_dispatch[(0x38,0x77,0x6)] = lambda dispatch_key: {
+			self.message_queue.put(('event','present_2','FRUIT BL'))
+		}
+
+		# Lost possession of whatever item you had to PRESENT 2
+		self.event_data_dispatch[(0x38,0x78,0x0)] = lambda dispatch_key: {
+			self.message_queue.put(('event','wrapped','present_2'))
+		}
+		self.event_data_dispatch[(0x38,0x78,0x1)] = lambda dispatch_key: {
+			self.message_queue.put(('event','burnt_wrapped','present_2'))
+		}
+		self.event_data_dispatch[(0x38,0x78,0x3)] = lambda dispatch_key: {
+			self.message_queue.put(('event','gold_wrapped','present_2'))
+		}
+		# What?
+		self.event_data_dispatch[(0x38,0x78,0x4)] = lambda dispatch_key: {
+			self.message_queue.put(('event','gold_wrapped_2','present_2'))
+		}
+
+		self.event_data_dispatch[(0x38,0x79,0x1)] = lambda dispatch_key: {
+			self.message_queue.put(('event','multiplayer',('burnt_wrapped','present_2')))
+		}
+		self.event_data_dispatch[(0x38,0x79,0x3)] = lambda dispatch_key: {
+			self.message_queue.put(('event','multiplayer',('wrapped','present_2')))
+		}
+		# umm, won't emit gold_wrapped in multiplayer?
+
+		# All 'lost' events are sent... unreliably
+		self.event_data_dispatch[(0x38,0x7c,0x0)] = lambda dispatch_key: {
+			self.message_queue.put(('event','lost','FRUIT RE'))
+		}
+		self.event_data_dispatch[(0x38,0x7c,0x1)] = lambda dispatch_key: {
+			self.message_queue.put(('event','ate','FRUIT RE'))
+		}
+
+		self.event_data_dispatch[(0x38,0x7d,0x0)] = lambda dispatch_key: {
+			self.message_queue.put(('event','lost','FRUIT GR'))
+		}
+		self.event_data_dispatch[(0x38,0x7d,0x2)] = lambda dispatch_key: {
+			self.message_queue.put(('event','ate','FRUIT GR'))
+		}
+
+		self.event_data_dispatch[(0x38,0x7e,0x0)] = lambda dispatch_key: {
+			self.message_queue.put(('event','lost','FRUIT YL'))
+		}
+		self.event_data_dispatch[(0x38,0x7e,0x3)] = lambda dispatch_key: {
+			self.message_queue.put(('event','ate','FRUIT YL'))
+		}
+
+		self.event_data_dispatch[(0x38,0x7f,0x0)] = lambda dispatch_key: {
+			self.message_queue.put(('event','lost','FRUIT PR'))
+		}
+		self.event_data_dispatch[(0x38,0x7f,0x4)] = lambda dispatch_key: {
+			self.message_queue.put(('event','ate','FRUIT PR'))
+		}
+
+		self.event_data_dispatch[(0x38,0x80,0x0)] = lambda dispatch_key: {
+			self.message_queue.put(('event','lost','CAKE'))
+		}
+		self.event_data_dispatch[(0x38,0x80,0x5)] = lambda dispatch_key: {
+			self.message_queue.put(('event','ate','CAKE'))
+		}
+
+		# Redundant code, prefer the one in the "random" section
+		self.event_data_dispatch[(0x38,0x81,0x0)] = lambda dispatch_key: None # 1 coin
+		self.event_data_dispatch[(0x38,0x81,0x1)] = lambda dispatch_key: None # star
+		self.event_data_dispatch[(0x38,0x81,0x2)] = lambda dispatch_key: None # mushroom
+		# 0x3 Not seen
+		self.event_data_dispatch[(0x38,0x81,0x4)] = lambda dispatch_key: None # 5 coins
+		self.event_data_dispatch[(0x38,0x81,0x5)] = lambda dispatch_key: None # 10 coins
+
+		self.event_data_dispatch[(0x38,0x82,0x0)] = lambda dispatch_key: {
+			self.message_queue.put(('event','nabbit','start'))
+		}
+
+		# 1 BLOCK, 2 BLOCK, 3 BLOCK
+		self.event_data_dispatch[(0x38,0x86,0x0)] = lambda dispatch_key: {
+			# What's funny is that you can go 3, 2 (out of order)
+			# but it waits until you hit 2 if you go in this sequence: 1, 3, 2(out of order)
+			# 2 first is always out of order
+			self.message_queue.put(('event','number_block','out_of_order'))
+		}
+		self.event_data_dispatch[(0x38,0x86,0x1)] = lambda dispatch_key: {
+			self.message_queue.put(('event','number_block',1))
+		}
+		self.event_data_dispatch[(0x38,0x86,0x2)] = lambda dispatch_key: {
+			self.message_queue.put(('event','number_block',2))
+		}
+		self.event_data_dispatch[(0x38,0x86,0x3)] = lambda dispatch_key: {
+			self.message_queue.put(('event','number_block',3))
+		}
+		self.event_data_dispatch[(0x38,0x86,0x5)] = lambda dispatch_key: {
+			self.message_queue.put(('event','number_block','complete'))
+		}
+
+		# Warming up by the fire BRTYG
+		self.event_data_dispatch[(0x38,0x89,0x0)] = lambda dispatch_key: {
+			self.message_queue.put(('event','fire','warming'))
+		}
+
+		self.event_data_dispatch[(0x38,0x8e,0x0)] = lambda dispatch_key: {
+			self.message_queue.put(('event','turnip','from present'))
+		}
+		self.event_data_dispatch[(0x38,0x8e,0x4)] = lambda dispatch_key: {
+			self.message_queue.put(('event','present','turnip'))
+		}
+
+		# Got the turnip out of PRESENT 2
+		self.event_data_dispatch[(0x38,0x8f,0x0)] = lambda dispatch_key: {
+			self.message_queue.put(('event','turnip','from present_2'))
+		}
+		self.event_data_dispatch[(0x38,0x8f,0x4)] = lambda dispatch_key: {
+			self.message_queue.put(('event','present_2','turnip'))
+		}
+
+		# They must have given up organizing this
+		self.event_data_dispatch[(0x38,0x91,0x1)] = lambda dispatch_key: {
+			self.message_queue.put(('event','checkpoint','flag'))
+		}
+
+		self.event_data_dispatch[(0x38,0x92,0x0)] = lambda dispatch_key: {
+			# Doesn't always signal
+			self.message_queue.put(('event','lost','FRUIT BL'))
+		}
+		self.event_data_dispatch[(0x38,0x92,0x6)] = lambda dispatch_key: {
+			self.message_queue.put(('event','ate','FRUIT BL'))
+		}
+
+		self.event_data_dispatch[(0x38,0x94,0x0)] = lambda dispatch_key: {
+			self.message_queue.put(('event','turnip','threw'))
+		}
+
+		# Did they run out of room in their rubbish bin of 0x38?
+		# Contents of PRESENT3
+		self.event_data_dispatch[(0x39,0x90,0x0)] = lambda dispatch_key: {
+			self.message_queue.put(('event','present_3','empty'))
+		}
+		self.event_data_dispatch[(0x39,0x90,0x1)] = lambda dispatch_key: {
+			self.message_queue.put(('event','present_3','FRUIT RE'))
+		}
+		self.event_data_dispatch[(0x39,0x90,0x2)] = lambda dispatch_key: {
+			self.message_queue.put(('event','present_3','FRUIT GR'))
+		}
+		self.event_data_dispatch[(0x39,0x90,0x3)] = lambda dispatch_key: {
+			self.message_queue.put(('event','present_3','FRUIT YL'))
+		}
+		self.event_data_dispatch[(0x39,0x90,0x4)] = lambda dispatch_key: {
+			self.message_queue.put(('event','present_3','FRUIT PR'))
+		}
+		self.event_data_dispatch[(0x39,0x90,0x5)] = lambda dispatch_key: {
+			self.message_queue.put(('event','present_3','CAKE'))
+		}
+		self.event_data_dispatch[(0x39,0x90,0x6)] = lambda dispatch_key: {
+			self.message_queue.put(('event','present_3','FRUIT BL'))
+		}
+
+		# 'wrapped' events seem unreliably sent, but the player interprets the present correctly even if the event is lost
+		self.event_data_dispatch[(0x39,0x91,0x0)] = lambda dispatch_key: {
+			self.message_queue.put(('event','wrapped','present_3'))
+		}
+		self.event_data_dispatch[(0x39,0x91,0x1)] = lambda dispatch_key: {
+			self.message_queue.put(('event','burnt_wrapped','present_3'))
+		}
+		self.event_data_dispatch[(0x39,0x91,0x3)] = lambda dispatch_key: {
+			self.message_queue.put(('event','gold_wrapped','present_3'))
+		}
+		# gold wrapped present 3 again???
+		self.event_data_dispatch[(0x39,0x91,0x4)] = lambda dispatch_key: {
+			self.message_queue.put(('event','gold_wrapped_2','present_3'))
+		}
+
+		self.event_data_dispatch[(0x39,0x92,0x1)] = lambda dispatch_key: {
+			self.message_queue.put(('event','multiplayer',('burnt_wrapped','present_3')))
+		}
+		self.event_data_dispatch[(0x39,0x92,0x3)] = lambda dispatch_key: {
+			self.message_queue.put(('event','multiplayer',('wrapped','present_3')))
+		}
+
+		self.event_data_dispatch[(0x39,0x93,0x0)] = lambda dispatch_key: {
+			self.message_queue.put(('event','turnip','from present_3'))
+		}
+
+		# Scanned PRESENT3 and got this somehow
+		# peach event data:0x93 0x39 0x1 0x0
+		self.event_data_dispatch[(0x39,0x93,0x4)] = lambda dispatch_key: {
+			self.message_queue.put(('event','present_3','turnip'))
+		}
+
+		# Randomized and customizable things?
+		# Programmable ? Block #1
+		self.event_data_dispatch[(0x40,0x1,0x0)] = lambda dispatch_key: {
+			self.message_queue.put(('event','program_q_1','star'))
+		}
+		self.event_data_dispatch[(0x40,0x1,0x1)] = lambda dispatch_key: {
+			self.message_queue.put(('event','program_q_1','poison'))
+		}
+		self.event_data_dispatch[(0x40,0x1,0x2)] = lambda dispatch_key: {
+			self.message_queue.put(('event','program_q_1','mushroom'))
+		}
+		self.event_data_dispatch[(0x40,0x1,0x3)] = lambda dispatch_key: {
+			self.message_queue.put(('event','program_q_1','10 coins'))
+		}
+
+		# Programmable ? Block #2
+		self.event_data_dispatch[(0x40,0x2,0x0)] = lambda dispatch_key: {
+			self.message_queue.put(('event','program_q_2','star'))
+		}
+		self.event_data_dispatch[(0x40,0x2,0x1)] = lambda dispatch_key: {
+			self.message_queue.put(('event','program_q_2','poison'))
+		}
+		self.event_data_dispatch[(0x40,0x2,0x2)] = lambda dispatch_key: {
+			self.message_queue.put(('event','program_q_2','mushroom'))
+		}
+		self.event_data_dispatch[(0x40,0x2,0x3)] = lambda dispatch_key: {
+			self.message_queue.put(('event','program_q_2','10 coins'))
+		}
+
+		# Programmable Timer
+		self.event_data_dispatch[(0x40,0x3,0x0)] = lambda dispatch_key: {
+			self.message_queue.put(('event','program_timer','10 seconds'))
+		}
+		self.event_data_dispatch[(0x40,0x3,0x1)] = lambda dispatch_key: {
+			self.message_queue.put(('event','program_timer','15 seconds'))
+		}
+		self.event_data_dispatch[(0x40,0x3,0x2)] = lambda dispatch_key: {
+			self.message_queue.put(('event','program_timer','30 seconds'))
+		}
+		self.event_data_dispatch[(0x40,0x3,0x3)] = lambda dispatch_key: {
+			self.message_queue.put(('event','program_timer','clock'))	# Shortens clock to 15s on Start 60 or 90, 5s on Start 30
+		}
+
+		# Complete duplicate of 0x6a 0x38 (? BLOCK reward)
+		self.event_data_dispatch[(0x40,0x4,0x0)] = lambda dispatch_key: {
+			self.message_queue.put(('event','q_block','1 coin'))
+		}
+		self.event_data_dispatch[(0x40,0x4,0x1)] = lambda dispatch_key: {
+			self.message_queue.put(('event','q_block','star'))
+		}
+		self.event_data_dispatch[(0x40,0x4,0x2)] = lambda dispatch_key: {
+			self.message_queue.put(('event','q_block','mushroom'))
+		}
+		#self.event_data_dispatch[(0x40,0x4,0x3)] = lambda dispatch_key: {
+		#	self.message_queue.put(('event','q_block','NOT SEEN'))
+		#}
+		self.event_data_dispatch[(0x40,0x4,0x4)] = lambda dispatch_key: {
+			self.message_queue.put(('event','q_block','5 coins'))
+		}
+		self.event_data_dispatch[(0x40,0x4,0x5)] = lambda dispatch_key: {
+			self.message_queue.put(('event','q_block','10 coins'))
+		}
+
+		# NABBIT randomizer
+		# Duplicate data in 0x81 0x38
+		# Hey look, it's just like ? BLOCK
+		self.event_data_dispatch[(0x40,0x6,0x0)] = lambda dispatch_key: {
+			self.message_queue.put(('event','nabbit','1 coin'))
+		}
+		self.event_data_dispatch[(0x40,0x6,0x1)] = lambda dispatch_key: {
+			self.message_queue.put(('event','nabbit','star'))
+		}
+		self.event_data_dispatch[(0x40,0x6,0x2)] = lambda dispatch_key: {
+			self.message_queue.put(('event','nabbit','mushroom'))
+		}
+		#self.event_data_dispatch[(0x40,0x6,0x3)] = lambda dispatch_key: {
+		#	self.message_queue.put(('event','nabbit','NOT SEEN'))
+		#}
+		self.event_data_dispatch[(0x40,0x6,0x4)] = lambda dispatch_key: {
+			self.message_queue.put(('event','nabbit','5 coins'))
+		}
+		self.event_data_dispatch[(0x40,0x6,0x5)] = lambda dispatch_key: {
+			self.message_queue.put(('event','nabbit','10 coins'))
+		}
 
 	def __init_port_data(self, port, port_id):
 		self.port_data[port] = {
@@ -543,6 +1101,10 @@ class BTLegoMario(BTLego):
 						#['Battery Voltage',True],	# Transmits updates pretty frequently
 					])
 #				elif subscription == 'error'
+# You're gonna get these.  Don't know why I even let you choose?
+				else:
+					BTLegoMario.dp("INVALID Subscription option:"+subscription)
+
 		else:
 			BTLegoMario.dp("NOT CONNECTED.  Not setting port subscriptions",2)
 
@@ -571,9 +1133,9 @@ class BTLegoMario(BTLego):
 						msg = "Enabled notifications on "
 
 					port_text = "port "+str(bt_message['port'])
-					if bt_message['port'] in BTLegoMario.port_data:
+					if bt_message['port'] in self.port_data:
 						# Sometimes the hub_attached_io messages don't come in before the port subscriptions do
-						port_text = BTLegoMario.port_data[bt_message['port']]['name']+" port"
+						port_text = self.port_data[bt_message['port']]['name']+" port"
 
 					BTLegoMario.dp(msg_prefix+msg+port_text+", mode "+str(bt_message['mode']), 2)
 
@@ -583,6 +1145,8 @@ class BTLegoMario(BTLego):
 					dev = "UNKNOWN DEVICE"
 					if bt_message['io_type_id'] in BTLego.io_type_id_str:
 						dev = BTLego.io_type_id_str[bt_message['io_type_id']]
+					else:
+						dev += "_"+str(bt_message['io_type_id'])
 					if bt_message['port'] in self.port_data:
 						BTLegoMario.dp(msg_prefix+"Re-attached "+dev+" on port "+str(bt_message['port']),2)
 					else:
@@ -603,7 +1167,7 @@ class BTLegoMario(BTLego):
 
 			elif BTLego.message_type_str[bt_message['type']] == 'port_value_single':
 				if not bt_message['port'] in self.port_data:
-					BTLegoMario.dp(msg_prefix+"ERR: Attempted to send data to unconfigured port "+str(bt_message['port']))
+					BTLegoMario.dp(msg_prefix+"ERR: Attempted to process data from an unconfigured port "+str(bt_message['port']))
 				else:
 					pd = self.port_data[bt_message['port']]
 					if pd['name'] == 'Mario Pants Sensor':
@@ -665,9 +1229,12 @@ class BTLegoMario(BTLego):
 			elif BTLego.message_type_str[bt_message['type']] == 'hub_actions':
 				self.decode_hub_action(bt_message)
 
+			elif BTLego.message_type_str[bt_message['type']] == 'port_info':
+				await self.decode_mode_info_and_interrogate(bt_message)
+
 			elif BTLego.message_type_str[bt_message['type']] == 'port_mode_info':
 				# Debug stuff for the ports and modes, similar to list command on BuildHAT
-				BTLegoMario.dp(msg_prefix+bt_message['readable'],3)
+				self.decode_port_mode_info(bt_message)
 
 			else:
 				# debug for messages we've never seen before
@@ -677,6 +1244,174 @@ class BTLegoMario(BTLego):
 		await self.drain_messages()
 
 	# ---- Make data useful ----
+	# port_info_req response
+	# 'IN': Receive data from device
+	# 'OUT': Send data to device
+	async def decode_mode_info_and_interrogate(self, bt_message):
+		port = bt_message['port']
+		BTLegoMario.dp('Interrogating mode info for '+str(bt_message['num_modes'])+' modes on port '+self.port_data[port]['name']+' ('+str(port)+')')
+		#print(bt_message['readable'])
+
+		self.port_mode_info[port]['mode_count'] = bt_message['num_modes']
+		self.port_mode_info[port]['name'] = self.port_data[port]['name']
+		self.port_mode_info[port]['mode_info_requests_outstanding'] = { }
+
+		async def scan_mode(direction, port, mode):
+			if not mode in self.port_mode_info[port]:
+				self.port_mode_info[port][mode] = {
+					'requests_outstanding':{0x0:True, 0x1:True, 0x2:True, 0x3:True, 0x4:True, 0x5:True, 0x80:True},	# Number of requests made below
+					'direction':direction
+				}
+
+			# print('Request '+direction+' port '+str(port)+' info for mode '+str(mode))
+			await self.write_port_mode_info_request(port,mode,0x0)	# NAME
+			await self.write_port_mode_info_request(port,mode,0x1)	# RAW
+			await self.write_port_mode_info_request(port,mode,0x2)	# PCT
+			await self.write_port_mode_info_request(port,mode,0x3)	# SI
+			await self.write_port_mode_info_request(port,mode,0x4)	# SYMBOL
+			await self.write_port_mode_info_request(port,mode,0x5)	# MAPPING
+
+			# FIXME: Throws 'Invalid use of command' if it doesn't support motor bias
+			#await self.write_port_mode_info_request(port,mode,0x7)
+
+			# Mario doesn't seem to support this?
+			#await self.write_port_mode_info_request(port,mode,0x8)	# Capability bits
+			await self.write_port_mode_info_request(port,mode,0x80)	# VALUE FORMAT
+			await asyncio.sleep(0.2)
+
+		bit_value = 1
+		mode_number = 0
+		while mode_number < 16: # or bit_value <= 32768
+			if bt_message['input_bitfield'] & bit_value:
+				self.port_mode_info[port]['mode_info_requests_outstanding'][mode_number] = True
+				await scan_mode('IN',port,mode_number)
+			bit_value <<=1
+			mode_number += 1
+
+		bit_value = 1
+		mode_number = 0
+		while mode_number < 16: # or bit_value <= 32768
+			if bt_message['output_bitfield'] & bit_value:
+				if mode_number in self.port_mode_info[port]:
+					self.port_mode_info[port][mode_number]['direction'] = 'IN/OUT'
+				else:
+					# Can't really tell the difference between in and out request
+					self.port_mode_info[port]['mode_info_requests_outstanding'][mode_number] = True
+					await scan_mode('OUT',port,mode_number)
+
+			bit_value <<=1
+			mode_number += 1
+
+		# When 'requests_outstanding' for the port and mode are done, eliminate entry in mode_info_requests_outstanding
+		if not self.port_mode_info[port]['mode_info_requests_outstanding']:
+			self.port_mode_info[port].pop('mode_info_requests_outstanding',None)
+
+		self.port_mode_info['requests_until_complete'] -= 1
+		if self.port_mode_info['requests_until_complete']  == 0:
+			self.port_mode_info.pop('requests_until_complete',None)
+			print(json.dumps(self.port_mode_info, indent=4))
+			BTLegoMario.dp("Port interrogation complete!")
+
+	def decode_port_mode_info(self, bt_message):
+
+		readable =''
+		if bt_message['port'] in self.port_data:
+			pdata = self.port_data[bt_message['port']]
+			readable += pdata['name']+' ('+str(bt_message['port'])+')'
+		else:
+			readable += 'Port ('+str(bt_message['port'])+')'
+
+		readable += ' mode '+str(bt_message['mode'])
+
+		port = bt_message['port']
+		mode = bt_message['mode']
+
+		# FIXME: Stuff all this in a structure and then dump it out
+		if not bt_message['mode'] in self.port_mode_info[bt_message['port']]:
+			print('ERROR: MODE '+bt_message['mode']+' MISSING FOR PORT '+bt_message['port']+':SHOULD HAVE BEEN SET in decode_mode_info_and_interrogate')
+			return
+
+		if bt_message['mode_info_type'] in BTLego.mode_info_type_str:
+			readable += ' '+BTLego.mode_info_type_str[bt_message['mode_info_type']]+':'
+		else:
+			readable += ' infotype_'+str(bt_message['mode_info_type'])+':'
+
+		# Name
+		decoded = True
+		if bt_message['mode_info_type'] == 0x0:
+			# readable += bt_message['name']
+			self.port_mode_info[port][mode]['name'] = bt_message['name']
+		# Raw
+		elif bt_message['mode_info_type'] == 0x1:
+			#readable += ' Min: '+str(bt_message['raw']['min'])+' Max: '+str(bt_message['raw']['max'])
+			self.port_mode_info[port][mode]['raw'] = {
+				'min':bt_message['raw']['min'],
+				'max':bt_message['raw']['max']
+			}
+		# Percentage range window scale
+		elif bt_message['mode_info_type'] == 0x2:
+			#readable += ' Min: '+str(bt_message['pct']['min'])+' Max: '+str(bt_message['pct']['max'])
+			self.port_mode_info[port][mode]['pct'] = {
+				'min':bt_message['pct']['min'],
+				'max':bt_message['pct']['max']
+			}
+		# SI Range
+		elif bt_message['mode_info_type'] == 0x3:
+			#readable += ' Min: '+str(bt_message['si']['min'])+' Max: '+str(bt_message['si']['max'])
+			self.port_mode_info[port][mode]['si'] = {
+				'min':bt_message['si']['min'],
+				'max':bt_message['si']['max']
+			}
+		# Symbol
+		elif bt_message['mode_info_type'] == 0x4:
+			#readable += bt_message['symbol']
+			self.port_mode_info[port][mode]['symbol'] = bt_message['symbol']
+		elif bt_message['mode_info_type'] == 0x5:
+			# Mapping
+			# FIXME
+			#readable += bt_message['readable']
+			self.port_mode_info[port][mode]['mapping_readable'] = bt_message['readable']
+		elif bt_message['mode_info_type'] == 0x7:
+			#readable += ' Motor bias: '+bt_message['motor_bias']
+			self.port_mode_info[port][mode]['motor_bias'] = bt_message['motor_bias']
+		elif bt_message['mode_info_type'] == 0x8:
+			# Capability bits
+			# FIXME
+			#readable += bt_message['readable']
+			self.port_mode_info[port][mode]['capability_readable'] = bt_message['readable']
+
+
+		# Value format
+		elif bt_message['mode_info_type'] == 0x80:
+			readable = ''
+			readable += ' '+str(bt_message['datasets']) + ' '+ bt_message['dataset_type']+ ' datasets'
+			readable += ' with '+str(bt_message['total_figures'])+' total figures and '+str(bt_message['decimals'])+' decimals'
+
+			self.port_mode_info[port][mode]['value_readable'] = readable
+
+		else:
+			decoded = False
+			BTLegoMario.dp('No decoder for this:')
+
+		if not decoded:
+			BTLegoMario.dp('Not decoded:'+readable)
+		else:
+			#BTLegoMario.dp(readable)
+			pass
+
+
+		if 'requests_outstanding' in self.port_mode_info[port][mode]:
+			if bt_message['mode_info_type'] in self.port_mode_info[port][mode]['requests_outstanding']:
+				self.port_mode_info[port][mode]['requests_outstanding'].pop(bt_message['mode_info_type'],None)
+			else:
+				print("DUPLICATE mode info type "+hex(bt_message['mode_info_type'])+' on port '+str(port)+' mode '+str(mode))
+		else:
+			print("EXTRA mode info type "+hex(bt_message['mode_info_type'])+' on port '+str(port)+' mode '+str(mode))
+
+		if not self.port_mode_info[port][mode]['requests_outstanding']:
+			self.port_mode_info[port][mode].pop('requests_outstanding',None)
+			if mode in self.port_mode_info[port]['mode_info_requests_outstanding']:
+				self.port_mode_info[port]['mode_info_requests_outstanding'].pop(mode,None)
 
 	def decode_pants_data(self, data):
 		if len(data) == 1:
@@ -944,17 +1679,16 @@ class BTLegoMario(BTLego):
 
 			# NOTE: These seem to be organized first by key (the second number)
 
-			# When powered on and BT connected (reconnects do not seem to generate)
-			if event_key == 0x0:
-				if event_type == 0x0:
-					if value == 0:
-						BTLegoMario.dp(self.which_player+" events ready!",2)
-						decoded_something = True
+			# Static, indexable codes (set in __init__)
+			dispatch_key = (event_key, event_type, value)
+			if dispatch_key in self.event_data_dispatch:
+				self.event_data_dispatch[dispatch_key](dispatch_key)
+				decoded_something = True
 
-			# Duplicates of things on other ports
-			elif event_key == 0x1:
-				# Scanner port
+			# Can't be dispatched because of using variables in value
+			if event_key == 0x1:
 				if event_type == 0x13:
+					# Scanner port
 					self.message_queue.put(('event','scanner',value))
 
 					# Fortunately, the values here match the values of the scanner codes
@@ -971,183 +1705,40 @@ class BTLegoMario(BTLego):
 					else:
 						BTLegoMario.dp(self.which_player+" event: put on unknown pants:"+str(value),2)
 
-			# General statuses?
 			elif event_key == 0x18:
-
-				# Course reset
-				if event_type == 0x1:
-					if value == 0:
-						# Happens a little while after the flag, sometimes on bootup too
-						self.message_queue.put(('event','course','reset'))
-						decoded_something = True
-					elif value == 1:
-						# turns "ride", "music", and "vacuum" off before starting
-						self.message_queue.put(('event','course','start'))
-						decoded_something = True
-
-
-				# Player alert level
-				elif event_type == 0x2:
-					if value == 2:
-						# BTLegoMario.dp(self.which_player+" fell asleep",2)
-						self.message_queue.put(('event','consciousness','asleep'))
-						decoded_something = True
-					elif value == 1:
-						# BTLegoMario.dp(self.which_player+" woke up",2)
-						self.message_queue.put(('event','consciousness','awake'))
-						decoded_something = True
-
-				elif event_type == 0x3:
-					if value == 0:
-						BTLegoMario.dp(self.which_player+" course status REALLY FINISHED",2) # Screen goes back to normal, sometimes 0x1 0x18 instead of this
-						decoded_something = True
-					# Sometimes get set when course starts.
-					# Always gets set when a timer gets you out of the warning music
-					# Can be seen multiple times, unlike time_warn
-					elif value == 1:
-						self.message_queue.put(('event','music','normal'))
-						decoded_something = True
-					elif value == 2:
-						self.message_queue.put(('event','course','goal'))
-						decoded_something = True
-					elif value == 3:
-						self.message_queue.put(('event','course','failed'))
-						decoded_something = True
-					# Warning music has started
-					# Will NOT get set twice in a course
-					# ie: get music warning (event sent), add +30s, music goes back to normal, get music warning again (NO EVENT SENT THIS TIME)
-					elif value == 4:
-						self.message_queue.put(('event','music','warning'))
-						decoded_something = True
-					elif value == 5:
-						# Done with the coin count (only if goal attained)
-						self.message_queue.put(('event','course','coins_counted'))
-						decoded_something = True
-
-
-				elif event_type == 0x4:
+				if event_type == 0x4:
+					# Course clock
 					self.message_queue.put(('event','course_clock',('add_seconds',value/10)))
 					decoded_something = True
 
-			# Coin counts and sources
 			elif event_key == 0x20:
 				# hat tip to https://github.com/bhawkes/lego-mario-web-bluetooth/blob/master/pages/index.vue
 				#BTLegoMario.dp(self.which_player+" now has "+str(value)+" coins (obtained via "+str(hex(event_type))+")",2)
 				self.message_queue.put(('event','coincount',(value, event_type)))
 				decoded_something = True
 
+			# Goals and ghosts
 			elif event_key == 0x30:
-				if event_type == 0x1:
-					if value == 0x0:
-						# Don't really know why there are two of these.  Ends both chomp and ghost encounters
-						self.message_queue.put(('event','encounter_end','message_1'))
-						decoded_something = True
-					elif value == 0x1:
-						# This should probably be message_1 but it always seems to come in second
-						# Doesn't really matter because I'm not sure what these are, just that there are three of them
-						self.message_queue.put(('event','encounter_start','message_2'))
-						decoded_something = True
-					elif value == 0x3:
-						self.message_queue.put(('event','encounter_chomp_start','message_1'))
-						decoded_something = True
-
-				elif event_type == 0x4:
+				if event_type == 0x4:
 					# SOMETIMES, on a successful finish, data[3] is 0x2, but most of the time it's 0x0
 					# on failure, 0,1,2,3
 					# 0x4 for STARTC50 ?
 					BTLegoMario.dp(self.which_player+" unknown goal status: "+str(value)+": ("+str(data[2])+","+str(data[3])+") :"+" ".join(hex(n) for n in [data[2],data[3]]),2)
 					decoded_something = True
 
+			# Last code scan count
 			elif event_key == 0x37:
 				if event_type == 0x12:
 					self.message_queue.put(('event','last_scan_count',value))
 					decoded_something = True
 
-			# Most actual events are stuffed under here
+# 			# Most actual events are stuffed under here
 			elif event_key == 0x38:
-				if event_type == 0x1:
-					if value == 0x3:
-						self.message_queue.put(('event','toad_trap','unlocked'))
-						decoded_something = True
-
-				# Player is going for a ride... SHOE, DORRIE, CLOWN, SPIN 1, SPIN 2, SPIN 3, SPIN 4, WAGGLE, HAMMER, BOMBWARP
-				elif event_type == 0x3:
-					if value == 0x0:
-						self.message_queue.put(('event','ride','in'))
-						decoded_something = True
-					elif value == 0x64:
-						self.message_queue.put(('event','ride','out'))
-						decoded_something = True
-
-				elif event_type == 0x30:
-					# Hahaha, did I label these backwards?
-					if value == 0x1:
-						self.message_queue.put(('event','lit','BOMB 2'))
-						decoded_something = True
-					elif value == 0x2:
-						self.message_queue.put(('event','lit','BOB-OMB'))
-						decoded_something = True
-					elif value == 0x3:
-						self.message_queue.put(('event','lit','PARABOMB'))
-						decoded_something = True
-					elif value == 0x4:
-						self.message_queue.put(('event','lit','BOMB 3'))
-						decoded_something = True
-
-				elif event_type == 0x41:
-					if value == 0x1:
-						self.message_queue.put(('event','encounter_start','message_3'))
-						decoded_something = True
-					elif value == 0x3:
-						self.message_queue.put(('event','encounter_chomp_start','message_2'))
-						decoded_something = True
-
-				elif event_type == 0x42:
-					if value == 0x0:
-						# Don't really know why there are two of these
-						# Sometimes this one doesn't send
-						self.message_queue.put(('event','encounter_end','message_2'))
-						decoded_something = True
-
-#				elif event_type == 0x50:
-					# Not reliable
-					# So unreliable I might have hallucinated this...
-#					if value == 0x0:
-#						self.message_queue.put(('event','keyhole','out'))
-#						decoded_something = True
-#					elif value == 0x1:
-#						self.message_queue.put(('event','keyhole','in'))
-#						decoded_something = True
-
-				# Seems to be for anything, red coins, star, P-Block, etc
-				# Triggers after you eat all the CAKE or fruits (stops when the stars stop)
-				elif event_type == 0x52:
-					if value == 1:
-						self.message_queue.put(('event','music','start'))
-						decoded_something = True
-					elif value == 0:
-						# Doesn't always trigger
-						self.message_queue.put(('event','music','stop'))
-						decoded_something = True
-
-				# Hit the programmable timer block with the timer in it (shortens the clock)
-				elif event_type == 0x54:
-					if value == 1:
-						self.message_queue.put(('event','course_clock','time_shortened'))
-						decoded_something = True
-
-				# Jumps: Small and large (that make the jump noise)
-				# 0x57 0x38 0x1 0x0		# SOMETIMES a wild 0x1 appears!
-				elif event_type == 0x57:
+# 				# Jumps: Small and large (that make the jump noise)
+# 				# 0x57 0x38 0x1 0x0		# SOMETIMES a wild 0x1 appears!
+				if event_type == 0x57:
 					self.message_queue.put(('event','move','jump'))
 					decoded_something = True
-
-				# Getting hurt in multi by falling over.  Elicits "are you ok" from other player
-				# Frozen from FREEZIE triggers this
-				elif event_type == 0x58:
-					if value == 0x0:
-						self.message_queue.put(('event','move','hurt'))
-						decoded_something = True
 
 				# Tap on the table to "walk" the player
 				# Only in multiplayer?
@@ -1155,11 +1746,6 @@ class BTLegoMario(BTLego):
 				elif event_type == 0x59:
 					self.message_queue.put(('event','multiplayer',('steps',value)))
 					decoded_something = True
-
-				elif event_type == 0x5a:
-					if value == 0x0:
-						self.message_queue.put(('event','pow','hit'))
-						decoded_something = True
 
 				# Current coin count for STARTC50
 				# Oddly, there's no way to tell you've _started_ this mode
@@ -1171,91 +1757,11 @@ class BTLegoMario(BTLego):
 					self.message_queue.put(('event','coin50_count',value))
 					decoded_something = True
 
-				# maybe related to low battery flashing
-				elif event_type == 0x61:
-					if value == 0x5:
-						self.message_queue.put(('event','prone','laying_down'))
-						decoded_something = True
-					# "I'm sleepy"
-					elif value == 0x3:
-						self.message_queue.put(('event','prone','sleepy'))
-						decoded_something = True
-					# "oh" Usually first before sleepy, but not always.  Sometimes repeated
-					# Basically, unreliable
-					elif value == 0x8:
-						self.message_queue.put(('event','prone','maybe_sleep'))
-						decoded_something = True
-
-				# kind of like noise, so maybe this is "done" doing stuff
-				elif event_type == 0x62:
-					if value == 0x0:
-						# BTLegoMario.dp(self.which_player+" ... events ...",2)
-						decoded_something = True
-
-				# But... WHY is this duplicated?  Don't bother sending...
-				elif event_type == 0x66:
-					if value == 0:
-						# self.message_queue.put(('event','consciousness_2','asleep'))
-						decoded_something = True
-					elif value == 1:
-						# self.message_queue.put(('event','consciousness_2','awake'))
-						decoded_something = True
-
-				# Red coin scanned
-				elif event_type == 0x69:
-					if value == 0:
-						self.message_queue.put(('event','red_coin',1))
-						decoded_something = True
-					elif value == 1:
-						self.message_queue.put(('event','red_coin',3))	# FIXME: The message number matches the number on the code label+1, NOT THE VALUE HERE
-						decoded_something = True
-					elif value == 2:
-						self.message_queue.put(('event','red_coin',2))
-						decoded_something = True
-
-				# ? Block reward (duplicate of 0x4 0x40)
-				elif event_type == 0x6a:
-					if value == 0x0:	# 1 coin
-						decoded_something = True
-					elif value == 0x1:	# star
-						decoded_something = True
-					elif value == 0x2:	# mushroom
-						decoded_something = True
-#					elif value == 0x3:
-#						self.message_queue.put(('event','q_block','NOT SEEN'))
-					elif value == 0x4:	# 5 coins
-						decoded_something = True
-					elif value == 0x5:	# 10 coins
-						decoded_something = True
-
-				# ? Block
-				elif event_type == 0x6d:
-					if value == 0:
-						self.message_queue.put(('event','q_block','start'))
-						decoded_something = True
-
 				# Poltergust stop
 				elif event_type == 0x6e:
-					if value == 0x0:
-						# Also sent when poltergust pants are taken off
-						self.message_queue.put(('event','vacuum','stop'))
-						decoded_something = True
-					else:
+					if value != 0x0:
 						# Returns scanner code of ghost vacuumed
 						self.message_queue.put(('event','vacuumed',value))
-						decoded_something = True
-
-				elif event_type == 0x6f:
-					if value == 0x0:
-						self.message_queue.put(('event','encounter_start','message_1'))
-						decoded_something = True
-
-				elif event_type == 0x72:
-					if value == 0x0:
-						self.message_queue.put(('event','toad_trap','locked'))
-						decoded_something = True
-					elif value == 0x1:
-						self.message_queue.put(('event','toad_trap','start'))
 						decoded_something = True
 
 				elif event_type == 0x73:
@@ -1266,382 +1772,6 @@ class BTLegoMario(BTLego):
 				elif event_type == 0x70:
 					self.message_queue.put(('event','vacuum','DUNNO_WHAT'))
 					decoded_something = True
-
-				# Contents of PRESENT
-				elif event_type == 0x74:
-					if value == 0x0:
-						self.message_queue.put(('event','present','empty'))
-						decoded_something = True
-					elif value == 0x1:
-						self.message_queue.put(('event','present','FRUIT RE'))
-						decoded_something = True
-					elif value == 0x2:
-						self.message_queue.put(('event','present','FRUIT GR'))
-						decoded_something = True
-					elif value == 0x3:
-						self.message_queue.put(('event','present','FRUIT YL'))
-						decoded_something = True
-					elif value == 0x4:
-						self.message_queue.put(('event','present','FRUIT PR'))
-						decoded_something = True
-					elif value == 0x5:
-						self.message_queue.put(('event','present','CAKE'))
-						decoded_something = True
-					elif value == 0x6:
-						self.message_queue.put(('event','present','FRUIT BL'))
-						decoded_something = True
-
-				# Lost possession of whatever item you had to PRESENT
-				elif event_type == 0x75:
-					if value == 0x0:
-						self.message_queue.put(('event','wrapped','present'))
-						decoded_something = True
-					elif value == 0x1:
-						self.message_queue.put(('event','burnt_wrapped','present'))
-						decoded_something = True
-					elif value == 0x3:
-						self.message_queue.put(('event','gold_wrapped','present'))
-						decoded_something = True
-
-				elif event_type == 0x76:
-					if value == 0x1:
-						self.message_queue.put(('event','multiplayer',('burnt_wrapped','present')))
-						decoded_something = True
-					elif value == 0x3:
-						self.message_queue.put(('event','multiplayer',('wrapped','present')))
-						decoded_something = True
-					# umm, won't emit gold_wrapped in multiplayer?
-
-				# Contents of PRESENT2
-				elif event_type == 0x77:
-					if value == 0x0:
-						self.message_queue.put(('event','present_2','empty'))
-						decoded_something = True
-					elif value == 0x1:
-						self.message_queue.put(('event','present_2','FRUIT RE'))
-						decoded_something = True
-					elif value == 0x2:
-						self.message_queue.put(('event','present_2','FRUIT GR'))
-						decoded_something = True
-					elif value == 0x3:
-						self.message_queue.put(('event','present_2','FRUIT YL'))
-						decoded_something = True
-					elif value == 0x4:
-						self.message_queue.put(('event','present_2','FRUIT PR'))
-						decoded_something = True
-					elif value == 0x5:
-						self.message_queue.put(('event','present_2','CAKE'))
-						decoded_something = True
-					elif value == 0x6:
-						self.message_queue.put(('event','present_2','FRUIT BL'))
-						decoded_something = True
-
-				# Lost possession of whatever item you had to PRESENT 2
-				elif event_type == 0x78:
-					if value == 0x0:
-						self.message_queue.put(('event','wrapped','present_2'))
-						decoded_something = True
-					elif value == 0x1:
-						self.message_queue.put(('event','burnt_wrapped','present_2'))
-						decoded_something = True
-					elif value == 0x3:
-						self.message_queue.put(('event','gold_wrapped','present_2'))
-						decoded_something = True
-					elif value == 0x4:
-						# what?
-						self.message_queue.put(('event','gold_wrapped_2','present_2'))
-						decoded_something = True
-
-				elif event_type == 0x79:
-					if value == 0x1:
-						self.message_queue.put(('event','multiplayer',('burnt_wrapped','present_2')))
-						decoded_something = True
-					elif value == 0x3:
-						self.message_queue.put(('event','multiplayer',('wrapped','present_2')))
-						decoded_something = True
-					# umm, won't emit gold_wrapped in multiplayer?
-
-				# All 'lost' events are unreliably sent
-				elif event_type == 0x7c:
-					if value == 0x0:
-						self.message_queue.put(('event','lost','FRUIT RE'))
-						decoded_something = True
-					elif value == 0x1:
-						self.message_queue.put(('event','ate','FRUIT RE'))
-						decoded_something = True
-
-				elif event_type == 0x7d:
-					if value == 0x0:
-						self.message_queue.put(('event','lost','FRUIT GR'))
-						decoded_something = True
-					elif value == 0x2:
-						self.message_queue.put(('event','ate','FRUIT GR'))
-						decoded_something = True
-
-				elif event_type == 0x7e:
-					if value == 0x0:
-						self.message_queue.put(('event','lost','FRUIT YL'))
-						decoded_something = True
-					elif value == 0x3:
-						self.message_queue.put(('event','ate','FRUIT YL'))
-						decoded_something = True
-
-				elif event_type == 0x7f:
-					if value == 0x0:
-						self.message_queue.put(('event','lost','FRUIT PR'))
-						decoded_something = True
-					elif value == 0x4:
-						self.message_queue.put(('event','ate','FRUIT PR'))
-						decoded_something = True
-
-				elif event_type == 0x80:
-					if value == 0x0:
-						self.message_queue.put(('event','lost','CAKE'))
-						decoded_something = True
-					if value == 0x5:
-						self.message_queue.put(('event','ate','CAKE'))
-						decoded_something = True
-
-				# Redundant code, prefer the one in the "random" section
-				elif event_type == 0x81:
-					if value == 0x0:	# 1 coin
-						decoded_something = True
-					elif value == 0x1:	# star
-						decoded_something = True
-					elif value == 0x2:	# mushroom
-						decoded_something = True
-#					elif value == 0x3:
-#						self.message_queue.put(('event','nabbit','REDUNDANT NOT SEEN'))
-					elif value == 0x4:	# 5 coins
-						decoded_something = True
-					elif value == 0x5:	# 10 coins
-						decoded_something = True
-
-				elif event_type == 0x82:
-					if value == 0x0:
-						self.message_queue.put(('event','nabbit','start'))
-						decoded_something = True
-
-				# 1 BLOCK, 2 BLOCK, 3 BLOCK
-				elif event_type == 0x86:
-					if value == 0x0:
-						# What's funny is that you can go 3, 2 (out of order)
-						# but it waits until you hit 2 if you go in this sequence: 1, 3, 2(out of order)
-						# 2 first is always out of order
-						self.message_queue.put(('event','number_block','out_of_order'))
-						decoded_something = True
-					elif value == 0x1:
-						self.message_queue.put(('event','number_block',1))
-						decoded_something = True
-					elif value == 0x2:
-						self.message_queue.put(('event','number_block',2))
-						decoded_something = True
-					elif value == 0x3:
-						self.message_queue.put(('event','number_block',3))
-						decoded_something = True
-					elif value == 0x5:
-						self.message_queue.put(('event','number_block','complete'))
-						decoded_something = True
-
-				# Warming up by the fire BRTYG
-				elif event_type == 0x89:
-					if value == 0x0:
-						self.message_queue.put(('event','fire','warming'))
-						decoded_something = True
-
-				elif event_type == 0x8e:
-					if value == 0x0:
-						self.message_queue.put(('event','turnip','from present'))
-						decoded_something = True
-					elif value == 0x4:
-						self.message_queue.put(('event','present','turnip'))
-						decoded_something = True
-
-				elif event_type == 0x8f:
-					# Got the turnip out of PRESENT 2
-					if value == 0x0:
-						self.message_queue.put(('event','turnip','from present_2'))
-						decoded_something = True
-					elif value == 0x4:
-						self.message_queue.put(('event','present_2','turnip'))
-						decoded_something = True
-
-				# They must have given up organizing this
-				elif event_type == 0x91:
-					if value == 0x1:
-						self.message_queue.put(('event','checkpoint','flag'))
-						decoded_something = True
-
-				elif event_type == 0x92:
-					if value == 0x0:
-						# Doesn't always signal
-						self.message_queue.put(('event','lost','FRUIT BL'))
-						decoded_something = True
-					elif value == 0x6:
-						self.message_queue.put(('event','ate','FRUIT BL'))
-						decoded_something = True
-
-				elif event_type == 0x94:
-					if value == 0x0:
-						self.message_queue.put(('event','turnip','threw'))
-						decoded_something = True
-
-			# Did they run out of room in their rubbish bin of 0x38?
-			elif event_key == 0x39:
-
-				# Contents of PRESENT3
-				if event_type == 0x90:
-					if value == 0x0:
-						self.message_queue.put(('event','present_3','empty'))
-						decoded_something = True
-					elif value == 0x1:
-						self.message_queue.put(('event','present_3','FRUIT RE'))
-						decoded_something = True
-					elif value == 0x2:
-						self.message_queue.put(('event','present_3','FRUIT GR'))
-						decoded_something = True
-					elif value == 0x3:
-						self.message_queue.put(('event','present_3','FRUIT YL'))
-						decoded_something = True
-					elif value == 0x4:
-						self.message_queue.put(('event','present_3','FRUIT PR'))
-						decoded_something = True
-					elif value == 0x5:
-						self.message_queue.put(('event','present_3','CAKE'))
-						decoded_something = True
-					elif value == 0x6:
-						self.message_queue.put(('event','present_3','FRUIT BL'))
-						decoded_something = True
-
-				# 'wrapped' events seem unreliably sent, but the player interprets the present correctly
-				elif event_type == 0x91:
-					if value == 0x0:
-						self.message_queue.put(('event','wrapped','present_3'))
-						decoded_something = True
-					elif value == 0x1:
-						self.message_queue.put(('event','burnt_wrapped','present_3'))
-						decoded_something = True
-					elif value == 0x3:
-						self.message_queue.put(('event','gold_wrapped','present_3'))
-						decoded_something = True
-					# gold wrapped present 3 again???
-					elif value == 0x4:
-						self.message_queue.put(('event','gold_wrapped_2','present_3'))
-						decoded_something = True
-
-				elif event_type == 0x92:
-					if value == 0x1:
-						self.message_queue.put(('event','multiplayer',('burnt_wrapped','present_3')))
-						decoded_something = True
-					elif value == 0x3:
-						self.message_queue.put(('event','multiplayer',('wrapped','present_3')))
-						decoded_something = True
-
-				elif event_type == 0x93:
-					if value == 0x0:
-						self.message_queue.put(('event','turnip','from present_3'))
-						decoded_something = True
-
-					# Scanned PRESENT3 and got this somehow
-					# peach event data:0x93 0x39 0x1 0x0
-
-					elif value == 0x4:
-						self.message_queue.put(('event','present_3','turnip'))
-						decoded_something = True
-
-			# Randomized and customizable things?
-			elif event_key == 0x40:
-
-				# Programmable ? Block #1
-				if event_type == 0x1:
-					if value == 0x0:
-						self.message_queue.put(('event','program_q_1','star'))
-						decoded_something = True
-					elif value == 0x1:
-						self.message_queue.put(('event','program_q_1','poison'))
-						decoded_something = True
-					elif value == 0x2:
-						self.message_queue.put(('event','program_q_1','mushroom'))
-						decoded_something = True
-					elif value == 0x3:
-						self.message_queue.put(('event','program_q_1','10 coins'))
-						decoded_something = True
-
-				# Programmable ? Block #2
-				elif event_type == 0x2:
-					if value == 0x0:
-						self.message_queue.put(('event','program_q_2','star'))
-						decoded_something = True
-					elif value == 0x1:
-						self.message_queue.put(('event','program_q_2','poison'))
-						decoded_something = True
-					elif value == 0x2:
-						self.message_queue.put(('event','program_q_2','mushroom'))
-						decoded_something = True
-					elif value == 0x3:
-						self.message_queue.put(('event','program_q_2','10 coins'))
-						decoded_something = True
-
-				# Programmable Timer
-				elif event_type == 0x3:
-					if value == 0x0:
-						self.message_queue.put(('event','program_timer','10 seconds'))
-						decoded_something = True
-					elif value == 0x1:
-						self.message_queue.put(('event','program_timer','15 seconds'))
-						decoded_something = True
-					elif value == 0x2:
-						self.message_queue.put(('event','program_timer','30 seconds'))
-						decoded_something = True
-					elif value == 0x3:
-						self.message_queue.put(('event','program_timer','clock'))	# Shortens clock to 15s on Start 60 or 90, 5s on Start 30
-						decoded_something = True
-
-				# Complete duplicate of 0x6a 0x38 (? BLOCK reward)
-				elif event_type == 0x4:
-					if value == 0x0:
-						self.message_queue.put(('event','q_block','1 coin'))
-						decoded_something = True
-					elif value == 0x1:
-						self.message_queue.put(('event','q_block','star'))
-						decoded_something = True
-					elif value == 0x2:
-						self.message_queue.put(('event','q_block','mushroom'))
-						decoded_something = True
-					elif value == 0x3:
-						#self.message_queue.put(('event','q_block','NOT SEEN'))
-						#decoded_something = True
-						pass
-					elif value == 0x4:
-						self.message_queue.put(('event','q_block','5 coins'))
-						decoded_something = True
-					elif value == 0x5:
-						self.message_queue.put(('event','q_block','10 coins'))
-						decoded_something = True
-
-				# NABBIT randomizer
-				# Duplicate data in 0x81 0x38
-				# Hey look, it's just like ? BLOCK
-				elif event_type == 0x6:
-					if value == 0x0:
-						self.message_queue.put(('event','nabbit','1 coin'))
-						decoded_something = True
-					elif value == 0x1:
-						self.message_queue.put(('event','nabbit','star'))
-						decoded_something = True
-					elif value == 0x2:
-						self.message_queue.put(('event','nabbit','mushroom'))
-						decoded_something = True
-					elif value == 0x3:
-						#self.message_queue.put(('event','nabbit','NOT SEEN'))
-						#decoded_something = True
-						pass
-					elif value == 0x4:
-						self.message_queue.put(('event','nabbit','5 coins'))
-						decoded_something = True
-					elif value == 0x5:
-						self.message_queue.put(('event','nabbit','10 coins'))
-						decoded_something = True
 
 			# Multiplayer coins (and a duplicate message type)
 			elif event_key == 0x50:
@@ -1664,7 +1794,6 @@ class BTLegoMario(BTLego):
 					# Maybe the quality of the collaborative jump sync?
 					self.message_queue.put(('event','multiplayer',('triple_coincount',value)))
 					decoded_something = True
-
 
 
 # Trying to do the red coin event in multiplyer, alternating who got what coin
@@ -1728,6 +1857,9 @@ class BTLegoMario(BTLego):
 # 0x1 0x40 0x1 0x0
 # 0x2 0x40 0x1 0x0
 # 0x1 0x30 0x0 0x0
+
+# Partner powers off and the player starts searching for them?
+# peach Data on Mario Alt Events port:0x8 0x0 0x45 0x4 0x2 0x0 0x2 0x0
 
 			if not decoded_something:
 				BTLegoMario.dp(self.which_player+" event data:"+" ".join(hex(n) for n in data),2)
@@ -2027,6 +2159,15 @@ class BTLegoMario(BTLego):
 				print(pstr)
 
 	# ---- Bluetooth port writes ----
+	async def interrogate_ports(self):
+		BTLegoMario.dp("Starting port interrogation...")
+		self.port_mode_info['requests_until_complete'] = 0
+		for port, data in self.port_data.items():
+			# This should be done as some kind of batch, blocking operation
+			self.port_mode_info['requests_until_complete'] += 1
+
+			await self.write_port_info_request(port, True)
+			await asyncio.sleep(0.2)
 
 	async def set_port_subscriptions(self, portlist):
 		# array of 3-item arrays [port, mode, subscribe on/off]
@@ -2034,7 +2175,7 @@ class BTLegoMario(BTLego):
 			for port_settings in portlist:
 				if isinstance(port_settings, Iterable) and len(port_settings) == 3:
 					await self.client.write_gatt_char(BTLegoMario.characteristic_uuid, BTLegoMario.port_inport_format_setup_bytes(port_settings[0],port_settings[1],port_settings[2]))
-					await asyncio.sleep(0.1)
+					await asyncio.sleep(0.2)
 
 	async def set_icon(self, icon, color):
 		if icon not in BTLegoMario.app_icon_ints:
@@ -2104,9 +2245,10 @@ class BTLegoMario(BTLego):
 				if isinstance(hub_property_settings, Iterable) and len(hub_property_settings) == 2:
 					hub_property = str(hub_property_settings[0])
 					hub_property_set_updates = bool(hub_property_settings[1])
+					# Literally the only subclass dependency.  Maybe rethink this
 					if hub_property in self.hub_property_ints:
 						hub_property_int = self.hub_property_ints[hub_property]
-						if hub_property_int in self.subscribable_hub_properties:
+						if hub_property_int in BTLego.subscribable_hub_properties:
 							hub_property_operation = 0x3
 							if hub_property_set_updates:
 								BTLegoMario.dp("Requesting updates for hub property: "+hub_property,2)
@@ -2123,6 +2265,8 @@ class BTLegoMario(BTLego):
 							])
 							await self.client.write_gatt_char(BTLegoMario.characteristic_uuid, hub_property_update_subscription_bytes)
 							await asyncio.sleep(0.1)
+						else:
+							BTLegoMario.dp("BTLego chars says not able to subscribe to: "+hub_property,2)
 
 	async def turn_off(self):
 		name_update_bytes = bytearray([
@@ -2191,6 +2335,45 @@ class BTLegoMario(BTLego):
 		])
 		await self.client.write_gatt_char(BTLegoMario.characteristic_uuid, name_update_bytes)
 		await asyncio.sleep(0.1)
+
+	async def write_port_mode_info_request(self, port, mode, infotype):
+		if mode < 0 or mode > 255:
+			BTLegoMario.dp('ERROR: Invalid mode '+str(mode)+' for mode info request')
+			return
+		if not infotype in BTLego.mode_info_type_str:
+			BTLegoMario.dp('ERROR: Invalid information type '+hex(infotype)+' for mode info request')
+			return
+
+		payload = bytearray([
+			0x7,	# len
+			0x0,	# padding
+			0x22,	# Command: port_mode_info_req
+			# end header
+			port,
+			mode,
+			infotype	# 0-8 & 0x80
+		])
+		payload[0] = len(payload)
+		await self.client.write_gatt_char(BTLegoMario.characteristic_uuid, payload)
+		await asyncio.sleep(0.2)
+
+	async def write_port_info_request(self, port, mode_info=False):
+		# 0: Request port_value_single value
+		# 1: Request port_info for port modes
+		mode_int = 0x0
+		if mode_info:
+			mode_int = 1
+		payload = bytearray([
+			0x7,	# len
+			0x0,	# padding
+			0x21,	# Command: port_info_req
+			# end header
+			port,
+			mode_int
+		])
+		payload[0] = len(payload)
+		await self.client.write_gatt_char(BTLegoMario.characteristic_uuid, payload)
+		await asyncio.sleep(0.2)
 
 	def port_inport_format_setup_bytes(port, mode, enable):
 		# original hint from https://github.com/salendron/pyLegoMario
