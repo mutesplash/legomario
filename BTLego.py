@@ -5,6 +5,13 @@ import struct	# bin to FP32
 
 class BTLego():
 
+	advertised_system_type = {
+		0x42:'handset',		# Lego 88010 Remote Control for Powered Up
+		0x43:'mario',
+		0x44:'luigi',
+		0x45:'peach'
+	}
+
 	#https://lego.github.io/lego-ble-wireless-protocol-docs/index.html#message-typ
 	message_type_ints = {}
 	message_type_str = {
@@ -197,6 +204,29 @@ class BTLego():
 		self.hub_property_ints = dict(map(reversed, self.hub_property_str.items()))
 		pass
 
+	def determine_device_shortname(advertisement_data):
+		# https://lego.github.io/lego-ble-wireless-protocol-docs/index.html#document-2-Advertising
+		# kCBAdvDataManufacturerData = 0x9703004403ffff00
+		# 919 aka 0x397 or the lego manufacturer id
+		if 919 in advertisement_data.manufacturer_data:
+			# 004403ffff00
+			# 00 Button state
+			# 44 System type (44 for luigi, 43 mario)
+			#	0x44 010 00100	System type 010 (Lego system), Device number(IDK)
+			#	0x43 010 00011
+			# 03 Capabilites
+			#	0000 0011
+			#	       01	Central role
+			#          10	Peripheral role
+			# ff Last network ID (FF is not implemented)
+			# ff Status (I can be everything)
+			# 00 Option (unused)
+			if advertisement_data.manufacturer_data[919][1] in BTLego.advertised_system_type:
+				return BTLego.advertised_system_type[advertisement_data.manufacturer_data[919][1]]
+			else:
+				return 'UNKNOWN_LEGO_'+hex(advertisement_data.manufacturer_data[919][1])
+		return None
+
 	def decode_payload(message_bytes):
 		bt_message = {
 			'error': False,
@@ -255,6 +285,7 @@ class BTLego():
 
 		bt_message['action'] = bt_message['raw'][3]
 		bt_message['action_str'] = BTLego.int8_dict_to_str(BTLego.hub_action_type, bt_message['action'])
+		bt_message['readable'] += "Hub action "+hex(bt_message['raw'][3])+ ":"+bt_message['action_str']
 
 	def decode_port_output_command_feedback(bt_message):
 		payload = bt_message['raw'][3:]
