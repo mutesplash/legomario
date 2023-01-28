@@ -104,15 +104,6 @@ class BTLegoMario(BTLego):
 		# Mode 0: VLT L
 		# Mode 1: VLT S
 
-	port_name = {
-		0:'IMU',
-		1:'scanner',
-		2:'pants',
-		3:'events',
-		4:'alt_events',
-		6:'volts'
-	}
-
 	code_data = None
 	gr_codespace = {}
 	br_codespace = {}
@@ -388,17 +379,6 @@ class BTLegoMario(BTLego):
 			BTLegoMario.app_icon_ints = dict(map(reversed, self.app_icon_names.items()))
 		if not BTLegoMario.app_icon_color_ints:
 			BTLegoMario.app_icon_color_ints = dict(map(reversed, self.app_icon_color_names.items()))
-
-		# It would be nice to dynamically init the ports when you connect
-		# and not do some magic numbers here but
-		# 1. They're static and
-		# 2. They don't "initialize" when you connect
-		self.__init_port_data(0,0x47)
-		self.__init_port_data(1,0x49)
-		self.__init_port_data(2,0x4A)
-		self.__init_port_data(3,0x46)
-		self.__init_port_data(4,0x55)
-		self.__init_port_data(6,0x14)
 
 		self.message_queue = SimpleQueue()
 		self.callbacks = {}
@@ -963,37 +943,9 @@ class BTLegoMario(BTLego):
 			'status': 0x1	# BTLego.io_event_type_str[0x1]
 		}
 
-	def which_device(advertisement_data):
-		# https://lego.github.io/lego-ble-wireless-protocol-docs/index.html#document-2-Advertising
-		# kCBAdvDataManufacturerData = 0x9703004403ffff00
-		# 919 aka 0x397 or the lego manufacturer id
-		if 919 in advertisement_data.manufacturer_data:
-			# 004403ffff00
-			# 00 Button state
-			# 44 System type (44 for luigi, 43 mario)
-			#	0x44 010 00100	System type 010 (Lego system), Device number(IDK)
-			#	0x43 010 00011
-			# 03 Capabilites
-			#	0000 0011
-			#	       01	Central role
-			#          10	Peripheral role
-			# ff Last network ID (FF is not implemented)
-			# ff Status (I can be everything)
-			# 00 Option (unused)
-			if advertisement_data.manufacturer_data[919][1] == 0x43:
-				return 'mario'
-			elif advertisement_data.manufacturer_data[919][1] == 0x44:
-				return 'luigi'
-			elif advertisement_data.manufacturer_data[919][1] == 0x45:
-				return 'peach'
-			else:
-				BTLegoMario.dp("Detected unknown player: "+str(hex(advertisement_data.manufacturer_data[919][1])))
-				return 'UNKNOWN_MARIO'
-		return None
-
 	async def connect(self, device, advertisement_data):
 		async with self.lock:
-			self.which_player = BTLegoMario.which_device(advertisement_data)
+			self.which_player = BTLego.determine_device_shortname(advertisement_data)
 			BTLegoMario.dp("Connecting to "+str(self.which_player)+"...",2)
 			self.device = device
 			self.advertisement = advertisement_data
@@ -1147,16 +1099,13 @@ class BTLegoMario(BTLego):
 						dev = BTLego.io_type_id_str[bt_message['io_type_id']]
 					else:
 						dev += "_"+str(bt_message['io_type_id'])
+
 					if bt_message['port'] in self.port_data:
 						BTLegoMario.dp(msg_prefix+"Re-attached "+dev+" on port "+str(bt_message['port']),2)
+						self.port_data[bt_message['port']]['status'] = bt_message['event']
 					else:
 						BTLegoMario.dp(msg_prefix+"Attached "+dev+" on port "+str(bt_message['port']),2)
-
-					self.port_data[bt_message['port']] = {
-						'io_type_id':bt_message['io_type_id'],
-						'name':dev,
-						'status':bt_message['event']
-					}
+						self.__init_port_data(bt_message['port'], bt_message['io_type_id'])
 
 				elif event == 'detached':
 					BTLegoMario.dp(msg_prefix+"Detached "+dev+" on port "+str(bt_message['port']),2)
