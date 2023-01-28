@@ -42,7 +42,7 @@ async def detect_device_callback(device, advertisement_data):
 	global code_data
 
 	if device:
-		mario_device = BTLegoMario.which_device(advertisement_data)
+		mario_device = BTLegoMario.determine_device_shortname(advertisement_data)
 		if mario_device:
 			if not device.address in mario_devices:
 				mario_devices[device.address] = BTLegoMario(code_data)
