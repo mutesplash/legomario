@@ -83,8 +83,8 @@ class BTLego():
 
 		# My names
 		0x46:'LEGO Events',			# Events from 88010 Powered Up controller and LEGO Mario
-		0x47:'Mario Tilt Sensor',
-		0x49:'Mario RGB Scanner',
+		0x47:'Mario Tilt Sensor',	# aka IMU
+		0x49:'Mario RGB Scanner',	# The code & color scanner
 		0x4A:'Mario Pants Sensor',
 		0x55:'Mario Alt Events',
 	}
@@ -238,10 +238,12 @@ class BTLego():
 		unused_hub_id = message_bytes[1]
 		if len(message_bytes) != length:
 			bt_message['error'] = True
-			bt_message['readable'] = "CORRUPTED MESSAGE: stated len "+str(length)+" != "+str(len(message_bytes))+" ".join(hex(n) for n in message_bytes)
-			return bt_message
+			bt_message['readable'] = "CORRUPTED MESSAGE: stated len "+str(length)+" != "+str(len(message_bytes))+" "+" ".join(hex(n) for n in message_bytes)+" "
+			# Don't return, attempt to decode, since error flag set
+		else:
+			bt_message['readable'] = ''
 		bt_message['type']  = message_bytes[2]
-		bt_message['readable'] = BTLego.int8_dict_to_str(BTLego.message_type_str, bt_message['type']) + " - "
+		bt_message['readable'] += BTLego.int8_dict_to_str(BTLego.message_type_str, bt_message['type']) + " - "
 
 		if bt_message['type'] == 0x1:
 			BTLego.decode_hub_properties(bt_message)
@@ -279,7 +281,7 @@ class BTLego():
 
 	def decode_hub_action(bt_message):
 		if len(bt_message['raw']) != 4:
-			bt_message['readable'] += "CORRUPTED MESSAGE: payload len "+str(len(bt_message['raw']))+" is wrong for a hub action: "+" ".join(hex(n) for n in payload)
+			bt_message['readable'] += "CORRUPTED MESSAGE: mesage len "+str(len(bt_message['raw']))+" is wrong for a hub action: "+" ".join(hex(n) for n in bt_message['raw'])
 			bt_message['error'] = True
 			return
 
@@ -553,10 +555,15 @@ class BTLego():
 			# Button State
 			if payload[1] == 0x0:
 				bt_message['readable'] += ": Button Released"
+				bt_message['command'] = "connection_request"
+				bt_message['value'] = "button_up"
 			elif payload[1] == 0x1:
 				bt_message['readable'] += ": Button Pressed"
+				bt_message['command'] = "connection_request"
+				bt_message['value'] = "button_down"
 			else:
-				bt_message['readable'] += ": INVALID BUTTON STATE"
+				bt_message['error'] = True
+				bt_message['readable'] += ": INVALID BUTTON STATE "+hex(payload[1])
 		# Family Request
 		elif command_token == 0x3:
 			return
