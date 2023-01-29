@@ -6,6 +6,7 @@ from collections.abc import Iterable
 import json
 
 from bleak import BleakClient
+from BTLegoDevice import BTLegoDevice
 from BTLego import BTLego
 
 #{
@@ -35,7 +36,7 @@ from BTLego import BTLego
 # Rest is garbage, AFAIAC
 
 # Should be BTLELegoMario but that's obnoxious
-class BTLegoMario(BTLego):
+class BTLegoMario(BTLegoDevice):
 	# 0:	Don't debug
 	# 1:	Print weird stuff
 	# 2:	Print most of the information flow
@@ -78,9 +79,6 @@ class BTLegoMario(BTLego):
 		'info',
 		'error'
 	)
-
-	characteristic_uuid = '00001624-1212-efde-1623-785feabcd123'
-	hub_service_uuid = '00001623-1212-efde-1623-785feabcd123'
 
 	# https://github.com/bricklife/LEGO-Mario-Reveng
 	IMU_PORT = 0		# Inertial Motion Unit?
@@ -349,31 +347,14 @@ class BTLegoMario(BTLego):
 	}
 	app_icon_color_ints = {}
 
-	def __init__(self,json_code_dict=None):
-		super().__init__()
-
-		self.which_player = None
-		self.address = None
-		self.lock = None
-		self.client = None
-		self.connected = False
-
-		# keep around for whatever
-		self.device = None
-		self.advertisement = None
-		self.message_queue = None
-		self.callbacks = None
-
-		self.port_data = {
-		}
-
-		self.port_mode_info = {
-			'port_count':-1
-		}
+	def __init__(self,advertisement_data=None, json_code_dict=None):
+		super().__init__(advertisement_data)
 
 		# Translates static event sequences into messages
 		self.event_data_dispatch = {
 		}
+
+		self.volume = 100
 
 		if not BTLegoMario.code_data:
 			BTLegoMario.code_data = json_code_dict
@@ -384,13 +365,7 @@ class BTLegoMario(BTLego):
 		if not BTLegoMario.app_icon_color_ints:
 			BTLegoMario.app_icon_color_ints = dict(map(reversed, self.app_icon_color_names.items()))
 
-		self.message_queue = SimpleQueue()
-		self.callbacks = {}
-
 		self.__init_data_dispatch()
-
-		self.lock = asyncio.Lock()
-		self.drain_lock = asyncio.Lock()
 
 	def __init_data_dispatch(self):
 
@@ -400,7 +375,7 @@ class BTLegoMario(BTLego):
 		# 0x0
 		self.event_data_dispatch[(0x0,0x0,0x0)] = lambda dispatch_key: {
 			# When powered on and BT connected (reconnects do not seem to generate)
-			BTLegoMario.dp(self.which_player+" events ready!",2)
+			BTLegoMario.dp(self.system_type+" events ready!",2)
 		}
 
 		# 0x18: General statuses?
@@ -420,7 +395,7 @@ class BTLegoMario(BTLego):
 			self.message_queue.put(('event','consciousness','awake'))
 		}
 		self.event_data_dispatch[(0x18,0x3,0x0)] = lambda dispatch_key: {
-			BTLegoMario.dp(self.which_player+" course status REALLY FINISHED",2) # Screen goes back to normal, sometimes 0x1 0x18 instead of this
+			BTLegoMario.dp(self.system_type+" course status REALLY FINISHED",2) # Screen goes back to normal, sometimes 0x1 0x18 instead of this
 		}
 		self.event_data_dispatch[(0x18,0x3,0x1)] = lambda dispatch_key: {
 			# Sometimes get set when course starts.
@@ -552,7 +527,7 @@ class BTLegoMario(BTLego):
 
 		self.event_data_dispatch[(0x38,0x62,0x0)] = lambda dispatch_key: {
 			# kind of like noise, so maybe this is "done" doing stuff
-			BTLegoMario.dp(self.which_player+" ... events ...",4)
+			BTLegoMario.dp(self.system_type+" ... events ...",4)
 		}
 
 		# But... WHY is this duplicated?  Don't bother sending...
@@ -941,107 +916,19 @@ class BTLegoMario(BTLego):
 			self.message_queue.put(('event','nabbit','10 coins'))
 		}
 
-	def __init_port_data(self, port, port_id):
-		self.port_data[port] = {
-			'io_type_id':port_id,
-			'name':BTLego.io_type_id_str[port_id],
-			'status': 0x1	# BTLego.io_event_type_str[0x1]
-		}
-		self.port_mode_info[port] = {
-			'mode_count': -1
-		}
-		self.port_mode_info['port_count'] += 1
+	# override
+	async def inital_connect_updates(self):
+		# Not always sent on connect
+		await self.request_name_update()
+		# Definitely not sent on connect
+		await self.request_version_update()
+		await self.request_volume_update()
+		await self.request_battery_update()
 
-	async def connect(self, device, advertisement_data):
-		async with self.lock:
-			self.which_player = BTLego.determine_device_shortname(advertisement_data)
-			BTLegoMario.dp("Connecting to "+str(self.which_player)+"...",2)
-			self.device = device
-			self.advertisement = advertisement_data
-			try:
-				async with BleakClient(device.address) as self.client:
-					if not self.client.is_connected:
-						BTLegoMario.dp("Failed to connect after client creation")
-						return
-					BTLegoMario.dp("Connected to "+self.which_player+"! ("+str(device.name)+")",2)
-					self.message_queue.put(('info','player',self.which_player))
-					self.connected = True
-					self.address = device.address
-					await self.client.start_notify(BTLegoMario.characteristic_uuid, self.mario_events)
-					await asyncio.sleep(0.1)
+		#await self.interrogate_ports()
 
-					# turn on everything everybody registered for
-					for callback_uuid,callback in self.callbacks.items():
-						await self.set_event_subscriptions(callback[1])
-
-					# Not always sent on connect
-					await self.request_name_update()
-					# Definitely not sent on connect
-					await self.request_volume_update()
-					await self.request_version_update()
-					await self.request_battery_update()
-
-					#await self.interrogate_ports()
-
-					while self.client.is_connected:
-						await asyncio.sleep(0.05)
-					self.connected = False
-					BTLegoMario.dp(self.which_player+" has disconnected.",2)
-
-			except Exception as e:
-				BTLegoMario.dp("Unable to connect to "+str(device.address) + ": "+str(e))
-
-	def register_callback(self, callback):
-		# FIXME: Un-register?
-		callback_uuid = str(uuid.uuid4())
-		self.callbacks[callback_uuid] = (callback, ())
-		return callback_uuid
-
-	async def unregister_callback(self, callback_uuid):
-		async with self.drain_lock:
-			# FIXME: Need to unsub?
-			self.callbacks.pop(callback_uuid, None)
-
-	def request_update_on_callback(self,update_request):
-		# FIXME: User should be able to pokes mario for stuff like request_name_update
-		pass
-
-	async def subscribe_to_messages_on_callback(self, callback_uuid, message_type, subscribe=True):
-		# FIXME: Uhh, actually doesn't allow you to unsubscribe.  Good design here. Top notch
-		if not message_type in self.message_types:
-			BTLegoMario.dp("Invalid message type "+message_type)
-			return False
-		if not callback_uuid in self.callbacks:
-			BTLegoMario.dp("Given UUID not registered to recieve messages "+message_type)
-			return False
-
-		do_nothing = False
-		callback_settings = self.callbacks[callback_uuid]
-		current_subscriptions = callback_settings[1]
-		new_subscriptions = ()
-		if subscribe:
-			if message_type in current_subscriptions:
-				do_nothing = True
-			else:
-				new_subscriptions = current_subscriptions+(message_type,)
-		else:
-			if message_type in current_subscriptions:
-				sub_list = list(current_subscriptions)
-				sub_list.remove(message_type)
-				new_subscriptions = tuple(sub_list)
-			else:
-				do_nothing = True
-
-		if do_nothing:
-			new_subscriptions = current_subscriptions
-		else:
-			self.callbacks[callback_uuid] = (callback_settings[0], new_subscriptions)
-
-		if self.connected:
-			await self.set_event_subscriptions(new_subscriptions)
-
-		return True
-
+	# override
+	# FIXME: What if we did NOT
 	async def set_event_subscriptions(self, current_subscriptions):
 		# FIXME: Uhh, actually doesn't allow you to unsubscribe.  Good design here. Top notch
 		if self.connected:
@@ -1077,18 +964,11 @@ class BTLegoMario(BTLego):
 		else:
 			BTLegoMario.dp("NOT CONNECTED.  Not setting port subscriptions",2)
 
-	async def drain_messages(self):
-		async with self.drain_lock:
-			while not self.message_queue.empty():
-				message = self.message_queue.get()
-				for callback_uuid, callback in self.callbacks.items():
-					if message[0] in callback[1]:
-						await callback[0]((callback_uuid,) + message)
-
-	async def mario_events(self, sender, data):
+	# override
+	async def device_events(self, sender, data):
 
 		bt_message = BTLego.decode_payload(data)
-		msg_prefix = self.which_player+" "
+		msg_prefix = self.system_type+" "
 
 		if bt_message['error']:
 			BTLegoMario.dp(msg_prefix+"ERR:"+bt_message['readable'])
@@ -1124,7 +1004,7 @@ class BTLegoMario(BTLego):
 						self.port_data[bt_message['port']]['status'] = bt_message['event']
 					else:
 						BTLegoMario.dp(msg_prefix+"Attached "+dev+" on port "+str(bt_message['port']),2)
-						self.__init_port_data(bt_message['port'], bt_message['io_type_id'])
+						self._init_port_data(bt_message['port'], bt_message['io_type_id'])
 
 				elif event == 'detached':
 					BTLegoMario.dp(msg_prefix+"Detached "+dev+" on port "+str(bt_message['port']),2)
@@ -1179,6 +1059,7 @@ class BTLegoMario(BTLego):
 						elif BTLego.hub_property_str[bt_message['property']] == 'Mario Volume':
 							BTLegoMario.dp(msg_prefix+"Volume set to "+str(bt_message['value']),2)
 							self.message_queue.put(('info','volume',bt_message['value']))
+							self.volume = bt_message['value']
 
 						else:
 							BTLegoMario.dp(msg_prefix+bt_message['readable'],2)
@@ -1215,189 +1096,21 @@ class BTLegoMario(BTLego):
 		await self.drain_messages()
 
 	# ---- Make data useful ----
-	# port_info_req response
-	# 'IN': Receive data from device
-	# 'OUT': Send data to device
-	async def decode_mode_info_and_interrogate(self, bt_message):
-		port = bt_message['port']
-		BTLegoMario.dp('Interrogating mode info for '+str(bt_message['num_modes'])+' modes on port '+self.port_data[port]['name']+' ('+str(port)+')')
-		#print(bt_message['readable'])
-
-		self.port_mode_info[port]['mode_count'] = bt_message['num_modes']
-		self.port_mode_info[port]['name'] = self.port_data[port]['name']
-		self.port_mode_info[port]['mode_info_requests_outstanding'] = { }
-
-		async def scan_mode(direction, port, mode):
-			if not mode in self.port_mode_info[port]:
-				self.port_mode_info[port][mode] = {
-					'requests_outstanding':{0x0:True, 0x1:True, 0x2:True, 0x3:True, 0x4:True, 0x5:True, 0x80:True},	# Number of requests made below
-					'direction':direction
-				}
-
-			# print('Request '+direction+' port '+str(port)+' info for mode '+str(mode))
-			await self.write_port_mode_info_request(port,mode,0x0)	# NAME
-			await self.write_port_mode_info_request(port,mode,0x1)	# RAW
-			await self.write_port_mode_info_request(port,mode,0x2)	# PCT
-			await self.write_port_mode_info_request(port,mode,0x3)	# SI
-			await self.write_port_mode_info_request(port,mode,0x4)	# SYMBOL
-			await self.write_port_mode_info_request(port,mode,0x5)	# MAPPING
-
-			# FIXME: Throws 'Invalid use of command' if it doesn't support motor bias
-			#await self.write_port_mode_info_request(port,mode,0x7)
-
-			# Mario doesn't seem to support this?
-			#await self.write_port_mode_info_request(port,mode,0x8)	# Capability bits
-			await self.write_port_mode_info_request(port,mode,0x80)	# VALUE FORMAT
-			await asyncio.sleep(0.2)
-
-		bit_value = 1
-		mode_number = 0
-		while mode_number < 16: # or bit_value <= 32768
-			if bt_message['input_bitfield'] & bit_value:
-				self.port_mode_info[port]['mode_info_requests_outstanding'][mode_number] = True
-				await scan_mode('IN',port,mode_number)
-			bit_value <<=1
-			mode_number += 1
-
-		bit_value = 1
-		mode_number = 0
-		while mode_number < 16: # or bit_value <= 32768
-			if bt_message['output_bitfield'] & bit_value:
-				if mode_number in self.port_mode_info[port]:
-					self.port_mode_info[port][mode_number]['direction'] = 'IN/OUT'
-				else:
-					# Can't really tell the difference between in and out request
-					self.port_mode_info[port]['mode_info_requests_outstanding'][mode_number] = True
-					await scan_mode('OUT',port,mode_number)
-
-			bit_value <<=1
-			mode_number += 1
-
-		# When 'requests_outstanding' for the port and mode are done, eliminate entry in mode_info_requests_outstanding
-		if not self.port_mode_info[port]['mode_info_requests_outstanding']:
-			self.port_mode_info[port].pop('mode_info_requests_outstanding',None)
-
-		self.port_mode_info['requests_until_complete'] -= 1
-		if self.port_mode_info['requests_until_complete']  == 0:
-			self.port_mode_info.pop('requests_until_complete',None)
-			print(json.dumps(self.port_mode_info, indent=4))
-			BTLegoMario.dp("Port interrogation complete!")
-
-	def decode_port_mode_info(self, bt_message):
-
-		readable =''
-		if bt_message['port'] in self.port_data:
-			pdata = self.port_data[bt_message['port']]
-			readable += pdata['name']+' ('+str(bt_message['port'])+')'
-		else:
-			readable += 'Port ('+str(bt_message['port'])+')'
-
-		readable += ' mode '+str(bt_message['mode'])
-
-		port = bt_message['port']
-		mode = bt_message['mode']
-
-		# FIXME: Stuff all this in a structure and then dump it out
-		if not bt_message['mode'] in self.port_mode_info[bt_message['port']]:
-			print('ERROR: MODE '+bt_message['mode']+' MISSING FOR PORT '+bt_message['port']+':SHOULD HAVE BEEN SET in decode_mode_info_and_interrogate')
-			return
-
-		if bt_message['mode_info_type'] in BTLego.mode_info_type_str:
-			readable += ' '+BTLego.mode_info_type_str[bt_message['mode_info_type']]+':'
-		else:
-			readable += ' infotype_'+str(bt_message['mode_info_type'])+':'
-
-		# Name
-		decoded = True
-		if bt_message['mode_info_type'] == 0x0:
-			# readable += bt_message['name']
-			self.port_mode_info[port][mode]['name'] = bt_message['name']
-		# Raw
-		elif bt_message['mode_info_type'] == 0x1:
-			#readable += ' Min: '+str(bt_message['raw']['min'])+' Max: '+str(bt_message['raw']['max'])
-			self.port_mode_info[port][mode]['raw'] = {
-				'min':bt_message['raw']['min'],
-				'max':bt_message['raw']['max']
-			}
-		# Percentage range window scale
-		elif bt_message['mode_info_type'] == 0x2:
-			#readable += ' Min: '+str(bt_message['pct']['min'])+' Max: '+str(bt_message['pct']['max'])
-			self.port_mode_info[port][mode]['pct'] = {
-				'min':bt_message['pct']['min'],
-				'max':bt_message['pct']['max']
-			}
-		# SI Range
-		elif bt_message['mode_info_type'] == 0x3:
-			#readable += ' Min: '+str(bt_message['si']['min'])+' Max: '+str(bt_message['si']['max'])
-			self.port_mode_info[port][mode]['si'] = {
-				'min':bt_message['si']['min'],
-				'max':bt_message['si']['max']
-			}
-		# Symbol
-		elif bt_message['mode_info_type'] == 0x4:
-			#readable += bt_message['symbol']
-			self.port_mode_info[port][mode]['symbol'] = bt_message['symbol']
-		elif bt_message['mode_info_type'] == 0x5:
-			# Mapping
-			# FIXME
-			#readable += bt_message['readable']
-			self.port_mode_info[port][mode]['mapping_readable'] = bt_message['readable']
-		elif bt_message['mode_info_type'] == 0x7:
-			#readable += ' Motor bias: '+bt_message['motor_bias']
-			self.port_mode_info[port][mode]['motor_bias'] = bt_message['motor_bias']
-		elif bt_message['mode_info_type'] == 0x8:
-			# Capability bits
-			# FIXME
-			#readable += bt_message['readable']
-			self.port_mode_info[port][mode]['capability_readable'] = bt_message['readable']
-
-
-		# Value format
-		elif bt_message['mode_info_type'] == 0x80:
-			readable = ''
-			readable += ' '+str(bt_message['datasets']) + ' '+ bt_message['dataset_type']+ ' datasets'
-			readable += ' with '+str(bt_message['total_figures'])+' total figures and '+str(bt_message['decimals'])+' decimals'
-
-			self.port_mode_info[port][mode]['value_readable'] = readable
-
-		else:
-			decoded = False
-			BTLegoMario.dp('No decoder for this:')
-
-		if not decoded:
-			BTLegoMario.dp('Not decoded:'+readable)
-		else:
-			#BTLegoMario.dp(readable)
-			pass
-
-
-		if 'requests_outstanding' in self.port_mode_info[port][mode]:
-			if bt_message['mode_info_type'] in self.port_mode_info[port][mode]['requests_outstanding']:
-				self.port_mode_info[port][mode]['requests_outstanding'].pop(bt_message['mode_info_type'],None)
-			else:
-				print("DUPLICATE mode info type "+hex(bt_message['mode_info_type'])+' on port '+str(port)+' mode '+str(mode))
-		else:
-			print("EXTRA mode info type "+hex(bt_message['mode_info_type'])+' on port '+str(port)+' mode '+str(mode))
-
-		if not self.port_mode_info[port][mode]['requests_outstanding']:
-			self.port_mode_info[port][mode].pop('requests_outstanding',None)
-			if mode in self.port_mode_info[port]['mode_info_requests_outstanding']:
-				self.port_mode_info[port]['mode_info_requests_outstanding'].pop(mode,None)
 
 	def decode_pants_data(self, data):
 		if len(data) == 1:
-			BTLegoMario.dp(self.which_player+" put on "+BTLegoMario.mario_pants_to_string(data[0])+" pants",2)
+			BTLegoMario.dp(self.system_type+" put on "+BTLegoMario.mario_pants_to_string(data[0])+" pants",2)
 			if data[0] in self.pants_codes:
 				self.message_queue.put(('pants','pants',data[0]))
 			else:
-				BTLegoMario.dp(self.which_player+" put on unknown pants code "+str(hex(data[0])))
+				BTLegoMario.dp(self.system_type+" put on unknown pants code "+str(hex(data[0])))
 		else:
-			BTLegoMario.dp(self.which_player+" UNKNOWN PANTS DATA, WEIRD LENGTH OF "+len(data)+":"+" ".join(hex(n) for n in data))
+			BTLegoMario.dp(self.system_type+" UNKNOWN PANTS DATA, WEIRD LENGTH OF "+len(data)+":"+" ".join(hex(n) for n in data))
 
 	# RGB Mode 0
 	def decode_scanner_data(self, data):
 		if len(data) != 4:
-			BTLegoMario.dp(self.which_player+" UNKNOWN SCANNER DATA, WEIRD LENGTH OF "+len(data)+":"+" ".join(hex(n) for n in data))
+			BTLegoMario.dp(self.system_type+" UNKNOWN SCANNER DATA, WEIRD LENGTH OF "+len(data)+":"+" ".join(hex(n) for n in data))
 			return
 
 		scantype = None
@@ -1410,7 +1123,7 @@ class BTLegoMario(BTLego):
 				scantype = 'color'
 
 		if not scantype:
-			BTLegoMario.dp(self.which_player+" UNKNOWN SCANNER DATA:"+" ".join(hex(n) for n in data))
+			BTLegoMario.dp(self.system_type+" UNKNOWN SCANNER DATA:"+" ".join(hex(n) for n in data))
 			return
 
 		if scantype == 'barcode':
@@ -1419,17 +1132,17 @@ class BTLegoMario(BTLego):
 			if barcode_int != 32767:
 				# Happens when Black is used as a color
 				code_info = BTLegoMario.get_code_info(barcode_int)
-				BTLegoMario.dp(self.which_player+" scanned "+code_info['label']+" (" + code_info['barcode']+ " "+str(barcode_int)+")",2)
+				BTLegoMario.dp(self.system_type+" scanned "+code_info['label']+" (" + code_info['barcode']+ " "+str(barcode_int)+")",2)
 				self.message_queue.put(('scanner','code',(code_info['barcode'], barcode_int)))
 			else:
 				self.message_queue.put(('error','message','Scanned malformed code'))
 		elif scantype == 'color':
 			color = BTLegoMario.mario_bytes_to_solid_color(data[2:4])
-			BTLegoMario.dp(self.which_player+" scanned color "+color,2)
+			BTLegoMario.dp(self.system_type+" scanned color "+color,2)
 			self.message_queue.put(('scanner','color',color))
 		else:
 			#scantype == 'nothing':
-			BTLegoMario.dp(self.which_player+" scanned nothing",2)
+			BTLegoMario.dp(self.system_type+" scanned nothing",2)
 
 	# IMU Mode 0,1
 	def decode_accel_data(self, data):
@@ -1454,7 +1167,7 @@ class BTLegoMario(BTLego):
 			if fb_accel > 127:
 				fb_accel = -(127-(fb_accel>>1))
 
-			BTLegoMario.dp(self.which_player+" accel down "+str(ud_accel)+" accel right "+str(lr_accel)+" accel backwards "+str(fb_accel),2)
+			BTLegoMario.dp(self.system_type+" accel down "+str(ud_accel)+" accel right "+str(lr_accel)+" accel backwards "+str(fb_accel),2)
 
 		# GEST: Mode 1
 		# 0x8 0x0 0x45 0x0 [ 0x0 0x80 0x0 0x80 ]
@@ -1633,7 +1346,7 @@ class BTLegoMario(BTLego):
 				pass
 
 			if notes:
-				BTLegoMario.dp(self.which_player+" gesture data:"+notes+" ".join(hex(n) for n in data),2)
+				BTLegoMario.dp(self.system_type+" gesture data:"+notes+" ".join(hex(n) for n in data),2)
 
 	def decode_event_data(self, data):
 
@@ -1665,7 +1378,7 @@ class BTLegoMario(BTLego):
 					# Fortunately, the values here match the values of the scanner codes
 					# message consumer should do this work if they care about it
 					#scanner_code = BTLegoMario.get_code_info(value)
-					#BTLegoMario.dp(self.which_player+" scans "+scanner_code['label'])
+					#BTLegoMario.dp(self.system_type+" scans "+scanner_code['label'])
 					decoded_something = True
 
 				# Pants port status (numbers here are _completely_ different from the pants port)
@@ -1674,7 +1387,7 @@ class BTLegoMario(BTLego):
 						self.message_queue.put(('event','pants',BTLegoMario.event_pants_codes[value]))
 						decoded_something = True
 					else:
-						BTLegoMario.dp(self.which_player+" event: put on unknown pants:"+str(value),2)
+						BTLegoMario.dp(self.system_type+" event: put on unknown pants:"+str(value),2)
 
 			elif event_key == 0x18:
 				if event_type == 0x4:
@@ -1684,7 +1397,7 @@ class BTLegoMario(BTLego):
 
 			elif event_key == 0x20:
 				# hat tip to https://github.com/bhawkes/lego-mario-web-bluetooth/blob/master/pages/index.vue
-				#BTLegoMario.dp(self.which_player+" now has "+str(value)+" coins (obtained via "+str(hex(event_type))+")",2)
+				#BTLegoMario.dp(self.system_type+" now has "+str(value)+" coins (obtained via "+str(hex(event_type))+")",2)
 				self.message_queue.put(('event','coincount',(value, event_type)))
 				decoded_something = True
 
@@ -1694,7 +1407,7 @@ class BTLegoMario(BTLego):
 					# SOMETIMES, on a successful finish, data[3] is 0x2, but most of the time it's 0x0
 					# on failure, 0,1,2,3
 					# 0x4 for STARTC50 ?
-					BTLegoMario.dp(self.which_player+" unknown goal status: "+str(value)+": ("+str(data[2])+","+str(data[3])+") :"+" ".join(hex(n) for n in [data[2],data[3]]),2)
+					BTLegoMario.dp(self.system_type+" unknown goal status: "+str(value)+": ("+str(data[2])+","+str(data[3])+") :"+" ".join(hex(n) for n in [data[2],data[3]]),2)
 					decoded_something = True
 
 			# Last code scan count
@@ -1833,9 +1546,9 @@ class BTLegoMario(BTLego):
 # peach Data on Mario Alt Events port:0x8 0x0 0x45 0x4 0x2 0x0 0x2 0x0
 
 			if not decoded_something:
-				BTLegoMario.dp(self.which_player+" event data:"+" ".join(hex(n) for n in data),2)
+				BTLegoMario.dp(self.system_type+" event data:"+" ".join(hex(n) for n in data),2)
 		else:
-			BTLegoMario.dp(self.which_player+" non-mode-2-style event data:"+" ".join(hex(n) for n in data),2)
+			BTLegoMario.dp(self.system_type+" non-mode-2-style event data:"+" ".join(hex(n) for n in data),2)
 
 		pass
 
@@ -1865,33 +1578,9 @@ class BTLegoMario(BTLego):
 		if BTLegoMario.DEBUG >= 2:
 			color_str =  BTLegoMario.app_icon_color_names[color]
 			icon_str =  BTLegoMario.app_icon_names[icon]
-			BTLegoMario.dp(self.which_player+" icon is set to "+color_str+" "+icon_str,2)
+			BTLegoMario.dp(self.system_type+" icon is set to "+color_str+" "+icon_str,2)
 
 		self.message_queue.put(('info','icon',(icon,color)))
-
-	def decode_hub_action(self, bt_message):
-		BTLegoMario.dp(self.which_player+" "+bt_message['action_str'],2)
-		# BTLego.hub_action_type
-		if bt_message['action'] == 0x30:
-			self.message_queue.put(('event','power','turned_off'))
-		elif bt_message['action'] == 0x31:
-			self.message_queue.put(('event','bt','disconnected'))
-		else:
-			BTLegoMario.dp(self.which_player+" unknown hub action "+hex(bt_message['action']),2)
-
-	def decode_hardware_network_command(self, bt_message):
-		if 'command' in bt_message:
-			if bt_message['command'] == 'connection_request':
-				message = None
-				if bt_message['value'] == 'button_up':
-					message = ('connection_request','button','up')
-				elif bt_message['value'] == 'button_down':
-					message = ('connection_request','button','down')
-				self.message_queue.put(message)
-			else:
-				BTLegoMario.dp(self.which_player+" unknown hw command: "+bt_message['readable'],1)
-		else:
-			BTLegoMario.dp(self.which_player+" "+bt_message['readable'],1)
 
 	# ---- Scanner code utilities ----
 
@@ -2146,47 +1835,6 @@ class BTLegoMario(BTLego):
 				print(pstr)
 
 	# ---- Bluetooth port writes ----
-	async def interrogate_ports(self):
-		BTLegoMario.dp("Starting port interrogation...")
-		self.port_mode_info['requests_until_complete'] = 0
-		for port, data in self.port_data.items():
-			# This should be done as some kind of batch, blocking operation
-			self.port_mode_info['requests_until_complete'] += 1
-
-			await self.write_port_info_request(port, True)
-			await asyncio.sleep(0.2)
-
-	async def set_port_subscriptions(self, portlist):
-		# array of 4-item arrays [port, mode, delta interval, subscribe on/off]
-		if isinstance(portlist, Iterable):
-			for port_settings in portlist:
-				if isinstance(port_settings, Iterable) and len(port_settings) == 4:
-
-					# Port Input Format Setup (Single) message
-					# Sending this results in port_input_format_single response
-
-					payload = bytearray([
-						0x0A,				# length
-						0x00,
-						0x41,				# Port input format (single)
-						port_settings[0],	# port
-						port_settings[1],	# mode
-					])
-
-					# delta interval (uint32)
-					# 5 is what was suggested by https://github.com/salendron/pyLegoMario
-					# 88010 Controller buttons for +/- DO NOT WORK without a delta of zero.
-					# Amusingly, this is strongly _not_ recommended by the LEGO docs
-					# Kind of makes sense, though, since they are discrete (and debounced, I assume)
-					payload += port_settings[2].to_bytes(4,byteorder='little',signed=False)
-
-					if port_settings[3]:
-						payload.append(0x1)		# notification enable
-					else:
-						payload.append(0x0)		# notification disable
-					#print(" ".join(hex(n) for n in payload))
-					await self.client.write_gatt_char(BTLegoMario.characteristic_uuid, payload)
-					await asyncio.sleep(0.2)
 
 	async def set_icon(self, icon, color):
 		if icon not in BTLegoMario.app_icon_ints:
@@ -2209,11 +1857,11 @@ class BTLegoMario(BTLego):
 		set_name_bytes[16] = BTLegoMario.app_icon_ints[icon]
 		set_name_bytes[18] = BTLegoMario.app_icon_color_ints[color]
 
-		await self.client.write_gatt_char(BTLegoMario.characteristic_uuid, set_name_bytes)
+		await self.client.write_gatt_char(BTLegoDevice.characteristic_uuid, set_name_bytes)
 		await asyncio.sleep(0.1)
 
 	async def erase_icon(self):
-		if self.which_player != 'peach':
+		if self.system_type != 'peach':
 			BTLegoMario.dp("ERROR: Don't know how to erase any player except peach")
 			return
 
@@ -2229,7 +1877,7 @@ class BTLegoMario(BTLego):
 
 		set_name_bytes[0] = len(set_name_bytes)
 
-		await self.client.write_gatt_char(BTLegoMario.characteristic_uuid, set_name_bytes)
+		await self.client.write_gatt_char(BTLegoDevice.characteristic_uuid, set_name_bytes)
 		await asyncio.sleep(0.1)
 
 	async def set_volume(self, volume):
@@ -2246,59 +1894,9 @@ class BTLegoMario(BTLego):
 			volume
 		])
 
-		await self.client.write_gatt_char(BTLegoMario.characteristic_uuid, set_volume_bytes)
-		await asyncio.sleep(0.1)
+		self.volume = volume
 
-	async def set_updates_for_hub_properties(self, hub_properties):
-		# array of [str(hub_property_str),bool] arrays
-		if isinstance(hub_properties, Iterable):
-			for hub_property_settings in hub_properties:
-				if isinstance(hub_property_settings, Iterable) and len(hub_property_settings) == 2:
-					hub_property = str(hub_property_settings[0])
-					hub_property_set_updates = bool(hub_property_settings[1])
-					# Literally the only subclass dependency.  Maybe rethink this
-					if hub_property in self.hub_property_ints:
-						hub_property_int = self.hub_property_ints[hub_property]
-						if hub_property_int in BTLego.subscribable_hub_properties:
-							hub_property_operation = 0x3
-							if hub_property_set_updates:
-								BTLegoMario.dp("Requesting updates for hub property: "+hub_property,2)
-								hub_property_operation = 0x2
-							else:
-								BTLegoMario.dp("Disabling updates for hub property: "+hub_property,2)
-								pass
-							hub_property_update_subscription_bytes = bytearray([
-								0x05,	# len
-								0x00,	# padding but maybe stuff in the future (:
-								0x1,	# 'hub_properties'
-								hub_property_int,
-								hub_property_operation
-							])
-							await self.client.write_gatt_char(BTLegoMario.characteristic_uuid, hub_property_update_subscription_bytes)
-							await asyncio.sleep(0.1)
-						else:
-							BTLegoMario.dp("BTLego chars says not able to subscribe to: "+hub_property,2)
-
-	async def turn_off(self):
-		name_update_bytes = bytearray([
-			0x04,	# len
-			0x00,	# padding but maybe stuff in the future (:
-			0x2,	# 'hub_actions'
-			0x1		# BTLego.hub_action_type: 'Switch Off Hub'  (Don't use 0x2f, powers down as if you yanked the battery)
-		])
-		await self.client.write_gatt_char(BTLegoMario.characteristic_uuid, name_update_bytes)
-		await asyncio.sleep(0.1)
-
-	async def request_name_update(self):
-		# Triggers hub_properties message
-		name_update_bytes = bytearray([
-			0x05,	# len
-			0x00,	# padding but maybe stuff in the future (:
-			0x1,	# 'hub_properties'
-			0x1,	# 'Advertising Name'
-			0x5		# 'Request Update'
-		])
-		await self.client.write_gatt_char(BTLegoMario.characteristic_uuid, name_update_bytes)
+		await self.client.write_gatt_char(BTLegoDevice.characteristic_uuid, set_volume_bytes)
 		await asyncio.sleep(0.1)
 
 	async def request_volume_update(self):
@@ -2310,78 +1908,5 @@ class BTLegoMario(BTLego):
 			0x12,	# 'Mario Volume'
 			0x5		# 'Request Update'
 		])
-		await self.client.write_gatt_char(BTLegoMario.characteristic_uuid, name_update_bytes)
+		await self.client.write_gatt_char(BTLegoDevice.characteristic_uuid, name_update_bytes)
 		await asyncio.sleep(0.1)
-
-	async def request_version_update(self):
-		# Triggers hub_properties message
-		name_update_bytes = bytearray([
-			0x05,	# len
-			0x00,	# padding but maybe stuff in the future (:
-			0x1,	# 'hub_properties'
-			0x3,	# 'Firmware version'
-			0x5		# 'Request Update'
-		])
-		await self.client.write_gatt_char(BTLegoMario.characteristic_uuid, name_update_bytes)
-		await asyncio.sleep(0.1)
-
-		name_update_bytes = bytearray([
-			0x05,	# len
-			0x00,	# padding but maybe stuff in the future (:
-			0x1,	# 'hub_properties'
-			0x4,	# 'Hardware version'
-			0x5		# 'Request Update'
-		])
-		await self.client.write_gatt_char(BTLegoMario.characteristic_uuid, name_update_bytes)
-		await asyncio.sleep(0.1)
-
-	async def request_battery_update(self):
-		# Triggers hub_properties message
-		name_update_bytes = bytearray([
-			0x05,	# len
-			0x00,	# padding but maybe stuff in the future (:
-			0x1,	# 'hub_properties'
-			0x6,	# 'Battery Percentage'
-			0x5		# 'Request Update'
-		])
-		await self.client.write_gatt_char(BTLegoMario.characteristic_uuid, name_update_bytes)
-		await asyncio.sleep(0.1)
-
-	async def write_port_mode_info_request(self, port, mode, infotype):
-		if mode < 0 or mode > 255:
-			BTLegoMario.dp('ERROR: Invalid mode '+str(mode)+' for mode info request')
-			return
-		if not infotype in BTLego.mode_info_type_str:
-			BTLegoMario.dp('ERROR: Invalid information type '+hex(infotype)+' for mode info request')
-			return
-
-		payload = bytearray([
-			0x7,	# len
-			0x0,	# padding
-			0x22,	# Command: port_mode_info_req
-			# end header
-			port,
-			mode,
-			infotype	# 0-8 & 0x80
-		])
-		payload[0] = len(payload)
-		await self.client.write_gatt_char(BTLegoMario.characteristic_uuid, payload)
-		await asyncio.sleep(0.2)
-
-	async def write_port_info_request(self, port, mode_info=False):
-		# 0: Request port_value_single value
-		# 1: Request port_info for port modes
-		mode_int = 0x0
-		if mode_info:
-			mode_int = 1
-		payload = bytearray([
-			0x7,	# len
-			0x0,	# padding
-			0x21,	# Command: port_info_req
-			# end header
-			port,
-			mode_int
-		])
-		payload[0] = len(payload)
-		await self.client.write_gatt_char(BTLegoMario.characteristic_uuid, payload)
-		await asyncio.sleep(0.2)
