@@ -45,7 +45,7 @@ async def detect_device_callback(device, advertisement_data):
 		mario_device = BTLegoMario.determine_device_shortname(advertisement_data)
 		if mario_device:
 			if not device.address in mario_devices:
-				mario_devices[device.address] = BTLegoMario(code_data)
+				mario_devices[device.address] = BTLegoMario(advertisement_data,code_data)
 				callback_uuid = mario_devices[device.address].register_callback(mariocallbacks)
 				callbacks_to_device_addresses[callback_uuid] = device.address
 				await mario_devices[device.address].subscribe_to_messages_on_callback(callback_uuid, 'event')
@@ -59,7 +59,7 @@ async def detect_device_callback(device, advertisement_data):
 				if not mario_devices[device.address].connected:
 					await mario_devices[device.address].connect(device, advertisement_data)
 				else:
-					print("Refusing to reconnect to "+mario_devices[device.address].which_player)
+					print("Refusing to reconnect to "+mario_devices[device.address].system_type)
 		else:
 			# "LEGO Mario_x_y"
 			# Spike prime hub starts with "LEGO Hub" but you have to pair with that, not BTLE
