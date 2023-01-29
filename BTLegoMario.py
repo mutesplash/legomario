@@ -367,6 +367,10 @@ class BTLegoMario(BTLego):
 		self.port_data = {
 		}
 
+		self.port_mode_info = {
+			'port_count':-1
+		}
+
 		# Translates static event sequences into messages
 		self.event_data_dispatch = {
 		}
@@ -386,6 +390,7 @@ class BTLegoMario(BTLego):
 		self.__init_data_dispatch()
 
 		self.lock = asyncio.Lock()
+		self.drain_lock = asyncio.Lock()
 
 	def __init_data_dispatch(self):
 
@@ -942,6 +947,10 @@ class BTLegoMario(BTLego):
 			'name':BTLego.io_type_id_str[port_id],
 			'status': 0x1	# BTLego.io_event_type_str[0x1]
 		}
+		self.port_mode_info[port] = {
+			'mode_count': -1
+		}
+		self.port_mode_info['port_count'] += 1
 
 	async def connect(self, device, advertisement_data):
 		async with self.lock:
@@ -957,6 +966,7 @@ class BTLegoMario(BTLego):
 					BTLegoMario.dp("Connected to "+self.which_player+"! ("+str(device.name)+")",2)
 					self.message_queue.put(('info','player',self.which_player))
 					self.connected = True
+					self.address = device.address
 					await self.client.start_notify(BTLegoMario.characteristic_uuid, self.mario_events)
 					await asyncio.sleep(0.1)
 
@@ -971,6 +981,8 @@ class BTLegoMario(BTLego):
 					await self.request_version_update()
 					await self.request_battery_update()
 
+					#await self.interrogate_ports()
+
 					while self.client.is_connected:
 						await asyncio.sleep(0.05)
 					self.connected = False
@@ -984,6 +996,11 @@ class BTLegoMario(BTLego):
 		callback_uuid = str(uuid.uuid4())
 		self.callbacks[callback_uuid] = (callback, ())
 		return callback_uuid
+
+	async def unregister_callback(self, callback_uuid):
+		async with self.drain_lock:
+			# FIXME: Need to unsub?
+			self.callbacks.pop(callback_uuid, None)
 
 	def request_update_on_callback(self,update_request):
 		# FIXME: User should be able to pokes mario for stuff like request_name_update
@@ -1030,19 +1047,19 @@ class BTLegoMario(BTLego):
 		if self.connected:
 			for subscription in current_subscriptions:
 				if subscription == 'event':
-					await self.set_port_subscriptions([[self.EVENTS_PORT,2,True]])
+					await self.set_port_subscriptions([[self.EVENTS_PORT,2,5,True]])
 					await self.set_updates_for_hub_properties([
 						['Button',True]				# Works as advertised (the "button" is the bluetooth button)
 					])
 
 				elif subscription == 'motion':
-					await self.set_port_subscriptions([[self.IMU_PORT,0,True]])
+					await self.set_port_subscriptions([[self.IMU_PORT,0,5,True]])
 				elif subscription == 'gesture':
-					await self.set_port_subscriptions([[self.IMU_PORT,1,True]])
+					await self.set_port_subscriptions([[self.IMU_PORT,1,5,True]])
 				elif subscription == 'scanner':
-					await self.set_port_subscriptions([[self.RGB_PORT,0,True]])
+					await self.set_port_subscriptions([[self.RGB_PORT,0,5,True]])
 				elif subscription == 'pants':
-					await self.set_port_subscriptions([[self.PANTS_PORT,0,True]])
+					await self.set_port_subscriptions([[self.PANTS_PORT,0,5,True]])
 				elif subscription == 'info':
 					await self.set_updates_for_hub_properties([
 						['Advertising Name',True]	# I guess this works different than requesting the update because something else could change it, but then THAT would cause an update message
@@ -1061,11 +1078,12 @@ class BTLegoMario(BTLego):
 			BTLegoMario.dp("NOT CONNECTED.  Not setting port subscriptions",2)
 
 	async def drain_messages(self):
-		while not self.message_queue.empty():
-			message = self.message_queue.get()
-			for callback_uuid, callback in self.callbacks.items():
-				if message[0] in callback[1]:
-					await callback[0]((callback_uuid,) + message)
+		async with self.drain_lock:
+			while not self.message_queue.empty():
+				message = self.message_queue.get()
+				for callback_uuid, callback in self.callbacks.items():
+					if message[0] in callback[1]:
+						await callback[0]((callback_uuid,) + message)
 
 	async def mario_events(self, sender, data):
 
@@ -1087,10 +1105,11 @@ class BTLegoMario(BTLego):
 					port_text = "port "+str(bt_message['port'])
 					if bt_message['port'] in self.port_data:
 						# Sometimes the hub_attached_io messages don't come in before the port subscriptions do
-						port_text = self.port_data[bt_message['port']]['name']+" port"
+						port_text = self.port_data[bt_message['port']]['name']+" port ("+str(bt_message['port'])+")"
 
 					BTLegoMario.dp(msg_prefix+msg+port_text+", mode "+str(bt_message['mode']), 2)
 
+			# Sent on connect, without request
 			elif BTLego.message_type_str[bt_message['type']] == 'hub_attached_io':
 				event = BTLego.io_event_type_str[bt_message['event']]
 				if event == 'attached':
@@ -1184,6 +1203,9 @@ class BTLegoMario(BTLego):
 			elif BTLego.message_type_str[bt_message['type']] == 'port_mode_info':
 				# Debug stuff for the ports and modes, similar to list command on BuildHAT
 				self.decode_port_mode_info(bt_message)
+
+			elif BTLego.message_type_str[bt_message['type']] == 'hw_network_cmd':
+				self.decode_hardware_network_command(bt_message)
 
 			else:
 				# debug for messages we've never seen before
@@ -1852,8 +1874,24 @@ class BTLegoMario(BTLego):
 		# BTLego.hub_action_type
 		if bt_message['action'] == 0x30:
 			self.message_queue.put(('event','power','turned_off'))
-		if bt_message['action'] == 0x31:
+		elif bt_message['action'] == 0x31:
 			self.message_queue.put(('event','bt','disconnected'))
+		else:
+			BTLegoMario.dp(self.which_player+" unknown hub action "+hex(bt_message['action']),2)
+
+	def decode_hardware_network_command(self, bt_message):
+		if 'command' in bt_message:
+			if bt_message['command'] == 'connection_request':
+				message = None
+				if bt_message['value'] == 'button_up':
+					message = ('connection_request','button','up')
+				elif bt_message['value'] == 'button_down':
+					message = ('connection_request','button','down')
+				self.message_queue.put(message)
+			else:
+				BTLegoMario.dp(self.which_player+" unknown hw command: "+bt_message['readable'],1)
+		else:
+			BTLegoMario.dp(self.which_player+" "+bt_message['readable'],1)
 
 	# ---- Scanner code utilities ----
 
@@ -1917,7 +1955,7 @@ class BTLegoMario(BTLego):
 	# * Can't count straight since repetition eliminates numbers from being used
 	#		https://en.wikipedia.org/wiki/Factorial_number_system
 	#		The Art of Computer Programming, Volume 4, Fascicle 2: Generating All Tuples and Permutations
-
+	#		FIXME: Revisit Bricklife's algorithm now that you realize the color numbers change on every pass and they didn't account for BR prefix, so maybe you can finish the theory now
 	# So, tables it is...
 
 	def generate_gr_codespace():
@@ -2119,11 +2157,35 @@ class BTLegoMario(BTLego):
 			await asyncio.sleep(0.2)
 
 	async def set_port_subscriptions(self, portlist):
-		# array of 3-item arrays [port, mode, subscribe on/off]
+		# array of 4-item arrays [port, mode, delta interval, subscribe on/off]
 		if isinstance(portlist, Iterable):
 			for port_settings in portlist:
-				if isinstance(port_settings, Iterable) and len(port_settings) == 3:
-					await self.client.write_gatt_char(BTLegoMario.characteristic_uuid, BTLegoMario.port_inport_format_setup_bytes(port_settings[0],port_settings[1],port_settings[2]))
+				if isinstance(port_settings, Iterable) and len(port_settings) == 4:
+
+					# Port Input Format Setup (Single) message
+					# Sending this results in port_input_format_single response
+
+					payload = bytearray([
+						0x0A,				# length
+						0x00,
+						0x41,				# Port input format (single)
+						port_settings[0],	# port
+						port_settings[1],	# mode
+					])
+
+					# delta interval (uint32)
+					# 5 is what was suggested by https://github.com/salendron/pyLegoMario
+					# 88010 Controller buttons for +/- DO NOT WORK without a delta of zero.
+					# Amusingly, this is strongly _not_ recommended by the LEGO docs
+					# Kind of makes sense, though, since they are discrete (and debounced, I assume)
+					payload += port_settings[2].to_bytes(4,byteorder='little',signed=False)
+
+					if port_settings[3]:
+						payload.append(0x1)		# notification enable
+					else:
+						payload.append(0x0)		# notification disable
+					#print(" ".join(hex(n) for n in payload))
+					await self.client.write_gatt_char(BTLegoMario.characteristic_uuid, payload)
 					await asyncio.sleep(0.2)
 
 	async def set_icon(self, icon, color):
@@ -2323,16 +2385,3 @@ class BTLegoMario(BTLego):
 		payload[0] = len(payload)
 		await self.client.write_gatt_char(BTLegoMario.characteristic_uuid, payload)
 		await asyncio.sleep(0.2)
-
-	def port_inport_format_setup_bytes(port, mode, enable):
-		# original hint from https://github.com/salendron/pyLegoMario
-		# Port Input Format Setup (Single) message
-
-		# Sending this results in port_input_format_single response
-		ebyte = 0
-		if enable:
-			ebyte = 1
-		# Len, 0x0, Port input format (single), port, mode, delta interval of 5 (uint32), notification enable/disable
-		return bytearray([0x0A, 0x00, 0x41, port, mode, 0x05, 0x00, 0x00, 0x00, ebyte])
-
-
