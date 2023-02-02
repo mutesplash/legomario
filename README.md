@@ -4,3 +4,5 @@
 * Provides a Python library for interacting with LEGO Mario
 * Provides a Python library for interacting with the LEGO Powered Up Remote Control (88010)
 * Does not have great documentation yet
+
+[View the HTML live from the repository](https://raw.githack.com/mutesplash/legomario/main/mariocodes.html)
