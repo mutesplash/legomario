@@ -7,9 +7,9 @@ import json
 
 from bleak import BleakClient
 
-from BTLego import BTLego
+from .Decoder import Decoder
 
-class BTLegoDevice(BTLego):
+class BLE_Device():
 	# 0:	Don't debug
 	# 1:	Print weird stuff
 	# 2:	Print most of the information flow
@@ -93,8 +93,8 @@ class BTLegoDevice(BTLego):
 	def _init_port_data(self, port, port_id):
 		self.port_data[port] = {
 			'io_type_id':port_id,
-			'name':BTLego.io_type_id_str[port_id],
-			'status': 0x1	# BTLego.io_event_type_str[0x1]
+			'name':Decoder.io_type_id_str[port_id],
+			'status': 0x1	# Decoder.io_event_type_str[0x1]
 		}
 		self.port_mode_info[port] = {
 			'mode_count': -1
@@ -103,20 +103,20 @@ class BTLegoDevice(BTLego):
 
 	async def connect(self, device, advertisement_data):
 		async with self.lock:
-			self.system_type = BTLego.determine_device_shortname(advertisement_data)
-			BTLegoDevice.dp("Connecting to "+str(self.system_type)+"...",2)
+			self.system_type = Decoder.determine_device_shortname(advertisement_data)
+			BLE_Device.dp("Connecting to "+str(self.system_type)+"...",2)
 			self.device = device
 			self.advertisement = advertisement_data
 			try:
 				async with BleakClient(device.address) as self.client:
 					if not self.client.is_connected:
-						BTLegoDevice.dp("Failed to connect after client creation")
+						BLE_Device.dp("Failed to connect after client creation")
 						return
-					BTLegoDevice.dp("Connected to "+self.system_type+"! ("+str(device.name)+")",2)
+					BLE_Device.dp("Connected to "+self.system_type+"! ("+str(device.name)+")",2)
 					self.message_queue.put(('info','player',self.system_type))
 					self.connected = True
 					self.address = device.address
-					await self.client.start_notify(BTLegoDevice.characteristic_uuid, self.device_events)
+					await self.client.start_notify(BLE_Device.characteristic_uuid, self.device_events)
 					await asyncio.sleep(0.1)
 
 					# turn on everything everybody registered for
@@ -128,10 +128,10 @@ class BTLegoDevice(BTLego):
 					while self.client.is_connected:
 						await asyncio.sleep(0.05)
 					self.connected = False
-					BTLegoDevice.dp(self.system_type+" has disconnected.",2)
+					BLE_Device.dp(self.system_type+" has disconnected.",2)
 
 			except Exception as e:
-				BTLegoDevice.dp("Unable to connect to "+str(device.address) + ": "+str(e))
+				BLE_Device.dp("Unable to connect to "+str(device.address) + ": "+str(e))
 
 	async def inital_connect_updates(self):
 		await self.request_name_update()
@@ -157,10 +157,10 @@ class BTLegoDevice(BTLego):
 	async def subscribe_to_messages_on_callback(self, callback_uuid, message_type, subscribe=True):
 		# FIXME: Uhh, actually doesn't allow you to unsubscribe.  Good design here. Top notch
 		if not message_type in self.message_types:
-			BTLegoDevice.dp("Invalid message type "+message_type)
+			BLE_Device.dp("Invalid message type "+message_type)
 			return False
 		if not callback_uuid in self.callbacks:
-			BTLegoDevice.dp("Given UUID not registered to receive messages "+message_type)
+			BLE_Device.dp("Given UUID not registered to receive messages "+message_type)
 			return False
 
 		do_nothing = False
@@ -229,10 +229,10 @@ class BTLegoDevice(BTLego):
 #				elif subscription == 'error'
 # You're gonna get these.  Don't know why I even let you choose?
 				else:
-					BTLegoDevice.dp("INVALID Subscription option:"+subscription)
+					BLE_Device.dp("INVALID Subscription option:"+subscription)
 
 		else:
-			BTLegoDevice.dp("NOT CONNECTED.  Not setting port subscriptions",2)
+			BLE_Device.dp("NOT CONNECTED.  Not setting port subscriptions",2)
 
 	async def drain_messages(self):
 		async with self.drain_lock:
@@ -244,16 +244,16 @@ class BTLegoDevice(BTLego):
 
 	async def device_events(self, sender, data):
 		# Bleak events get sent here
-		bt_message = BTLego.decode_payload(data)
+		bt_message = Decoder.decode_payload(data)
 		msg_prefix = self.system_type+" "
 
 		if bt_message['error']:
-			BTLegoDevice.dp(msg_prefix+"ERR:"+bt_message['readable'])
+			BLE_Device.dp(msg_prefix+"ERR:"+bt_message['readable'])
 			self.message_queue.put(('error','message',bt_message['readable']))
 
 		else:
-			if BTLego.message_type_str[bt_message['type']] == 'port_input_format_single':
-				if BTLegoDevice.DEBUG >= 2:
+			if Decoder.message_type_str[bt_message['type']] == 'port_input_format_single':
+				if BLE_Device.DEBUG >= 2:
 					msg = "Disabled notifications on "
 					if bt_message['notifications']:
 						# Returned typically after gatt write
@@ -264,35 +264,35 @@ class BTLegoDevice(BTLego):
 						# Sometimes the hub_attached_io messages don't come in before the port subscriptions do
 						port_text = self.port_data[bt_message['port']]['name']+" port ("+str(bt_message['port'])+")"
 
-					BTLegoDevice.dp(msg_prefix+msg+port_text+", mode "+str(bt_message['mode']), 2)
+					BLE_Device.dp(msg_prefix+msg+port_text+", mode "+str(bt_message['mode']), 2)
 
 			# Sent on connect, without request
-			elif BTLego.message_type_str[bt_message['type']] == 'hub_attached_io':
-				event = BTLego.io_event_type_str[bt_message['event']]
+			elif Decoder.message_type_str[bt_message['type']] == 'hub_attached_io':
+				event = Decoder.io_event_type_str[bt_message['event']]
 				if event == 'attached':
 					dev = "UNKNOWN DEVICE"
-					if bt_message['io_type_id'] in BTLego.io_type_id_str:
-						dev = BTLego.io_type_id_str[bt_message['io_type_id']]
+					if bt_message['io_type_id'] in Decoder.io_type_id_str:
+						dev = Decoder.io_type_id_str[bt_message['io_type_id']]
 					else:
 						dev += "_"+str(bt_message['io_type_id'])
 
 					if bt_message['port'] in self.port_data:
-						BTLegoDevice.dp(msg_prefix+"Re-attached "+dev+" on port "+str(bt_message['port']),2)
+						BLE_Device.dp(msg_prefix+"Re-attached "+dev+" on port "+str(bt_message['port']),2)
 						self.port_data[bt_message['port']]['status'] = bt_message['event']
 					else:
-						BTLegoDevice.dp(msg_prefix+"Attached "+dev+" on port "+str(bt_message['port']),2)
+						BLE_Device.dp(msg_prefix+"Attached "+dev+" on port "+str(bt_message['port']),2)
 						self._init_port_data(bt_message['port'], bt_message['io_type_id'])
 
 				elif event == 'detached':
-					BTLegoDevice.dp(msg_prefix+"Detached "+dev+" on port "+str(bt_message['port']),2)
+					BLE_Device.dp(msg_prefix+"Detached "+dev+" on port "+str(bt_message['port']),2)
 					self.port_data[bt_message['port']]['status'] = 0x0 # io_event_type_str
 
 				else:
-					BTLegoDevice.dp(msg_prefix+"HubAttachedIO: "+bt_message['readable'],1)
+					BLE_Device.dp(msg_prefix+"HubAttachedIO: "+bt_message['readable'],1)
 
-			elif BTLego.message_type_str[bt_message['type']] == 'port_value_single':
+			elif Decoder.message_type_str[bt_message['type']] == 'port_value_single':
 				if not bt_message['port'] in self.port_data:
-					BTLegoDevice.dp(msg_prefix+"WARN: Received data for unconfigured port "+str(bt_message['port'])+':'+bt_message['readable'])
+					BLE_Device.dp(msg_prefix+"WARN: Received data for unconfigured port "+str(bt_message['port'])+':'+bt_message['readable'])
 				else:
 					pd = self.port_data[bt_message['port']]
 					if pd['name'] == 'Powered Up Handset Buttons':
@@ -302,67 +302,67 @@ class BTLegoDevice(BTLego):
 					elif pd['name'] == 'Voltage':
 						self.decode_voltage_data(bt_message['value'])
 					else:
-						if BTLegoDevice.DEBUG >= 2:
-							BTLegoDevice.dp(msg_prefix+"Data on "+self.port_data[bt_message['port']]['name']+" port"+":"+" ".join(hex(n) for n in data),2)
+						if BLE_Device.DEBUG >= 2:
+							BLE_Device.dp(msg_prefix+"Data on "+self.port_data[bt_message['port']]['name']+" port"+":"+" ".join(hex(n) for n in data),2)
 
-			elif BTLego.message_type_str[bt_message['type']] == 'hub_properties':
-				if not BTLego.hub_property_op_str[bt_message['operation']] == 'Update':
+			elif Decoder.message_type_str[bt_message['type']] == 'hub_properties':
+				if not Decoder.hub_property_op_str[bt_message['operation']] == 'Update':
 					# everything else is a write, so you shouldn't be getting these messages!
-					BTLegoDevice.dp(msg_prefix+"ERR NOT UPDATE: "+bt_message['readable'])
+					BLE_Device.dp(msg_prefix+"ERR NOT UPDATE: "+bt_message['readable'])
 
 				else:
-					if not bt_message['property'] in BTLego.hub_property_str:
-						BTLegoDevice.dp(msg_prefix+"Unknown property "+bt_message['readable'])
+					if not bt_message['property'] in Decoder.hub_property_str:
+						BLE_Device.dp(msg_prefix+"Unknown property "+bt_message['readable'])
 					else:
-						if BTLego.hub_property_str[bt_message['property']] == 'Button':
+						if Decoder.hub_property_str[bt_message['property']] == 'Button':
 							if bt_message['value']:
-								BTLegoDevice.dp(msg_prefix+"Bluetooth button pressed!",2)
+								BLE_Device.dp(msg_prefix+"Bluetooth button pressed!",2)
 								self.message_queue.put(('event','button','pressed'))
 							else:
 								# Well, nobody cares if it WASN'T pressed...
 								pass
 
 						# The app seems to be able to subscribe to Battery Voltage and get it sent constantly
-						elif BTLego.hub_property_str[bt_message['property']] == 'Battery Voltage':
-							BTLegoDevice.dp(msg_prefix+"Battery is at "+str(bt_message['value'])+"%",2)
+						elif Decoder.hub_property_str[bt_message['property']] == 'Battery Voltage':
+							BLE_Device.dp(msg_prefix+"Battery is at "+str(bt_message['value'])+"%",2)
 							self.message_queue.put(('info','batt',bt_message['value']))
 
-						elif BTLego.hub_property_str[bt_message['property']] == 'Advertising Name':
-							BTLegoDevice.dp(msg_prefix+"Advertising as \""+str(bt_message['value'])+"\"",2)
+						elif Decoder.hub_property_str[bt_message['property']] == 'Advertising Name':
+							BLE_Device.dp(msg_prefix+"Advertising as \""+str(bt_message['value'])+"\"",2)
 							pass
 
 						else:
-							BTLegoDevice.dp(msg_prefix+bt_message['readable'],2)
+							BLE_Device.dp(msg_prefix+bt_message['readable'],2)
 
-			elif BTLego.message_type_str[bt_message['type']] == 'port_output_command_feedback':
+			elif Decoder.message_type_str[bt_message['type']] == 'port_output_command_feedback':
 				# Don't really care about these messages?  Just a bunch of queue status reporting
-				BTLegoDevice.dp(msg_prefix+" "+bt_message['readable'],3)
+				BLE_Device.dp(msg_prefix+" "+bt_message['readable'],3)
 				pass
 
-			elif BTLego.message_type_str[bt_message['type']] == 'hub_alerts':
+			elif Decoder.message_type_str[bt_message['type']] == 'hub_alerts':
 				# Ignore "status OK" messages
 				if bt_message['status'] == True:
-					BTLegoDevice.dp(msg_prefix+"ALERT! "+bt_message['alert_type_str']+" - "+bt_message['operation_str'])
+					BLE_Device.dp(msg_prefix+"ALERT! "+bt_message['alert_type_str']+" - "+bt_message['operation_str'])
 					self.message_queue.put(('error','message',bt_message['alert_type_str']+" - "+bt_message['operation_str']))
 
-			elif BTLego.message_type_str[bt_message['type']] == 'hub_actions':
+			elif Decoder.message_type_str[bt_message['type']] == 'hub_actions':
 				self.decode_hub_action(bt_message)
 
-			elif BTLego.message_type_str[bt_message['type']] == 'port_info':
+			elif Decoder.message_type_str[bt_message['type']] == 'port_info':
 				await self.decode_mode_info_and_interrogate(bt_message)
 
-			elif BTLego.message_type_str[bt_message['type']] == 'port_mode_info':
+			elif Decoder.message_type_str[bt_message['type']] == 'port_mode_info':
 				# Debug stuff for the ports and modes, similar to list command on BuildHAT
 				self.decode_port_mode_info(bt_message)
 
-			elif BTLego.message_type_str[bt_message['type']] == 'hw_network_cmd':
+			elif Decoder.message_type_str[bt_message['type']] == 'hw_network_cmd':
 				self.decode_hardware_network_command(bt_message)
 
 			else:
 				# debug for messages we've never seen before
-				BTLegoDevice.dp(msg_prefix+"-?- "+bt_message['readable'],1)
+				BLE_Device.dp(msg_prefix+"-?- "+bt_message['readable'],1)
 
-		BTLegoDevice.dp("Draining for: "+bt_message['readable'],3)
+		BLE_Device.dp("Draining for: "+bt_message['readable'],3)
 		await self.drain_messages()
 
 	# ---- Make data useful ----
@@ -371,7 +371,7 @@ class BTLegoDevice(BTLego):
 	# 'OUT': Send data to device
 	async def decode_mode_info_and_interrogate(self, bt_message):
 		port = bt_message['port']
-		BTLegoDevice.dp('Interrogating mode info for '+str(bt_message['num_modes'])+' modes on port '+self.port_data[port]['name']+' ('+str(port)+')')
+		BLE_Device.dp('Interrogating mode info for '+str(bt_message['num_modes'])+' modes on port '+self.port_data[port]['name']+' ('+str(port)+')')
 		#print(bt_message['readable'])
 
 		self.port_mode_info[port]['mode_count'] = bt_message['num_modes']
@@ -432,7 +432,7 @@ class BTLegoDevice(BTLego):
 		if self.port_mode_info['requests_until_complete']  == 0:
 			self.port_mode_info.pop('requests_until_complete',None)
 			print(json.dumps(self.port_mode_info, indent=4))
-			BTLegoDevice.dp("Port interrogation complete!")
+			BLE_Device.dp("Port interrogation complete!")
 
 	def decode_port_mode_info(self, bt_message):
 
@@ -453,8 +453,8 @@ class BTLegoDevice(BTLego):
 			print('ERROR: MODE '+bt_message['mode']+' MISSING FOR PORT '+bt_message['port']+':SHOULD HAVE BEEN SET in decode_mode_info_and_interrogate')
 			return
 
-		if bt_message['mode_info_type'] in BTLego.mode_info_type_str:
-			readable += ' '+BTLego.mode_info_type_str[bt_message['mode_info_type']]+':'
+		if bt_message['mode_info_type'] in Decoder.mode_info_type_str:
+			readable += ' '+Decoder.mode_info_type_str[bt_message['mode_info_type']]+':'
 		else:
 			readable += ' infotype_'+str(bt_message['mode_info_type'])+':'
 
@@ -513,12 +513,12 @@ class BTLegoDevice(BTLego):
 
 		else:
 			decoded = False
-			BTLegoDevice.dp('No decoder for this:')
+			BLE_Device.dp('No decoder for this:')
 
 		if not decoded:
-			BTLegoDevice.dp('Not decoded:'+readable)
+			BLE_Device.dp('Not decoded:'+readable)
 		else:
-			#BTLegoDevice.dp(readable)
+			#BLE_Device.dp(readable)
 			pass
 
 
@@ -539,7 +539,7 @@ class BTLegoDevice(BTLego):
 	# https://virantha.github.io/bricknil/lego_api/lego.html#remote-buttons
 	def decode_button_data(self, port, data):
 		if len(data) != 1:
-			BTLegoDevice.dp(self.system_type+" UNKNOWN BUTTON DATA, WEIRD LENGTH OF "+str(len(data))+":"+" ".join(hex(n) for n in data))
+			BLE_Device.dp(self.system_type+" UNKNOWN BUTTON DATA, WEIRD LENGTH OF "+str(len(data))+":"+" ".join(hex(n) for n in data))
 			# PORT 1: handset UNKNOWN BUTTON DATA, WEIRD LENGTH OF 3:0x0 0x0 0x0
 			return
 
@@ -558,27 +558,27 @@ class BTLegoDevice(BTLego):
 			self.message_queue.put(('controller_buttons',side,'minus'))
 
 		else:
-			BTLegoDevice.dp(self.system_type+" Unknown button "+hex(button_id))
+			BLE_Device.dp(self.system_type+" Unknown button "+hex(button_id))
 
 	def decode_bt_rssi_data(self, data):
 		# Lower numbers are larger distances from the computer
 		rssi8 = int.from_bytes(data, byteorder="little", signed=True)
-		BTLegoDevice.dp("RSSI: "+str(rssi8))
+		BLE_Device.dp("RSSI: "+str(rssi8))
 
 	def decode_voltage_data(self,data):
 		# FIXME: L or S and what do they mean?
 		volts16 = int.from_bytes(data, byteorder="little", signed=False)
-		BTLegoDevice.dp("Voltage: "+str(volts16)+ " millivolts")
+		BLE_Device.dp("Voltage: "+str(volts16)+ " millivolts")
 
 	def decode_hub_action(self, bt_message):
-		BTLegoDevice.dp(self.system_type+" "+bt_message['action_str'],2)
-		# BTLego.hub_action_type
+		BLE_Device.dp(self.system_type+" "+bt_message['action_str'],2)
+		# Decoder.hub_action_type
 		if bt_message['action'] == 0x30:
 			self.message_queue.put(('event','power','turned_off'))
 		elif bt_message['action'] == 0x31:
 			self.message_queue.put(('event','bt','disconnected'))
 		else:
-			BTLegoDevice.dp(self.system_type+" unknown hub action "+hex(bt_message['action']),1)
+			BLE_Device.dp(self.system_type+" unknown hub action "+hex(bt_message['action']),1)
 
 	def decode_hardware_network_command(self, bt_message):
 		if 'command' in bt_message:
@@ -590,20 +590,20 @@ class BTLegoDevice(BTLego):
 					message = ('connection_request','button','down')
 				self.message_queue.put(message)
 			else:
-				BTLegoDevice.dp(self.system_type+" unknown hw command: "+bt_message['readable'],1)
+				BLE_Device.dp(self.system_type+" unknown hw command: "+bt_message['readable'],1)
 		else:
-			BTLegoDevice.dp(self.system_type+" "+bt_message['readable'],1)
+			BLE_Device.dp(self.system_type+" "+bt_message['readable'],1)
 
 	# ---- Random stuff ----
 
 	def dp(pstr, level=1):
-		if BTLegoDevice.DEBUG:
-			if BTLegoDevice.DEBUG >= level:
+		if BLE_Device.DEBUG:
+			if BLE_Device.DEBUG >= level:
 				print(pstr)
 
 	# ---- Bluetooth port writes ----
 	async def interrogate_ports(self):
-		BTLegoDevice.dp("Starting port interrogation...")
+		BLE_Device.dp("Starting port interrogation...")
 		self.port_mode_info['requests_until_complete'] = 0
 		for port, data in self.port_data.items():
 			# This should be done as some kind of batch, blocking operation
@@ -641,7 +641,7 @@ class BTLegoDevice(BTLego):
 					else:
 						payload.append(0x0)		# notification disable
 					#print(" ".join(hex(n) for n in payload))
-					await self.client.write_gatt_char(BTLegoDevice.characteristic_uuid, payload)
+					await self.client.write_gatt_char(BLE_Device.characteristic_uuid, payload)
 					await asyncio.sleep(1)
 
 	async def set_updates_for_hub_properties(self, hub_properties):
@@ -652,15 +652,15 @@ class BTLegoDevice(BTLego):
 					hub_property = str(hub_property_settings[0])
 					hub_property_set_updates = bool(hub_property_settings[1])
 					# Literally the only subclass dependency.  Maybe rethink this
-					if hub_property in self.hub_property_ints:
-						hub_property_int = self.hub_property_ints[hub_property]
-						if hub_property_int in BTLego.subscribable_hub_properties:
+					if hub_property in Decoder.hub_property_ints:
+						hub_property_int = Decoder.hub_property_ints[hub_property]
+						if hub_property_int in Decoder.subscribable_hub_properties:
 							hub_property_operation = 0x3
 							if hub_property_set_updates:
-								BTLegoDevice.dp("Requesting updates for hub property: "+hub_property,2)
+								BLE_Device.dp("Requesting updates for hub property: "+hub_property,2)
 								hub_property_operation = 0x2
 							else:
-								BTLegoDevice.dp("Disabling updates for hub property: "+hub_property,2)
+								BLE_Device.dp("Disabling updates for hub property: "+hub_property,2)
 								pass
 							hub_property_update_subscription_bytes = bytearray([
 								0x05,	# len
@@ -669,19 +669,19 @@ class BTLegoDevice(BTLego):
 								hub_property_int,
 								hub_property_operation
 							])
-							await self.client.write_gatt_char(BTLegoDevice.characteristic_uuid, hub_property_update_subscription_bytes)
+							await self.client.write_gatt_char(BLE_Device.characteristic_uuid, hub_property_update_subscription_bytes)
 							await asyncio.sleep(0.1)
 						else:
-							BTLegoDevice.dp("BTLego chars says not able to subscribe to: "+hub_property,2)
+							BLE_Device.dp("Decoder chars says not able to subscribe to: "+hub_property,2)
 
 	async def turn_off(self):
 		name_update_bytes = bytearray([
 			0x04,	# len
 			0x00,	# padding but maybe stuff in the future (:
 			0x2,	# 'hub_actions'
-			0x1		# BTLego.hub_action_type: 'Switch Off Hub'  (Don't use 0x2f, powers down as if you yanked the battery)
+			0x1		# Decoder.hub_action_type: 'Switch Off Hub'  (Don't use 0x2f, powers down as if you yanked the battery)
 		])
-		await self.client.write_gatt_char(BTLegoDevice.characteristic_uuid, name_update_bytes)
+		await self.client.write_gatt_char(BLE_Device.characteristic_uuid, name_update_bytes)
 		await asyncio.sleep(0.1)
 
 	async def request_name_update(self):
@@ -693,7 +693,7 @@ class BTLegoDevice(BTLego):
 			0x1,	# 'Advertising Name'
 			0x5		# 'Request Update'
 		])
-		await self.client.write_gatt_char(BTLegoDevice.characteristic_uuid, name_update_bytes)
+		await self.client.write_gatt_char(BLE_Device.characteristic_uuid, name_update_bytes)
 		await asyncio.sleep(0.1)
 
 	async def request_version_update(self):
@@ -705,7 +705,7 @@ class BTLegoDevice(BTLego):
 			0x3,	# 'Firmware version'
 			0x5		# 'Request Update'
 		])
-		await self.client.write_gatt_char(BTLegoDevice.characteristic_uuid, name_update_bytes)
+		await self.client.write_gatt_char(BLE_Device.characteristic_uuid, name_update_bytes)
 		await asyncio.sleep(0.1)
 
 		name_update_bytes = bytearray([
@@ -715,7 +715,7 @@ class BTLegoDevice(BTLego):
 			0x4,	# 'Hardware version'
 			0x5		# 'Request Update'
 		])
-		await self.client.write_gatt_char(BTLegoDevice.characteristic_uuid, name_update_bytes)
+		await self.client.write_gatt_char(BLE_Device.characteristic_uuid, name_update_bytes)
 		await asyncio.sleep(0.1)
 
 	async def request_battery_update(self):
@@ -727,11 +727,11 @@ class BTLegoDevice(BTLego):
 			0x6,	# 'Battery Percentage'
 			0x5		# 'Request Update'
 		])
-		await self.client.write_gatt_char(BTLegoDevice.characteristic_uuid, name_update_bytes)
+		await self.client.write_gatt_char(BLE_Device.characteristic_uuid, name_update_bytes)
 		await asyncio.sleep(0.1)
 
 	async def write_mode_data_RGB_color(self, port, color):
-		if color not in BTLego.rgb_light_colors:
+		if color not in Decoder.rgb_light_colors:
 			return
 
 		payload = bytearray([
@@ -746,16 +746,16 @@ class BTLegoDevice(BTLego):
 			color
 		])
 		payload[0] = len(payload)
-		# BTLegoDevice.dp(self.system_type+" Debug RGB Write"+" ".join(hex(n) for n in payload))
-		await self.client.write_gatt_char(BTLegoDevice.characteristic_uuid, payload)
+		# BLE_Device.dp(self.system_type+" Debug RGB Write"+" ".join(hex(n) for n in payload))
+		await self.client.write_gatt_char(BLE_Device.characteristic_uuid, payload)
 		await asyncio.sleep(0.1)
 
 	async def write_port_mode_info_request(self, port, mode, infotype):
 		if mode < 0 or mode > 255:
-			BTLegoDevice.dp('ERROR: Invalid mode '+str(mode)+' for mode info request')
+			BLE_Device.dp('ERROR: Invalid mode '+str(mode)+' for mode info request')
 			return
-		if not infotype in BTLego.mode_info_type_str:
-			BTLegoDevice.dp('ERROR: Invalid information type '+hex(infotype)+' for mode info request')
+		if not infotype in Decoder.mode_info_type_str:
+			BLE_Device.dp('ERROR: Invalid information type '+hex(infotype)+' for mode info request')
 			return
 
 		payload = bytearray([
@@ -768,7 +768,14 @@ class BTLegoDevice(BTLego):
 			infotype	# 0-8 & 0x80
 		])
 		payload[0] = len(payload)
-		await self.client.write_gatt_char(BTLegoDevice.characteristic_uuid, payload)
+
+# FIXME: Check for range issues with bluetooth  on write_gatt_char (device goes too far away)
+#    raise BleakError("Characteristic {} was not found!".format(char_specifier))
+#bleak.exc.BleakError: Characteristic 00001624-1212-efde-1623-785feabcd123 was not found!
+
+# or it just disappears
+# AttributeError: 'NoneType' object has no attribute 'write_gatt_char'
+		await self.client.write_gatt_char(BLE_Device.characteristic_uuid, payload)
 		await asyncio.sleep(0.2)
 
 	async def write_port_info_request(self, port, mode_info=False):
@@ -786,5 +793,5 @@ class BTLegoDevice(BTLego):
 			mode_int
 		])
 		payload[0] = len(payload)
-		await self.client.write_gatt_char(BTLegoDevice.characteristic_uuid, payload)
+		await self.client.write_gatt_char(BLE_Device.characteristic_uuid, payload)
 		await asyncio.sleep(0.2)
