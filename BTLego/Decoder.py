@@ -3,7 +3,7 @@ import struct	# bin to FP32
 
 # FIXME: Completely confused on upstream/downstream, fix the nomenclature in the comments
 
-class BTLego():
+class Decoder():
 
 	advertised_system_type = {
 		0x42:'handset',		# Lego 88010 Remote Control for Powered Up
@@ -198,11 +198,15 @@ class BTLego():
 		0xa:'white'
 	}
 
-	def __init__(self):
+#	def __init__(self):
 		# reverse map some dicts so you can index them either way
-		self.message_type_ints = dict(map(reversed, self.message_type_str.items()))
-		self.hub_property_ints = dict(map(reversed, self.hub_property_str.items()))
-		pass
+#		self.message_type_ints = dict(map(reversed, self.message_type_str.items()))
+#		self.hub_property_ints = dict(map(reversed, self.hub_property_str.items()))
+#		pass
+
+	message_type_ints = dict(map(reversed, message_type_str.items()))
+	hub_property_ints = dict(map(reversed, hub_property_str.items()))
+
 
 	def determine_device_shortname(advertisement_data):
 		# https://lego.github.io/lego-ble-wireless-protocol-docs/index.html#document-2-Advertising
@@ -221,8 +225,8 @@ class BTLego():
 			# ff Last network ID (FF is not implemented)
 			# ff Status (I can be everything)
 			# 00 Option (unused)
-			if advertisement_data.manufacturer_data[919][1] in BTLego.advertised_system_type:
-				return BTLego.advertised_system_type[advertisement_data.manufacturer_data[919][1]]
+			if advertisement_data.manufacturer_data[919][1] in Decoder.advertised_system_type:
+				return Decoder.advertised_system_type[advertisement_data.manufacturer_data[919][1]]
 			else:
 				return 'UNKNOWN_LEGO_'+hex(advertisement_data.manufacturer_data[919][1])
 		return None
@@ -243,20 +247,20 @@ class BTLego():
 		else:
 			bt_message['readable'] = ''
 		bt_message['type']  = message_bytes[2]
-		bt_message['readable'] += BTLego.int8_dict_to_str(BTLego.message_type_str, bt_message['type']) + " - "
+		bt_message['readable'] += Decoder.int8_dict_to_str(Decoder.message_type_str, bt_message['type']) + " - "
 
 		if bt_message['type'] == 0x1:
-			BTLego.decode_hub_properties(bt_message)
+			Decoder.decode_hub_properties(bt_message)
 		elif bt_message['type'] == 0x2:
-			BTLego.decode_hub_action(bt_message)
+			Decoder.decode_hub_action(bt_message)
 		elif bt_message['type'] == 0x3:
-			BTLego.decode_hub_alert(bt_message)
+			Decoder.decode_hub_alert(bt_message)
 		elif bt_message['type'] == 0x4:
-			BTLego.decode_hub_attached_io(bt_message)
+			Decoder.decode_hub_attached_io(bt_message)
 		elif bt_message['type'] == 0x5:
-			BTLego.decode_generic_error(bt_message)
+			Decoder.decode_generic_error(bt_message)
 		elif bt_message['type'] == 0x8:
-			BTLego.decode_hw_network_command(bt_message)
+			Decoder.decode_hw_network_command(bt_message)
 
 
 		# Undocumented mario messages
@@ -264,15 +268,15 @@ class BTLego():
 		#elif bt_message['type'] == 0xb:
 
 		elif bt_message['type'] == 0x43:
-			BTLego.decode_port_mode_info(bt_message)
+			Decoder.decode_port_mode_info(bt_message)
 		elif bt_message['type'] == 0x44:
-			BTLego.decode_port_mode_info_request(bt_message)
+			Decoder.decode_port_mode_info_request(bt_message)
 		elif bt_message['type'] == 0x45:
-			BTLego.decode_port_value_single(bt_message)
+			Decoder.decode_port_value_single(bt_message)
 		elif bt_message['type'] == 0x47:
-			BTLego.decode_port_input_format_single(bt_message)
+			Decoder.decode_port_input_format_single(bt_message)
 		elif bt_message['type'] == 0x82:
-			BTLego.decode_port_output_command_feedback(bt_message)
+			Decoder.decode_port_output_command_feedback(bt_message)
 		else:
 			bt_message['error'] = True
 			bt_message['readable'] += "No decoder for message: "+" ".join(hex(n) for n in message_bytes)
@@ -286,7 +290,7 @@ class BTLego():
 			return
 
 		bt_message['action'] = bt_message['raw'][3]
-		bt_message['action_str'] = BTLego.int8_dict_to_str(BTLego.hub_action_type, bt_message['action'])
+		bt_message['action_str'] = Decoder.int8_dict_to_str(Decoder.hub_action_type, bt_message['action'])
 		bt_message['readable'] += "Hub action "+hex(bt_message['raw'][3])+ ":"+bt_message['action_str']
 
 	def decode_port_output_command_feedback(bt_message):
@@ -330,10 +334,10 @@ class BTLego():
 
 		property_involved = payload[0]
 		bt_message['property'] = property_involved
-		property_involved_str = BTLego.int8_dict_to_str(BTLego.hub_property_str, property_involved)
+		property_involved_str = Decoder.int8_dict_to_str(Decoder.hub_property_str, property_involved)
 
 		bt_message['operation'] = payload[1]
-		property_operation_str = BTLego.int8_dict_to_str(BTLego.hub_property_op_str, payload[1])
+		property_operation_str = Decoder.int8_dict_to_str(Decoder.hub_property_op_str, payload[1])
 
 		# 0x9 0x0 0x1 0x3 0x6 [ 0x0 0x0 0x3 0x51 ]
 		# FIXME: Incomplete
@@ -369,7 +373,7 @@ class BTLego():
 				bt_message['readable'] += "CORRUPTED MESSAGE: payload len "+str(length)+" is wrong for a uint32 hub property: "+" ".join(hex(n) for n in payload)
 				bt_message['error'] = True
 				return
-			property_value = BTLego.version_bytes_to_str(payload[2:])
+			property_value = Decoder.version_bytes_to_str(payload[2:])
 			bt_message['value'] = property_value
 
 		# 'HW Version'
@@ -378,7 +382,7 @@ class BTLego():
 				bt_message['readable'] += "CORRUPTED MESSAGE: payload len "+str(length)+" is wrong for a uint32 hub property: "+" ".join(hex(n) for n in payload)
 				bt_message['error'] = True
 				return
-			property_value = BTLego.version_bytes_to_str(payload[2:])
+			property_value = Decoder.version_bytes_to_str(payload[2:])
 			bt_message['value'] = property_value
 
 		# 'RSSI'
@@ -427,7 +431,7 @@ class BTLego():
 				bt_message['readable'] += "CORRUPTED MESSAGE: payload len "+str(length)+" is wrong for a uint16 hub property: "+" ".join(hex(n) for n in payload)
 				bt_message['error'] = True
 				return
-			bt_message['value'] = BTLego.uint16_bytes_to_int(payload[2:])
+			bt_message['value'] = Decoder.uint16_bytes_to_int(payload[2:])
 			property_value = str(bt_message['value'])
 
 		# 'Primary MAC Address'
@@ -470,8 +474,8 @@ class BTLego():
 		if payload[2] == 0xff:
 			status = "ALERT!"
 			bt_message['status'] = True
-			bt_message['alert_type_str'] = BTLego.int8_dict_to_str(BTLego.hub_alert_type_str, payload[0])
-			bt_message['operation_str'] = BTLego.int8_dict_to_str(BTLego.hub_alert_op_str, payload[1])
+			bt_message['alert_type_str'] = Decoder.int8_dict_to_str(Decoder.hub_alert_type_str, payload[0])
+			bt_message['operation_str'] = Decoder.int8_dict_to_str(Decoder.hub_alert_op_str, payload[1])
 
 	def decode_port_input_format_single(bt_message):
 		payload = bt_message['raw'][3:]
@@ -493,21 +497,21 @@ class BTLego():
 		iotype = None
 		port = payload[0]
 		bt_message['port'] = port
-		event = BTLego.int8_dict_to_str(BTLego.io_event_type_str,payload[1])
+		event = Decoder.int8_dict_to_str(Decoder.io_event_type_str,payload[1])
 		bt_message['event'] = payload[1]
 		# --- --- --- 0x0 0x1 [0x47 0x0 0x0 0x0 0x3 0x51 0x1 0x0 0x0 0x0 ]
 		# attached
 		if io_size_indicator == 15:
-			bt_message['io_type_id'] = BTLego.uint16_bytes_to_int(payload[2:4])
-			hw_rev = BTLego.version_bytes_to_str(payload[4:8])
+			bt_message['io_type_id'] = Decoder.uint16_bytes_to_int(payload[2:4])
+			hw_rev = Decoder.version_bytes_to_str(payload[4:8])
 			bt_message['hw_ver_str'] = hw_rev
-			sw_rev = BTLego.version_bytes_to_str(payload[8:12])
+			sw_rev = Decoder.version_bytes_to_str(payload[8:12])
 			bt_message['sw_ver_str'] = sw_rev
 			bt_message['readable'] += "port "+str(port)+" "+event+" IOTypeID:"+str(bt_message['io_type_id'])+" hw:"+hw_rev+" sw:"+sw_rev
 		# attached_virtual
 		elif io_size_indicator == 9:
 			iotype = 'virtual_attached'
-			bt_message['io_type_id'] = BTLego.uint16_bytes_to_int(payload[2:4])
+			bt_message['io_type_id'] = Decoder.uint16_bytes_to_int(payload[2:4])
 			port_a = payload[4]
 			bt_message['virt_a'] = port_a
 			port_b = payload[5]
@@ -531,10 +535,10 @@ class BTLego():
 		error_cause = bt_message['raw'][3]
 		error_code = bt_message['raw'][4]
 		readable = hex(error_code)
-		if error_code in BTLego.generic_errors:
-			readable = BTLego.generic_errors[error_code]
-		if error_cause in BTLego.message_type_str:
-			error_cause = BTLego.message_type_str[error_cause]
+		if error_code in Decoder.generic_errors:
+			readable = Decoder.generic_errors[error_code]
+		if error_cause in Decoder.message_type_str:
+			error_cause = Decoder.message_type_str[error_cause]
 		else:
 			error_cause = hex(error_cause)
 		bt_message['readable'] += "Command "+error_cause+" caused error: "+readable
@@ -547,8 +551,8 @@ class BTLego():
 		payload = bt_message['raw'][3:]
 
 		command_token = payload[0]
-		if command_token in BTLego.hw_network_command_type:
-			bt_message['readable'] += " command: "+BTLego.hw_network_command_type[command_token]
+		if command_token in Decoder.hw_network_command_type:
+			bt_message['readable'] += " command: "+Decoder.hw_network_command_type[command_token]
 
 		# Connection Request
 		if command_token == 0x2:
@@ -604,8 +608,8 @@ class BTLego():
 
 			bt_message['readable'] += " capabilities: "+hex(payload[2])
 			bt_message['readable'] += " mode count: "+str(bt_message['num_modes'])
-			input_bitfield = BTLego.uint16_bytes_to_int(payload[4:6])
-			output_bitfield = BTLego.uint16_bytes_to_int(payload[6:8])
+			input_bitfield = Decoder.uint16_bytes_to_int(payload[4:6])
+			output_bitfield = Decoder.uint16_bytes_to_int(payload[6:8])
 			bt_message['readable'] += " input modes available (bitmask): "+str(input_bitfield)
 			bt_message['readable'] += " output modes available (bitmask): "+str(output_bitfield)
 			bt_message['input_bitfield'] = input_bitfield
@@ -640,7 +644,7 @@ class BTLego():
 		#luigi port_mode_info port 0 mode 0 infotype: MAPPING0x84: 0x0
 		#luigi port_mode_info port 0 mode 0 infotype: VALUE_FORMAT0x3: 0x0: 0x3: 0x0
 
-		bt_message['readable'] += "port "+str(port)+" mode " + str(mode) + " infotype: " + BTLego.int8_dict_to_str(BTLego.mode_info_type_str,mode_info_type) + " "
+		bt_message['readable'] += "port "+str(port)+" mode " + str(mode) + " infotype: " + Decoder.int8_dict_to_str(Decoder.mode_info_type_str,mode_info_type) + " "
 		if mode_info_type == 0x0:
 			# NAME
 			bt_message['name'] = bytearray(payload[3:]).decode()
