@@ -8,9 +8,7 @@ import os
 from pathlib import Path
 import json
 
-from BTLego import BTLego
-from BTLegoMario import BTLegoMario
-from BTLegoController import BTLegoController
+import BTLego
 
 lego_devices = {}
 callbacks_to_device_addresses = {}
@@ -54,16 +52,16 @@ async def select_next_player():
 		if not is_a_handset:
 			selected_device = lego_devices[list(lego_devices)[selected_device_index]]
 			if selected_device.system_type == 'mario':
-				await handset_device.write_mode_data_RGB_color(BTLegoController.RGB_LIGHT_PORT, 0x9)
+				await handset_device.write_mode_data_RGB_color(BTLego.Controller.RGB_LIGHT_PORT, 0x9)
 				await asyncio.sleep(0.2)
 			elif selected_device.system_type == 'luigi':
-				await handset_device.write_mode_data_RGB_color(BTLegoController.RGB_LIGHT_PORT, 0x6)
+				await handset_device.write_mode_data_RGB_color(BTLego.Controller.RGB_LIGHT_PORT, 0x6)
 				await asyncio.sleep(0.2)
 			elif selected_device.system_type == 'peach':
-				await handset_device.write_mode_data_RGB_color(BTLegoController.RGB_LIGHT_PORT, 0x1)
+				await handset_device.write_mode_data_RGB_color(BTLego.Controller.RGB_LIGHT_PORT, 0x1)
 				await asyncio.sleep(0.2)
 		else:
-			await handset_device.write_mode_data_RGB_color(BTLegoController.RGB_LIGHT_PORT, 0xa)
+			await handset_device.write_mode_data_RGB_color(BTLego.Controller.RGB_LIGHT_PORT, 0xa)
 			await asyncio.sleep(0.2)
 
 async def btlecallbacks(message):
@@ -85,11 +83,11 @@ async def btlecallbacks(message):
 	# Find things that aren't in the table yet...
 	if message[1] == 'event':
 		if message[2] == 'scanner':
-			scanner_code = BTLegoMario.get_code_info(message[3])
+			scanner_code = BTLego.Mario.get_code_info(message[3])
 			temp_message_lastscan = scanner_code['label']
 		elif message[2] == 'coincount':
-			if message[3][1] in BTLegoMario.event_scanner_coinsource:
-				#print("This source is known as: "+BTLegoMario.event_scanner_coinsource[message[3][1]])
+			if message[3][1] in BTLego.Mario.event_scanner_coinsource:
+				#print("This source is known as: "+BTLego.Mario.event_scanner_coinsource[message[3][1]])
 				pass
 			else:
 				if temp_message_lastscan:
@@ -99,8 +97,8 @@ async def btlecallbacks(message):
 	if message[1] == 'controller_buttons':
 		if message[2] == 'left' and message[3] == 'center':
 			# Flip the light a bunch of colors and then turn off the controller
-			for color in BTLego.rgb_light_colors:
-				await current_device.write_mode_data_RGB_color(BTLegoController.RGB_LIGHT_PORT, color)
+			for color in BTLego.Decoder.rgb_light_colors:
+				await current_device.write_mode_data_RGB_color(BTLego.Controller.RGB_LIGHT_PORT, color)
 				await asyncio.sleep(0.2)
 			await current_device.turn_off()
 
@@ -126,7 +124,7 @@ async def btlecallbacks(message):
 
 					handset_device = find_first_device('handset')
 					if handset_device:
-						await handset_device.write_mode_data_RGB_color(BTLegoController.RGB_LIGHT_PORT, 0xa)
+						await handset_device.write_mode_data_RGB_color(BTLego.Controller.RGB_LIGHT_PORT, 0xa)
 						await asyncio.sleep(0.2)
 
 		if message[2] == 'right' and message[3] == 'plus':
@@ -150,62 +148,60 @@ async def btlecallbacks(message):
 			# Change player the the right buttons control
 			await select_next_player()
 
-
 def find_first_device(ad_name):
 	global lego_devices
 	for device in lego_devices:
 		if lego_devices[device].system_type == ad_name:
 			return lego_devices[device]
 
-async def detect_device_callback(device, advertisement_data):
+async def detect_device_callback(bleak_device, advertisement_data):
 	global lego_devices
 	global callbacks_to_device_addresses
 	global code_data
 
-	if device:
-		system_type = BTLegoMario.determine_device_shortname(advertisement_data)
+	if bleak_device:
+		system_type = BTLego.Decoder.determine_device_shortname(advertisement_data)
 		if system_type:
-			if not device.address in lego_devices:
-
+			if not bleak_device.address in lego_devices:
 
 				if system_type == 'handset':
-					lego_devices[device.address] = BTLegoController(advertisement_data)
-					callback_uuid = lego_devices[device.address].register_callback(btlecallbacks)
-					callbacks_to_device_addresses[callback_uuid] = device.address
+					lego_devices[bleak_device.address] = BTLego.Controller(advertisement_data)
+					callback_uuid = lego_devices[bleak_device.address].register_callback(btlecallbacks)
+					callbacks_to_device_addresses[callback_uuid] = bleak_device.address
 
-					await lego_devices[device.address].subscribe_to_messages_on_callback(callback_uuid, 'event')
-					await lego_devices[device.address].subscribe_to_messages_on_callback(callback_uuid, 'controller_buttons')
-#					await lego_devices[device.address].subscribe_to_messages_on_callback(callback_uuid, 'connection_request')
-#					await lego_devices[device.address].subscribe_to_messages_on_callback(callback_uuid, 'controller_rgb')
-#					await lego_devices[device.address].subscribe_to_messages_on_callback(callback_uuid, 'controller_volts')
-#					await lego_devices[device.address].subscribe_to_messages_on_callback(callback_uuid, 'controller_RSSI')
-					await lego_devices[device.address].subscribe_to_messages_on_callback(callback_uuid, 'info')
+					await lego_devices[bleak_device.address].subscribe_to_messages_on_callback(callback_uuid, 'event')
+					await lego_devices[bleak_device.address].subscribe_to_messages_on_callback(callback_uuid, 'controller_buttons')
+#					await lego_devices[bleak_device.address].subscribe_to_messages_on_callback(callback_uuid, 'connection_request')
+#					await lego_devices[bleak_device.address].subscribe_to_messages_on_callback(callback_uuid, 'controller_rgb')
+#					await lego_devices[bleak_device.address].subscribe_to_messages_on_callback(callback_uuid, 'controller_volts')
+#					await lego_devices[bleak_device.address].subscribe_to_messages_on_callback(callback_uuid, 'controller_RSSI')
+					await lego_devices[bleak_device.address].subscribe_to_messages_on_callback(callback_uuid, 'info')
 				else:
-					lego_devices[device.address] = BTLegoMario(advertisement_data,code_data)
-					callback_uuid = lego_devices[device.address].register_callback(btlecallbacks)
-					callbacks_to_device_addresses[callback_uuid] = device.address
+					lego_devices[bleak_device.address] = BTLego.Mario(advertisement_data,code_data)
+					callback_uuid = lego_devices[bleak_device.address].register_callback(btlecallbacks)
+					callbacks_to_device_addresses[callback_uuid] = bleak_device.address
 
-					await lego_devices[device.address].subscribe_to_messages_on_callback(callback_uuid, 'event')
-	#				await lego_devices[device.address].subscribe_to_messages_on_callback(callback_uuid, 'pants')
-					await lego_devices[device.address].subscribe_to_messages_on_callback(callback_uuid, 'info')
-# ?					await lego_devices[device.address].subscribe_to_messages_on_callback(callback_uuid, 'error')
-#					await lego_devices[device.address].subscribe_to_messages_on_callback(callback_uuid, 'gesture')
-#					await lego_devices[device.address].subscribe_to_messages_on_callback(callback_uuid, 'scanner', True)
+					await lego_devices[bleak_device.address].subscribe_to_messages_on_callback(callback_uuid, 'event')
+	#				await lego_devices[bleak_device.address].subscribe_to_messages_on_callback(callback_uuid, 'pants')
+					await lego_devices[bleak_device.address].subscribe_to_messages_on_callback(callback_uuid, 'info')
+# ?					await lego_devices[bleak_device.address].subscribe_to_messages_on_callback(callback_uuid, 'error')
+#					await lego_devices[bleak_device.address].subscribe_to_messages_on_callback(callback_uuid, 'gesture')
+#					await lego_devices[bleak_device.address].subscribe_to_messages_on_callback(callback_uuid, 'scanner', True)
 
 
 
-				await lego_devices[device.address].connect(device, advertisement_data)
+				await lego_devices[bleak_device.address].connect(bleak_device, advertisement_data)
 			else:
-				if not lego_devices[device.address].connected:
-					await lego_devices[device.address].connect(device, advertisement_data)
+				if not lego_devices[bleak_device.address].connected:
+					await lego_devices[bleak_device.address].connect(bleak_device, advertisement_data)
 				else:
-					print("Refusing to reconnect to "+lego_devices[device.address].system_type)
+					print("Refusing to reconnect to "+lego_devices[bleak_device.address].system_type)
 		else:
 			# "LEGO Mario_x_y"
 			# Spike prime hub starts with "LEGO Hub" but you have to pair with that, not BTLE
-			if device.name and device.name.startswith("LEGO Mario"):
+			if bleak_device.name and bleak_device.name.startswith("LEGO Mario"):
 				if advertisement_data and advertisement_data.manufacturer_data:
-					print("UNKNOWN LEGO MARIO",system_type, device.address, "RSSI:", device.rssi, advertisement_data)
+					print("UNKNOWN LEGO MARIO",system_type, bleak_device.address, "RSSI:", bleak_device.rssi, advertisement_data)
 				else:
 					#print("Found some useless Mario broadcast without the manufacturer or service UUIDs")
 					pass
