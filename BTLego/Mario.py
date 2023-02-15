@@ -618,12 +618,15 @@ class Mario(BLE_Device):
 		self.event_data_dispatch[(0x38,0x75,0x1)] = lambda dispatch_key: {
 			self.message_queue.put(('event','burnt_wrapped','present'))
 		}
+		self.event_data_dispatch[(0x38,0x75,0x2)] = lambda dispatch_key: {
+			self.message_queue.put(('event','poison_wrapped','present'))
+		}
 		self.event_data_dispatch[(0x38,0x75,0x3)] = lambda dispatch_key: {
 			self.message_queue.put(('event','gold_wrapped','present'))
 		}
 
 		self.event_data_dispatch[(0x38,0x76,0x1)] = lambda dispatch_key: {
-			self.message_queue.put(('event','multiplayer',('burnt_wrapped','present')))
+			self.message_queue.put(('event','multiplayer',('bad_wrapped','present')))
 		}
 		self.event_data_dispatch[(0x38,0x76,0x3)] = lambda dispatch_key: {
 			self.message_queue.put(('event','multiplayer',('wrapped','present')))
@@ -660,6 +663,9 @@ class Mario(BLE_Device):
 		self.event_data_dispatch[(0x38,0x78,0x1)] = lambda dispatch_key: {
 			self.message_queue.put(('event','burnt_wrapped','present_2'))
 		}
+		self.event_data_dispatch[(0x38,0x78,0x2)] = lambda dispatch_key: {
+			self.message_queue.put(('event','poison_wrapped','present_2'))
+		}
 		self.event_data_dispatch[(0x38,0x78,0x3)] = lambda dispatch_key: {
 			self.message_queue.put(('event','gold_wrapped','present_2'))
 		}
@@ -669,7 +675,7 @@ class Mario(BLE_Device):
 		}
 
 		self.event_data_dispatch[(0x38,0x79,0x1)] = lambda dispatch_key: {
-			self.message_queue.put(('event','multiplayer',('burnt_wrapped','present_2')))
+			self.message_queue.put(('event','multiplayer',('bad_wrapped','present_2')))
 		}
 		self.event_data_dispatch[(0x38,0x79,0x3)] = lambda dispatch_key: {
 			self.message_queue.put(('event','multiplayer',('wrapped','present_2')))
