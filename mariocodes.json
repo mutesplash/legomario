@@ -118,6 +118,16 @@
       "note": "Bowser flag turns to character flag (+20 sec)"
     },
     {
+      "code": "BRTYG",
+      "label": "CAMPFIRE",
+      "blpns": [
+        {
+          "blpn": "3068bpb2186",
+          "name": "Campfire"
+        }
+      ]
+    },
+    {
       "code": "GRYBV",
       "label": "YOSHI",
       "blpns": [
@@ -453,6 +463,17 @@
       "note": "Along with fruit, this can be coated in gold with the Treat Carousel.  Golden cake and fruit can also be burnt or wrapped in a present."
     },
     {
+      "code": "GRLPV",
+      "label": "TURNIP",
+      "blpns": [
+        {
+          "blpn": "3068bpb2149",
+          "name": "Turnip"
+        }
+      ],
+      "note": "Instead of eating, throw it just like in SMB2.  You can wrap it, but it can't be burnt, poisoned or turned golden"
+    },
+    {
       "code": "BRYGL",
       "label": "FRUIT PR",
       "blpns": [
@@ -495,6 +516,17 @@
         }
       ],
       "note": "Fruit can be eaten by making a tipping motion"
+    },
+    {
+      "code": "BRVTL",
+      "label": "FRUIT BL",
+      "blpns": [
+        {
+          "blpn": "14769pb589",
+          "name": "Blue Fruit"
+        }
+      ],
+      "note": "You can gift-wrap half-eaten fruit"
     },
     {
       "code": "GRYPT",
@@ -1166,6 +1198,17 @@
       "note": "Have to do a flip before stomping for coins"
     },
     {
+      "code": "BRTLG",
+      "label": "CONKDOR",
+      "blpns": [
+        {
+          "blpn": "3068bpb2125",
+          "name": "Conkdor"
+        }
+      ],
+      "note": "Weird noise and coin"
+    },
+    {
       "code": "GRYLT",
       "label": "LAKITU",
       "blpns": [
@@ -1236,6 +1279,17 @@
       "note": "3-hit"
     },
     {
+      "code": "BRTPG",
+      "label": "FLIPRUS",
+      "blpns": [
+        {
+          "blpn": "3068bpb2185",
+          "name": "Fliprus"
+        }
+      ],
+      "note": "3-hit"
+    },
+    {
       "code": "BRVTP",
       "label": "BOOMRBRO",
       "blpns": [
@@ -1286,6 +1340,17 @@
         }
       ],
       "note": "4-hit dramatic music cue"
+    },
+    {
+      "code": "BRVPL",
+      "label": "SMOLSUMO",
+      "blpns": [
+        {
+          "blpn": "3068bpb2176",
+          "name": "Sumo Bro"
+        }
+      ],
+      "note": "4-hit"
     },
     {
       "code": "GRLPY",
@@ -1748,6 +1813,17 @@
       ]
     },
     {
+      "code": "BRVGL",
+      "label": "BIRDO",
+      "blpns": [
+        {
+          "blpn": "3068bpb2178",
+          "name": "Birdo egg"
+        }
+      ],
+      "note": "Get hit with Birdo egg.  Jump to keep from hitting you."
+    },
+    {
       "code": "GRLBT",
       "label": "MAST",
       "blpns": [
@@ -1996,41 +2072,6 @@
       "code": "BRTYV",
       "label": "BONGOS",
       "note": "Music notes, 'go go go', different DK music. Switch between scanning Yellow and Orange to hit the bongos. Set 71424"
-    },
-    {
-      "code": "BRTYG",
-      "label": "CAMPFIRE",
-      "note": "Camfire. Probably Set 71417"
-    },
-    {
-      "code": "BRTPG",
-      "label": "FLIPRUS",
-      "note": "3-hit Fliprus in 71417"
-    },
-    {
-      "code": "BRTLG",
-      "label": "CONKDOR",
-      "note": "Weird noise and coin Set 71414. blpn 3068bpb2125"
-    },
-    {
-      "code": "BRVTL",
-      "label": "FRUIT BL",
-      "note": "Blue Fruit.  Set 71417"
-    },
-    {
-      "code": "BRVGL",
-      "label": "BIRDO",
-      "note": "Get hit with Birdo egg.  Jump to keep from hitting you.  Series 6 Character pack 71413"
-    },
-    {
-      "code": "BRVPL",
-      "label": "SMOLSUMO",
-      "note": "4-hit Boss Sumo Bro Series 6 Character pack 71413"
-    },
-    {
-      "code": "GRLPV",
-      "label": "TURNIP",
-      "note": "Turnip.  You can throw it just like in SMB2.  Set 71419"
     }
   ]
 }
