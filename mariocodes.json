@@ -126,7 +126,7 @@
         },
         {
           "blpn": "3068bpb2053",
-          "name": "Purple & Yellow Toad / Toadette Speech Bubble"
+          "name": "Green, Purple, Blue & Yellow Toad / Toadette Speech Bubble"
         }
       ]
     },
@@ -891,6 +891,10 @@
         {
           "blpn": "3068bpb1907",
           "name": "Bony Beetle"
+        },
+        {
+          "blpn": "14769pb587",
+          "name": "Spike"
         }
       ]
     },
@@ -1217,6 +1221,14 @@
         {
           "blpn": "3068bpb2055",
           "name": "Hammer Bro"
+        },
+        {
+          "blpn": "3068bpb2177",
+          "name": "Ice Bro"
+        },
+        {
+          "blpn": "3068bpb2159",
+          "name": "Fire Bro"
         }
       ],
       "note": "4-hit"
@@ -1506,6 +1518,17 @@
       "note": "Comes in Womp's Lava Trouble and Toad's Treasure hunt (different brick colors)"
     },
     {
+      "code": "BRTVG",
+      "label": "LAVALIFT",
+      "blpns": [
+        {
+          "blpn": "3068bpb2160",
+          "name": "Curved Bidirectional Arrows (Lava Lift)"
+        }
+      ],
+      "note": "Exclamation point, boss music. Set 71416."
+    },
+    {
       "code": "GRPVL",
       "label": "KEYHOLE",
       "blpns": [
@@ -1681,6 +1704,16 @@
         }
       ],
       "note": "Sky Land 1 music."
+    },
+    {
+      "code": "BRVGT",
+      "label": "BALLOON",
+      "blpns": [
+        {
+          "blpn": "3068bpb2150",
+          "name": "Peach's Balloon Ride"
+        }
+      ]
     },
     {
       "code": "GRLBT",
@@ -1863,7 +1896,7 @@
     },
     {
       "code": "BRTGL",
-      "label": "BALLOON",
+      "label": "DK BLOON"
       "note": "Random balloon selection with powerup (green: 1up, blue:P-switch, red:mushroom) Set 71425"
     },
     {
@@ -1874,7 +1907,7 @@
     {
       "code": "BRTGY",
       "label": "FISHING",
-      "note": "Fishing. Set 71422 Catch: eep cheep, cheep cheep, deep cheep, spiny cheep, cheep chomp, fish bone, boot, huckit, blooper (sometimes inks you)"
+      "note": "Fishing. Set 71422 Catch: eep cheep, cheep cheep, deep cheep (green, 5 coins), spiny cheep (5 coins), cheep chomp (15 coins), fish bone (1 coin), boot (no thanks), huckit, blooper (sometimes inks you for no coins)"
     },
     {
       "code": "BRTLP",
@@ -1927,11 +1960,6 @@
       "note": "Camfire. Probably Set 71417"
     },
     {
-      "code": "BRTVG",
-      "label": "LAVALIFT",
-      "note": "Exclamation point, boss music. Set 71416."
-    },
-    {
       "code": "BRTPG",
       "label": "FLIPRUS",
       "note": "3-hit Fliprus in 71417"
@@ -1955,11 +1983,6 @@
       "code": "BRVYT",
       "label": "WENDY",
       "note": "6-hit Set 71418"
-    },
-    {
-      "code": "BRVGT",
-      "label": "BALLOON",
-      "note": "Balloon Ride Set 71419"
     },
     {
       "code": "BRVGL",
