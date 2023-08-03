@@ -90,7 +90,7 @@ Each LEGO Mario barcode consists of five unique colors that are then repeated as
 <li class="T">Teal</li>
 </ul>
 
-The barcode always seems to start with Green and Red, or Blue and Red on an edge, so the last three are the only significant ones.
+The barcode always seems to start with Green, Blue, or Teal, and then Red on an edge, so the last three are the only significant ones.
 
 <hr>
 <div id='todo'>
@@ -2580,7 +2580,7 @@ function test_code_rules(code) {
 	}
 
 	// Starts with GR
-	if ( ! (code.startsWith("GR") || code.startsWith("BR")) ) {
+	if ( ! (code.startsWith("GR") || code.startsWith("BR") || code.startsWith("TR")) ) {
 		return false;
 	}
 
@@ -2756,6 +2756,59 @@ function brute_force_codes() {
 				if (test_code_rules(test_code)) {
 					if (test_grb_space) {
 						var reversed_code = ['G','R','B',remainingcolorcodes[c3],color2];
+						reversed_code = reversed_code.join("");
+						if (test_code_rules(reversed_code)) {
+							if (!( known_codes.indexOf(reversed_code) == -1 && unknown_codes.indexOf(reversed_code) == -1 )) {
+								// Ignore it
+								// console.log("Ignoring "+test_code+" because it is "+reversed_code+" which is already in our lists")
+								continue;
+							}
+						}
+					}
+					count++;
+					if ( known_codes.indexOf(test_code) == -1 ) {
+						unknown_codes.push(test_code);
+					}
+				}
+			}
+		}
+	}
+
+	// Now TWO types of flipped codes need to be avoided
+	var ccode = ['T','R'];
+	var remainingcolorcodes = ['B','G','L','V','Y','P'];
+	var codespace = remainingcolorcodes.length;
+	var count = 0;
+	for ( c1=0; c1<codespace; c1++) {
+		var color1 = remainingcolorcodes[c1];
+		var test_grt_space = false;
+		var test_brt_space = false;
+		if (color1 == 'G') {
+			test_grt_space = true;
+		}
+		if (color1 == 'B') {
+			test_brt_space = true;
+		}
+
+		for ( c2=0; c2<codespace; c2++) {
+			var color2 = remainingcolorcodes[c2];
+			for ( c3=0; c3<codespace; c3++) {
+				var test_code = ccode.concat([color1, color2, remainingcolorcodes[c3]]);
+				test_code = test_code.join("");
+				if (test_code_rules(test_code)) {
+					if (test_grt_space) {
+						var reversed_code = ['G','R','T',remainingcolorcodes[c3],color2];
+						reversed_code = reversed_code.join("");
+						if (test_code_rules(reversed_code)) {
+							if (!( known_codes.indexOf(reversed_code) == -1 && unknown_codes.indexOf(reversed_code) == -1 )) {
+								// Ignore it
+								// console.log("Ignoring "+test_code+" because it is "+reversed_code+" which is already in our lists")
+								continue;
+							}
+						}
+					}
+					if (test_brt_space) {
+						var reversed_code = ['B','R','T',remainingcolorcodes[c3],color2];
 						reversed_code = reversed_code.join("");
 						if (test_code_rules(reversed_code)) {
 							if (!( known_codes.indexOf(reversed_code) == -1 && unknown_codes.indexOf(reversed_code) == -1 )) {
