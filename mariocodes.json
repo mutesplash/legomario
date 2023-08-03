@@ -107,6 +107,17 @@
       "note": "90 second start. Luigi's Mansion Start"
     },
     {
+      "code": "BRVYL",
+      "label": "CHKPOINT",
+      "blpns": [
+        {
+          "blpn": "3068bpb2153",
+          "name": "Checkpoint flag"
+        }
+      ],
+      "note": "Bowser flag turns to character flag (+20 sec)"
+    },
+    {
       "code": "GRYBV",
       "label": "YOSHI",
       "blpns": [
@@ -220,6 +231,16 @@
         {
           "blpn": "3068bpb2072",
           "name": "Green Yoshi egg"
+        }
+      ]
+    },
+    {
+      "code": "BRVLT",
+      "label": "YOSHI E5",
+      "blpns": [
+        {
+          "blpn": "3068bpb2154",
+          "name": "Blue Yoshi egg"
         }
       ]
     },
@@ -405,6 +426,17 @@
         {
           "blpn": "3068bpb2070",
           "name": "Gift box 2"
+        }
+      ],
+      "note": "Fruit or cake will fit in a gift box"
+    },
+    {
+      "code": "BRTGP",
+      "label": "PRESENT3",
+      "blpns": [
+        {
+          "blpn": "3068bpb2152",
+          "name": "Gift box 3"
         }
       ],
       "note": "Fruit or cake will fit in a gift box"
@@ -1793,6 +1825,17 @@
       "note": "6-hit"
     },
     {
+      "code": "BRVYT",
+      "label": "WENDY",
+      "blpns": [
+        {
+          "blpn": "3068bpb2151",
+          "name": "Wendy"
+        }
+      ],
+      "note": "6-hit"
+    },
+    {
       "code": "GRVYB",
       "label": "KING BOO",
       "blpns": [
@@ -1896,7 +1939,7 @@
     },
     {
       "code": "BRTGL",
-      "label": "DK BLOON"
+      "label": "DK BLOON",
       "note": "Random balloon selection with powerup (green: 1up, blue:P-switch, red:mushroom) Set 71425"
     },
     {
@@ -1970,19 +2013,9 @@
       "note": "Weird noise and coin Set 71414. blpn 3068bpb2125"
     },
     {
-      "code": "BRTGP",
-      "label": "PRESENT3",
-      "note": "Gift Box 3.  Set 71418"
-    },
-    {
       "code": "BRVTL",
       "label": "FRUIT BL",
       "note": "Blue Fruit.  Set 71417"
-    },
-    {
-      "code": "BRVYT",
-      "label": "WENDY",
-      "note": "6-hit Set 71418"
     },
     {
       "code": "BRVGL",
@@ -1990,19 +2023,9 @@
       "note": "Get hit with Birdo egg.  Jump to keep from hitting you.  Series 6 Character pack 71413"
     },
     {
-      "code": "BRVLT",
-      "label": "YOSHI E5",
-      "note": "Blue Yoshi.  Set 71418"
-    },
-    {
       "code": "BRVPL",
       "label": "SMOLSUMO",
       "note": "4-hit Boss Sumo Bro Series 6 Character pack 71413"
-    },
-    {
-      "code": "BRVYL",
-      "label": "CHKPOINT",
-      "note": "Checkpoint Bowser flag turns to character flag (+20 sec) Set 71418"
     },
     {
       "code": "GRLPV",
