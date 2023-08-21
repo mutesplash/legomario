@@ -1,0 +1,11 @@
+# Venv trash
+/bin
+/lib
+/include
+/pyvenv.cfg
+
+# Suggested for running examples
+/examples/BTLego
+
+# *.pyc Trash from running the examples
+__pycache__/
