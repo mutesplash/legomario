@@ -1,5 +1,4 @@
 import asyncio
-import uuid
 from queue import SimpleQueue
 from collections.abc import Iterable
 
