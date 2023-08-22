@@ -81,7 +81,8 @@ class BLE_Device():
 		}
 
 		self.port_mode_info = {
-			'port_count':-1
+			'port_count':-1,
+			'requests_until_complete':0		# Port interrogation
 		}
 
 		self.message_queue = SimpleQueue()
@@ -139,15 +140,20 @@ class BLE_Device():
 
 		#await self.interrogate_ports()
 
-	def register_callback(self, callback):
+	# FIXME: should register the callback an all the subscriptions at once
+	# set/unset registrations separately
+	# Unregister callback is fine
+
+	async def register_callback(self, callback):
+		async with self.drain_lock:
 		# FIXME: Un-register?
-		callback_uuid = str(uuid.uuid4())
-		self.callbacks[callback_uuid] = (callback, ())
-		return callback_uuid
+			callback_uuid = str(uuid.uuid4())
+			self.callbacks[callback_uuid] = (callback, ())
+			return callback_uuid
 
 	async def unregister_callback(self, callback_uuid):
 		async with self.drain_lock:
-			# FIXME: Need to unsub?
+			# FIXME: Need to unsub
 			self.callbacks.pop(callback_uuid, None)
 
 	def request_update_on_callback(self,update_request):
@@ -160,7 +166,7 @@ class BLE_Device():
 			BLE_Device.dp("Invalid message type "+message_type)
 			return False
 		if not callback_uuid in self.callbacks:
-			BLE_Device.dp("Given UUID not registered to receive messages "+message_type)
+			BLE_Device.dp("Given UUID ("+str(callback_uuid)+") not registered to receive messages "+message_type)
 			return False
 
 		do_nothing = False
@@ -371,8 +377,16 @@ class BLE_Device():
 	# 'OUT': Send data to device
 	async def decode_mode_info_and_interrogate(self, bt_message):
 		port = bt_message['port']
-		BLE_Device.dp('Interrogating mode info for '+str(bt_message['num_modes'])+' modes on port '+self.port_data[port]['name']+' ('+str(port)+')')
-		#print(bt_message['readable'])
+		if not 'num_modes' in bt_message:
+			BLE_Device.dp(f'Mode combinations NOT DECODED: {bt_message["readable"]}')
+			return
+		else:
+			BLE_Device.dp('Interrogating mode info for '+str(bt_message['num_modes'])+' modes on port '+self.port_data[port]['name']+' ('+str(port)+')')
+
+		if 'requests_until_complete' in self.port_mode_info:
+			if self.port_mode_info['requests_until_complete'] <= 0:
+				BLE_Device.dp(f'WARN: Did not expect this mode info description, refusing to update: {bt_message["readable"]}')
+				return
 
 		self.port_mode_info[port]['mode_count'] = bt_message['num_modes']
 		self.port_mode_info[port]['name'] = self.port_data[port]['name']
@@ -399,7 +413,7 @@ class BLE_Device():
 			# Mario doesn't seem to support this?
 			#await self.write_port_mode_info_request(port,mode,0x8)	# Capability bits
 			await self.write_port_mode_info_request(port,mode,0x80)	# VALUE FORMAT
-			await asyncio.sleep(0.2)
+			await asyncio.sleep(0.3)
 
 		bit_value = 1
 		mode_number = 0
@@ -436,21 +450,28 @@ class BLE_Device():
 
 	def decode_port_mode_info(self, bt_message):
 
+		if 'requests_until_complete' in self.port_mode_info:
+			if self.port_mode_info['requests_until_complete'] <= 0:
+				BLE_Device.dp(f'WARN: Did not expect this mode info report, refusing to update: {bt_message["readable"]}')
+				return
+
 		readable =''
-		if bt_message['port'] in self.port_data:
-			pdata = self.port_data[bt_message['port']]
-			readable += pdata['name']+' ('+str(bt_message['port'])+')'
-		else:
-			readable += 'Port ('+str(bt_message['port'])+')'
-
-		readable += ' mode '+str(bt_message['mode'])
-
 		port = bt_message['port']
 		mode = bt_message['mode']
 
+		if port in self.port_data:
+			pdata = self.port_data[port]
+			readable += pdata['name']+' ('+str(port)+')'
+		else:
+			readable += 'Port ('+str(port)+')'
+
+		readable += ' mode '+str(mode)
+
 		# FIXME: Stuff all this in a structure and then dump it out
-		if not bt_message['mode'] in self.port_mode_info[bt_message['port']]:
-			print('ERROR: MODE '+bt_message['mode']+' MISSING FOR PORT '+bt_message['port']+':SHOULD HAVE BEEN SET in decode_mode_info_and_interrogate')
+		if not mode in self.port_mode_info[port]:
+			print(f'ERROR: MODE {mode} MISSING FOR PORT {port}: SHOULD HAVE BEEN SET in decode_mode_info_and_interrogate. Dumping: {bt_message["readable"]}')
+			print("Keys:")
+			print(self.port_mode_info[port].keys())
 			return
 
 		if bt_message['mode_info_type'] in Decoder.mode_info_type_str:
@@ -527,13 +548,16 @@ class BLE_Device():
 				self.port_mode_info[port][mode]['requests_outstanding'].pop(bt_message['mode_info_type'],None)
 			else:
 				print("DUPLICATE mode info type "+hex(bt_message['mode_info_type'])+' on port '+str(port)+' mode '+str(mode))
-		else:
-			print("EXTRA mode info type "+hex(bt_message['mode_info_type'])+' on port '+str(port)+' mode '+str(mode))
 
-		if not self.port_mode_info[port][mode]['requests_outstanding']:
-			self.port_mode_info[port][mode].pop('requests_outstanding',None)
-			if mode in self.port_mode_info[port]['mode_info_requests_outstanding']:
-				self.port_mode_info[port]['mode_info_requests_outstanding'].pop(mode,None)
+			# Delete zeroes (and all the modes with it)
+			if not self.port_mode_info[port][mode]['requests_outstanding']:
+				self.port_mode_info[port][mode].pop('requests_outstanding',None)
+				if mode in self.port_mode_info[port]['mode_info_requests_outstanding']:
+					self.port_mode_info[port]['mode_info_requests_outstanding'].pop(mode,None)
+
+		else:
+			print(f"EXTRA mode info type {hex(bt_message['mode_info_type'])} on port {port} mode {mode} DUMP:{bt_message['readable']}")
+
 
 	# After getting the Value Format out of the controller, that allowed me to find this page
 	# https://virantha.github.io/bricknil/lego_api/lego.html#remote-buttons
