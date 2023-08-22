@@ -38,44 +38,39 @@ class Controller(BLE_Device):
 		# FIXME: Uhh, actually doesn't allow you to unsubscribe.  Good design here. Top notch
 		if self.connected:
 			for subscription in current_subscriptions:
-				if subscription == 'event':
-					await self.set_updates_for_hub_properties([
-						['Button',True]				# Works as advertised (the "button" is the bluetooth button)
-					])
-
-				elif subscription == 'controller_buttons':
-					await self.set_port_subscriptions([
-						[self.BUTTONS_LEFT_PORT,1,0,True],
-						[self.BUTTONS_RIGHT_PORT,1,0,True]
-					])
-					# 0: Only reports center buttons
-					# 1, 2: Buggy "either press - or +" one time per side (can be opposites!)
-					# 3: returns 0x0 and nothing else
-					# 4: returns 0x0 0x0 0x0 and nothing else
-
-				elif subscription == 'controller_rgb':
-					await self.set_port_subscriptions([[self.RGB_LIGHT_PORT,0,5,True]])
-				elif subscription == 'controller_volts':
-					await self.set_port_subscriptions([[self.CONTROLLER_VOLTS_PORT,0,5,True]])
-				elif subscription == 'controller_RSSI':
-					await self.set_port_subscriptions([[self.CONTROLLER_RSSI_PORT,0,5,True]])
-
-				elif subscription == 'info':
-					await self.set_updates_for_hub_properties([
-						['Advertising Name',True]	# I guess this works different than requesting the update because something else could change it, but then THAT would cause an update message
-
-						# Kind of a problem to implement in the future because you don't want these spewing at you
-						# Probably need to be separate types
-						#['RSSI',True],				# Doesn't really update for whatever reason
-						#['Battery Voltage',True],	# Transmits updates pretty frequently
-					])
-#				elif subscription == 'error'
-# You're gonna get these.  Don't know why I even let you choose?
-				else:
+				controller_specific = await self.set_subscription(subscription, True)
+				all_btlego_devices = await super().set_subscription(subscription, True)
+				if not controller_specific and not all_btlego_devices:
 					Controller.dp("INVALID Subscription option:"+subscription)
-
 		else:
 			Controller.dp("NOT CONNECTED.  Not setting port subscriptions",2)
+
+	# True if subscription is valid, false otherwise
+	async def set_subscription(self, subscription, should_subscribe):
+		valid_sub_name = True
+		if subscription == 'controller_buttons':
+			await self.set_port_subscriptions([
+				[self.BUTTONS_LEFT_PORT,1,0,should_subscribe],
+				[self.BUTTONS_RIGHT_PORT,1,0,should_subscribe]
+			])
+			# 0: Only reports center buttons
+			# 1, 2: Buggy "either press - or +" one time per side (can be opposites!)
+			# 3: returns 0x0 and nothing else
+			# 4: returns 0x0 0x0 0x0 and nothing else
+
+		elif subscription == 'controller_rgb':
+			await self.set_port_subscriptions([[self.RGB_LIGHT_PORT,0,5,should_subscribe]])
+		elif subscription == 'controller_volts':
+			await self.set_port_subscriptions([[self.CONTROLLER_VOLTS_PORT,0,5,should_subscribe]])
+		elif subscription == 'controller_RSSI':
+			await self.set_port_subscriptions([[self.CONTROLLER_RSSI_PORT,0,5,should_subscribe]])
+		else:
+			valid_sub_name = False
+
+		if valid_sub_name:
+			Controller.dp("Setting subscription to "+subscription,2)
+
+		return valid_sub_name
 
 	# override
 	async def device_events(self, sender, data):
