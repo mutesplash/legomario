@@ -46,12 +46,12 @@ async def detect_device_callback(device, advertisement_data):
 		if mario_device:
 			if not device.address in mario_devices:
 				mario_devices[device.address] = BTLego.Mario(advertisement_data,code_data)
-				callback_uuid = mario_devices[device.address].register_callback(mariocallbacks)
+				callback_uuid = await mario_devices[device.address].register_callback(mariocallbacks)
 				callbacks_to_device_addresses[callback_uuid] = device.address
 				await mario_devices[device.address].subscribe_to_messages_on_callback(callback_uuid, 'event')
 #				await mario_devices[device.address].subscribe_to_messages_on_callback(callback_uuid, 'pants')
 				await mario_devices[device.address].subscribe_to_messages_on_callback(callback_uuid, 'info')
-				await mario_devices[device.address].subscribe_to_messages_on_callback(callback_uuid, 'error')
+				# You don't have to subscribe to "error" type messages...
 				await mario_devices[device.address].subscribe_to_messages_on_callback(callback_uuid, 'scanner', True)
 
 				await mario_devices[device.address].connect(device, advertisement_data)
