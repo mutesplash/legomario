@@ -86,7 +86,11 @@ class BLE_Device():
 		}
 
 		self.message_queue = SimpleQueue()
+
 		self.callbacks = {}
+		# UUID indexed tuples of...
+		# 0: callback function
+		# 1: Tuple of message type subscriptions
 
 		self.lock = asyncio.Lock()
 		self.drain_lock = asyncio.Lock()
@@ -152,12 +156,20 @@ class BLE_Device():
 			return callback_uuid
 
 	async def unregister_callback(self, callback_uuid):
+		BLE_Device.dp("Unregistering callback "+str(callback_uuid),2)
 		async with self.drain_lock:
-			# FIXME: Need to unsub
+			callback_settings = self.callbacks[callback_uuid]
+			current_subscriptions = callback_settings[1]
+			if self.connected:
+				# Unsubscribe ONLY if it's the last callback on the subscription
+				# FIXME: This... doesn't do that
+				for subscription in current_subscriptions:
+					BLE_Device.dp("Unsetting subscription "+subscription)
+					await self.set_subscription(subscription, False)
 			self.callbacks.pop(callback_uuid, None)
 
 	def request_update_on_callback(self,update_request):
-		# FIXME: User should be able to pokes mario for stuff like request_name_update
+		# FIXME: User should be able to poke mario for stuff like request_name_update
 		pass
 
 	async def subscribe_to_messages_on_callback(self, callback_uuid, message_type, subscribe=True):
@@ -200,45 +212,39 @@ class BLE_Device():
 		# FIXME: Uhh, actually doesn't allow you to unsubscribe.  Good design here. Top notch
 		if self.connected:
 			for subscription in current_subscriptions:
-				if subscription == 'event':
-					# await self.set_port_subscriptions([[self.EVENTS_PORT,2,5,True]])
-					await self.set_updates_for_hub_properties([
-						['Button',True]				# Works as advertised (the "button" is the bluetooth button)
-					])
-
-				elif subscription == 'controller_buttons':
-					await self.set_port_subscriptions([
-						[self.BUTTONS_LEFT_PORT,1,0,True],
-						[self.BUTTONS_RIGHT_PORT,1,0,True]
-					])
-					# 0: Only reports center buttons
-					# 1, 2: Buggy "either press - or +" one time per side (can be opposites!)
-					# 3: returns 0x0 and nothing else
-					# 4: returns 0x0 0x0 0x0 and nothing else
-
-				elif subscription == 'controller_rgb':
-					await self.set_port_subscriptions([[self.RGB_LIGHT_PORT,0,5,True]])
-				elif subscription == 'controller_volts':
-					await self.set_port_subscriptions([[self.CONTROLLER_VOLTS_PORT,0,5,True]])
-				elif subscription == 'controller_RSSI':
-					await self.set_port_subscriptions([[self.CONTROLLER_RSSI_PORT,0,5,True]])
-
-				elif subscription == 'info':
-					await self.set_updates_for_hub_properties([
-						['Advertising Name',True]	# I guess this works different than requesting the update because something else could change it, but then THAT would cause an update message
-
-						# Kind of a problem to implement in the future because you don't want these spewing at you
-						# Probably need to be separate types
-						#['RSSI',True],				# Doesn't really update for whatever reason
-						#['Battery Voltage',True],	# Transmits updates pretty frequently
-					])
-#				elif subscription == 'error'
-# You're gonna get these.  Don't know why I even let you choose?
-				else:
+				if not self.set_subscription(subscription, True):
 					BLE_Device.dp("INVALID Subscription option:"+subscription)
-
 		else:
 			BLE_Device.dp("NOT CONNECTED.  Not setting port subscriptions",2)
+
+	# True if subscription is valid, false otherwise
+	async def set_subscription(self, subscription, should_subscribe):
+		valid_sub_name = True
+		if subscription == 'event':
+			# await self.set_port_subscriptions([[self.EVENTS_PORT,2,5,True]])
+			await self.set_updates_for_hub_properties([
+				['Button',should_subscribe]				# Works as advertised (the "button" is the bluetooth button)
+			])
+
+#				elif subscription == 'error'
+# You're gonna get these.  Don't know why I even let you choose?
+
+		elif subscription == 'info':
+			await self.set_updates_for_hub_properties([
+				['Advertising Name',should_subscribe]	# I guess this works different than requesting the update because something else could change it, but then THAT would cause an update message
+
+				# Kind of a problem to implement in the future because you don't want these spewing at you
+				# Probably need to be separate types
+				#['RSSI',True],				# Doesn't really update for whatever reason
+				#['Battery Voltage',True],	# Transmits updates pretty frequently
+			])
+		else:
+			valid_sub_name = False
+
+		if valid_sub_name:
+			BLE_Device.dp("Setting subscription to "+subscription,2)
+
+		return valid_sub_name
 
 	async def drain_messages(self):
 		async with self.drain_lock:
