@@ -166,7 +166,7 @@ async def detect_device_callback(bleak_device, advertisement_data):
 
 				if system_type == 'handset':
 					lego_devices[bleak_device.address] = BTLego.Controller(advertisement_data)
-					callback_uuid = lego_devices[bleak_device.address].register_callback(btlecallbacks)
+					callback_uuid = await lego_devices[bleak_device.address].register_callback(btlecallbacks)
 					callbacks_to_device_addresses[callback_uuid] = bleak_device.address
 
 					await lego_devices[bleak_device.address].subscribe_to_messages_on_callback(callback_uuid, 'event')
@@ -178,13 +178,12 @@ async def detect_device_callback(bleak_device, advertisement_data):
 					await lego_devices[bleak_device.address].subscribe_to_messages_on_callback(callback_uuid, 'info')
 				else:
 					lego_devices[bleak_device.address] = BTLego.Mario(advertisement_data,code_data)
-					callback_uuid = lego_devices[bleak_device.address].register_callback(btlecallbacks)
+					callback_uuid = await lego_devices[bleak_device.address].register_callback(btlecallbacks)
 					callbacks_to_device_addresses[callback_uuid] = bleak_device.address
 
 					await lego_devices[bleak_device.address].subscribe_to_messages_on_callback(callback_uuid, 'event')
 	#				await lego_devices[bleak_device.address].subscribe_to_messages_on_callback(callback_uuid, 'pants')
 					await lego_devices[bleak_device.address].subscribe_to_messages_on_callback(callback_uuid, 'info')
-# ?					await lego_devices[bleak_device.address].subscribe_to_messages_on_callback(callback_uuid, 'error')
 #					await lego_devices[bleak_device.address].subscribe_to_messages_on_callback(callback_uuid, 'gesture')
 #					await lego_devices[bleak_device.address].subscribe_to_messages_on_callback(callback_uuid, 'scanner', True)
 
