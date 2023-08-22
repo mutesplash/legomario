@@ -1090,36 +1090,34 @@ class Mario(BLE_Device):
 		# FIXME: Uhh, actually doesn't allow you to unsubscribe.  Good design here. Top notch
 		if self.connected:
 			for subscription in current_subscriptions:
-				if subscription == 'event':
-					await self.set_port_subscriptions([[self.EVENTS_PORT,2,5,True]])
-					await self.set_updates_for_hub_properties([
-						['Button',True]				# Works as advertised (the "button" is the bluetooth button)
-					])
-
-				elif subscription == 'motion':
-					await self.set_port_subscriptions([[self.IMU_PORT,0,5,True]])
-				elif subscription == 'gesture':
-					await self.set_port_subscriptions([[self.IMU_PORT,1,5,True]])
-				elif subscription == 'scanner':
-					await self.set_port_subscriptions([[self.RGB_PORT,0,5,True]])
-				elif subscription == 'pants':
-					await self.set_port_subscriptions([[self.PANTS_PORT,0,5,True]])
-				elif subscription == 'info':
-					await self.set_updates_for_hub_properties([
-						['Advertising Name',True]	# I guess this works different than requesting the update because something else could change it, but then THAT would cause an update message
-
-						# Kind of a problem to implement in the future because you don't want these spewing at you
-						# Probably need to be separate types
-						#['RSSI',True],				# Doesn't really update for whatever reason
-						#['Battery Voltage',True],	# Transmits updates pretty frequently
-					])
-#				elif subscription == 'error'
-# You're gonna get these.  Don't know why I even let you choose?
-				else:
+				mario_specific = await self.set_subscription(subscription, True)
+				all_btlego_devices = await super().set_subscription(subscription, True)
+				if not mario_specific and not all_btlego_devices:
 					Mario.dp("INVALID Subscription option:"+subscription)
-
 		else:
 			Mario.dp("NOT CONNECTED.  Not setting port subscriptions",2)
+
+	async def set_subscription(self, subscription, should_subscribe):
+		valid_sub_name = True
+
+		if subscription == 'event':
+			# This sub includes the button, which is in super
+			await self.set_port_subscriptions([[self.EVENTS_PORT,2,5,True]])
+		elif subscription == 'motion':
+			await self.set_port_subscriptions([[self.IMU_PORT,0,5,True]])
+		elif subscription == 'gesture':
+			await self.set_port_subscriptions([[self.IMU_PORT,1,5,True]])
+		elif subscription == 'scanner':
+			await self.set_port_subscriptions([[self.RGB_PORT,0,5,True]])
+		elif subscription == 'pants':
+			await self.set_port_subscriptions([[self.PANTS_PORT,0,5,True]])
+		else:
+			valid_sub_name = False
+
+		if valid_sub_name:
+			Mario.dp("Setting subscription to "+subscription,2)
+
+		return valid_sub_name
 
 	# override
 	async def device_events(self, sender, data):
