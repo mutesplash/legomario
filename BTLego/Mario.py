@@ -1,5 +1,4 @@
 import asyncio
-import uuid
 from queue import SimpleQueue
 from collections.abc import Iterable
 
@@ -106,6 +105,7 @@ class Mario(BLE_Device):
 	code_data = None
 	gr_codespace = {}
 	br_codespace = {}
+	tr_codespace = {}
 	# Color scanner is a bit buggy.  Blue works better in latest firmware, but sometimes the scanner doesn't return color messages
 	solid_colors = {
 		19:'white',		# Official Lego color ID for white is 1 and 19 for Light Brown (probably too close to Medium Nougat)
@@ -210,6 +210,10 @@ class Mario(BLE_Device):
 	event_scanner_coinsource = {
 		6:'GOAL',
 		9:'free',			# Just hopping around
+#		8:'fixme unknown after wakeup',
+#		13:'fixme unknown after eating cookies',
+#		12:'fixme unknown',
+#		14:'fixme: eating cake?',
 		33:'BDARR 2',
 		34:'SPIN 1',
 		36:'SPIN 2',
@@ -234,7 +238,7 @@ class Mario(BLE_Device):
 		60:'DIVING',
 		62:'SHOE',
 		63:'PCTHRONE',
-		65:'x_BRVGT_',		# Hot air balloon?
+		65:'BALLOON',
 		66:'GOOMBA or LAVA',		# 1
 		68:'SPINY or BUZZY',			# 1
 		67:'BOB-OMB or BOMB 2 or BOMB 3 or PARABOMB',
@@ -291,9 +295,14 @@ class Mario(BLE_Device):
 		134:'COIN 1, 2 or 3',	# 10
 		135:'PIRANHA',
 		136:'STONE',
+		137:'vacuum yellow gem',
 		138:'jumping on a course',
 		139:'139?',			# jumping around with the star???
 		129:'1,2,3 Blocks',	# 3 each and then 10 if completed
+		141:'vacuum brown gem',
+		141:'vacuum red gem',
+		142:'vacuum purple gem',
+		143:'vacuum pink gem',	# looks kind of red
 		147:'COINCOFF',		# 1
 		146:'blue, purple, or green gem',	# multiple codes
 		148:'BIG URCH',
@@ -301,6 +310,7 @@ class Mario(BLE_Device):
 		150:'PRESENT',
 		151:'PRESENT 2',
 		152:'PRESENT 3',
+		153:'skating on ice',
 		155:'eating the CAKE',		# 5 if already riding
 		156:'BOMBWARP',		# 8????
 		157:'BABYOSHI',		# 5
@@ -310,18 +320,35 @@ class Mario(BLE_Device):
 		163:'BIGKOOPA',
 		164:'YOSHI E4',
 		165:'BIG GOOM',
-		166:'x_BRVGL_',		# Throw Birdo's egg back at them
-		167:'x_BRVPL_',
-		168:'x_BRTLG_',
-		169:'x_BRTPG_',
-		174:'x_BRTVG_',
+		166:'BIRDO throw',		# Throw Birdo's egg back at them
+		167:'SMOLSUMO',		# 5
+		168:'CONKDOR',		# 2
+		169:'FLIPRUS',		# 2
+		170:'DONKEY Kong',
+		173:'CHKPOINT',
+		174:'LAVALIFT',		# varies
 		175:'YOSHI E5',
 		176:'fireball pants blip',
 		179:'propeller pants flying',
 		182:'bee pants flying',
-		184:'vacuumed any ghost',
+		184:'vacuumed anything (also ghost?)',
 		187:'NABBIT',
-		188:'TURNIP throw'
+		188:'TURNIP throw',
+		189:'eating BANANA',
+		190:'BONGOS session',
+		191:'fishing reward',
+		192:'eating PICNIC cookies',
+		193:'feeding RAMBI',
+		194:'SNAGGLES',
+		195:'EXERCISE',
+		196:'PLANE',
+		197:'CRANKY Kong',
+		200:'MORTON',
+		201:'FUNKY Kong',
+		202:'CHEST',
+		203:'BALLOON',
+		205:'MUSIC',
+		255:'gold grow turns item into coins' # 5 (turnip, mushroom, 1-up, goldbone)
 	}
 
 	# Set in the advertising name
@@ -438,9 +465,14 @@ class Mario(BLE_Device):
 		}
 
 		# 0x38: Most actual events are stuffed under here
+
+		# FIXME: Probably not toad related.  Multiplayer sync reward?  See: STEERING firing collaboration under 5.5 fw
 		self.event_data_dispatch[(0x38,0x1,0x3)] = lambda dispatch_key: {
 			self.message_queue.put(('event','toad_trap','unlocked'))
 		}
+
+# mutiplayer, near scan of 316 (present_2 was empty code emitted (0x38,0x77,0x0))
+#luigi event data:0x1 0x38 0x4 0x0
 
 		# Player is going for a ride... SHOE, DORRIE, CLOWN, SPIN 1, SPIN 2, SPIN 3, SPIN 4, WAGGLE, HAMMER, BOMBWARP
 		self.event_data_dispatch[(0x38,0x3,0x0)] = lambda dispatch_key: {
@@ -467,8 +499,10 @@ class Mario(BLE_Device):
 		self.event_data_dispatch[(0x38,0x41,0x1)] = lambda dispatch_key: {
 			self.message_queue.put(('event','encounter_start','message_3'))
 		}
-		# Bug?  Scanned Coin 1
-		# peach event data:0x41 0x38 0x2 0x0
+
+# Bug?  Scanned Coin 1
+# peach event data:0x41 0x38 0x2 0x0
+
 		self.event_data_dispatch[(0x38,0x41,0x3)] = lambda dispatch_key: {
 			self.message_queue.put(('event','encounter_chomp_start','message_2'))
 		}
@@ -481,7 +515,8 @@ class Mario(BLE_Device):
 
 		# Not reliable
 		# So unreliable I might have hallucinated this...
-		# FIXME: Try rotating while on the keyhole
+		# NOPE, multiplayer generated!
+		#	STEERING also generates this on scan 0x1 in and scan out 0x0
 		#self.event_data_dispatch[(0x38,0x50,0x0)] = lambda dispatch_key: {
 		#				self.message_queue.put(('event','keyhole','out'))
 		#}
@@ -513,9 +548,12 @@ class Mario(BLE_Device):
 			self.message_queue.put(('event','pow','hit'))
 		}
 
-		# Bored, maybe?
-		#mario event data:0x61 0x38 0x4 0x0
-		#mario event data:0x61 0x38 0x2 0x0
+# Bored, maybe?
+#mario event data:0x61 0x38 0x4 0x0
+#mario event data:0x61 0x38 0x2 0x0
+
+# After removed pants and set down prone
+# peach event data:0x61 0x38 0x1 0x0
 
 		self.event_data_dispatch[(0x38,0x61,0x5)] = lambda dispatch_key: {
 			self.message_queue.put(('event','prone','laying_down'))
@@ -525,6 +563,10 @@ class Mario(BLE_Device):
 			# "I'm sleepy"
 			self.message_queue.put(('event','prone','sleepy'))
 		}
+
+#sleep while opening present???
+#peach event data:0x61 0x38 0x7 0x0
+
 		self.event_data_dispatch[(0x38,0x61,0x8)] = lambda dispatch_key: {
 			# "oh" Usually first before sleepy, but not always.  Sometimes repeated
 			# Basically, unreliable
@@ -557,6 +599,9 @@ class Mario(BLE_Device):
 		self.event_data_dispatch[(0x38,0x69,0x2)] = lambda dispatch_key: {
 			self.message_queue.put(('event','red_coin',2))
 		}
+
+#FIXME: finale?
+#luigi event data:0x69 0x38 0x4 0x0
 
 		# ? Block reward (duplicate of 0x4 0x40)
 		self.event_data_dispatch[(0x38,0x6a,0x0)] = lambda dispatch_key: None	# 1 coin
@@ -610,10 +655,16 @@ class Mario(BLE_Device):
 		self.event_data_dispatch[(0x38,0x74,0x6)] = lambda dispatch_key: {
 			self.message_queue.put(('event','present','FRUIT BL'))
 		}
+		self.event_data_dispatch[(0x38,0x74,0x7)] = lambda dispatch_key: {
+			self.message_queue.put(('event','present','BANANA'))
+		}
+		self.event_data_dispatch[(0x38,0x74,0x8)] = lambda dispatch_key: {
+			self.message_queue.put(('event','present','cookies'))
+		}
 
 		# Lost possession of whatever item you had to PRESENT
 		self.event_data_dispatch[(0x38,0x75,0x0)] = lambda dispatch_key: {
-			self.message_queue.put(('event','wrapped','present'))
+			self.message_queue.put(('event','food_wrapped','present'))
 		}
 		self.event_data_dispatch[(0x38,0x75,0x1)] = lambda dispatch_key: {
 			self.message_queue.put(('event','burnt_wrapped','present'))
@@ -629,7 +680,7 @@ class Mario(BLE_Device):
 			self.message_queue.put(('event','multiplayer',('bad_wrapped','present')))
 		}
 		self.event_data_dispatch[(0x38,0x76,0x3)] = lambda dispatch_key: {
-			self.message_queue.put(('event','multiplayer',('wrapped','present')))
+			self.message_queue.put(('event','multiplayer',('food_wrapped','present')))
 		}
 		# umm, won't emit gold_wrapped in multiplayer?
 
@@ -655,10 +706,16 @@ class Mario(BLE_Device):
 		self.event_data_dispatch[(0x38,0x77,0x6)] = lambda dispatch_key: {
 			self.message_queue.put(('event','present_2','FRUIT BL'))
 		}
+		self.event_data_dispatch[(0x38,0x77,0x7)] = lambda dispatch_key: {
+			self.message_queue.put(('event','present_2','BANANA'))
+		}
+		self.event_data_dispatch[(0x38,0x77,0x8)] = lambda dispatch_key: {
+			self.message_queue.put(('event','present_2','cookies'))
+		}
 
 		# Lost possession of whatever item you had to PRESENT 2
 		self.event_data_dispatch[(0x38,0x78,0x0)] = lambda dispatch_key: {
-			self.message_queue.put(('event','wrapped','present_2'))
+			self.message_queue.put(('event','food_wrapped','present_2'))
 		}
 		self.event_data_dispatch[(0x38,0x78,0x1)] = lambda dispatch_key: {
 			self.message_queue.put(('event','burnt_wrapped','present_2'))
@@ -677,8 +734,12 @@ class Mario(BLE_Device):
 		self.event_data_dispatch[(0x38,0x79,0x1)] = lambda dispatch_key: {
 			self.message_queue.put(('event','multiplayer',('bad_wrapped','present_2')))
 		}
+
+# gold wrapped multi event???
+#luigi event data:0x79 0x38 0x2 0x0
+
 		self.event_data_dispatch[(0x38,0x79,0x3)] = lambda dispatch_key: {
-			self.message_queue.put(('event','multiplayer',('wrapped','present_2')))
+			self.message_queue.put(('event','multiplayer',('food_wrapped','present_2')))
 		}
 		# umm, won't emit gold_wrapped in multiplayer?
 
@@ -756,23 +817,49 @@ class Mario(BLE_Device):
 		}
 
 		self.event_data_dispatch[(0x38,0x8e,0x0)] = lambda dispatch_key: {
-			self.message_queue.put(('event','turnip','from present'))
+			self.message_queue.put(('event','opened','present'))
+		}
+		self.event_data_dispatch[(0x38,0x8e,0x1)] = lambda dispatch_key: {
+			self.message_queue.put(('event','present','MUSHROOM'))
+		}
+		self.event_data_dispatch[(0x38,0x8e,0x2)] = lambda dispatch_key: {
+			self.message_queue.put(('event','present','1-UP'))
+		}
+		self.event_data_dispatch[(0x38,0x8e,0x3)] = lambda dispatch_key: {
+			self.message_queue.put(('event','present','GOLDBONE'))
 		}
 		self.event_data_dispatch[(0x38,0x8e,0x4)] = lambda dispatch_key: {
-			self.message_queue.put(('event','present','turnip'))
+			self.message_queue.put(('event','present','TURNIP'))
 		}
 
-		# Got the turnip out of PRESENT 2
+		# Got anything out of PRESENT 2
 		self.event_data_dispatch[(0x38,0x8f,0x0)] = lambda dispatch_key: {
-			self.message_queue.put(('event','turnip','from present_2'))
+			self.message_queue.put(('event','opened','present_2'))
+		}
+		self.event_data_dispatch[(0x38,0x8f,0x1)] = lambda dispatch_key: {
+			self.message_queue.put(('event','present_2','MUSHROOM'))
+		}
+		self.event_data_dispatch[(0x38,0x8f,0x2)] = lambda dispatch_key: {
+			self.message_queue.put(('event','present_2','1-UP'))
+		}
+		self.event_data_dispatch[(0x38,0x8f,0x3)] = lambda dispatch_key: {
+			self.message_queue.put(('event','present_2','GOLDBONE'))
 		}
 		self.event_data_dispatch[(0x38,0x8f,0x4)] = lambda dispatch_key: {
-			self.message_queue.put(('event','present_2','turnip'))
+			self.message_queue.put(('event','present_2','TURNIP'))
 		}
 
 		# They must have given up organizing this
+		self.event_data_dispatch[(0x38,0x91,0x0)] = lambda dispatch_key: {
+			self.message_queue.put(('event','checkpoint','1 coin'))
+		}
+		# Large Applause
 		self.event_data_dispatch[(0x38,0x91,0x1)] = lambda dispatch_key: {
-			self.message_queue.put(('event','checkpoint','flag'))
+			self.message_queue.put(('event','checkpoint','5 coins'))
+		}
+
+		self.event_data_dispatch[(0x38,0x91,0x2)] = lambda dispatch_key: {
+			self.message_queue.put(('event','checkpoint','3 coins'))
 		}
 
 		self.event_data_dispatch[(0x38,0x92,0x0)] = lambda dispatch_key: {
@@ -783,13 +870,52 @@ class Mario(BLE_Device):
 			self.message_queue.put(('event','ate','FRUIT BL'))
 		}
 
+		# threw, lost, same thing
 		self.event_data_dispatch[(0x38,0x94,0x0)] = lambda dispatch_key: {
 			self.message_queue.put(('event','turnip','threw'))
+		}
+
+		self.event_data_dispatch[(0x38,0x95,0x0)] = lambda dispatch_key: {
+			self.message_queue.put(('event','lost','BANANA'))
+		}
+
+# ate or lost???
+		self.event_data_dispatch[(0x38,0x95,0x5)] = lambda dispatch_key: {
+			self.message_queue.put(('event','lost_golden','BANANA'))
+		}
+
+		self.event_data_dispatch[(0x38,0x95,0x7)] = lambda dispatch_key: {
+			self.message_queue.put(('event','ate','BANANA'))
+		}
+
+		self.event_data_dispatch[(0x38,0x99,0x0)] = lambda dispatch_key: {
+			self.message_queue.put(('event','lost','cookies'))
+		}
+
+		self.event_data_dispatch[(0x38,0x99,0x5)] = lambda dispatch_key: {
+			self.message_queue.put(('event','ate','cookies'))
+		}
+
+		# MUSIC code
+		# Might be calibration time for determining who is to the "left" and who is to the "right" (typically the bird)
+		self.event_data_dispatch[(0x38,0x9a,0x0)] = lambda dispatch_key: {
+			self.message_queue.put(('event','danceparty','ready'))
+		}
+		self.event_data_dispatch[(0x38,0x9a,0x1)] = lambda dispatch_key: {
+			self.message_queue.put(('event','danceparty','start'))
+		}
+		# "we did it"- peach
+		self.event_data_dispatch[(0x38,0x9a,0x2)] = lambda dispatch_key: {
+			self.message_queue.put(('event','danceparty','complete'))
+		}
+		self.event_data_dispatch[(0x38,0x9a,0x3)] = lambda dispatch_key: {
+			self.message_queue.put(('event','danceparty','end'))
 		}
 
 		# Did they run out of room in their rubbish bin of 0x38?
 		# Contents of PRESENT3
 		self.event_data_dispatch[(0x39,0x90,0x0)] = lambda dispatch_key: {
+			# seems to only fire after fruit received
 			self.message_queue.put(('event','present_3','empty'))
 		}
 		self.event_data_dispatch[(0x39,0x90,0x1)] = lambda dispatch_key: {
@@ -810,13 +936,22 @@ class Mario(BLE_Device):
 		self.event_data_dispatch[(0x39,0x90,0x6)] = lambda dispatch_key: {
 			self.message_queue.put(('event','present_3','FRUIT BL'))
 		}
+		self.event_data_dispatch[(0x39,0x90,0x7)] = lambda dispatch_key: {
+			self.message_queue.put(('event','present_3','BANANA'))
+		}
+		self.event_data_dispatch[(0x39,0x90,0x8)] = lambda dispatch_key: {
+			self.message_queue.put(('event','present_3','cookies'))
+		}
 
 		# 'wrapped' events seem unreliably sent, but the player interprets the present correctly even if the event is lost
 		self.event_data_dispatch[(0x39,0x91,0x0)] = lambda dispatch_key: {
-			self.message_queue.put(('event','wrapped','present_3'))
+			self.message_queue.put(('event','food_wrapped','present_3'))
 		}
 		self.event_data_dispatch[(0x39,0x91,0x1)] = lambda dispatch_key: {
 			self.message_queue.put(('event','burnt_wrapped','present_3'))
+		}
+		self.event_data_dispatch[(0x39,0x91,0x2)] = lambda dispatch_key: {
+			self.message_queue.put(('event','poison_wrapped','present_3'))
 		}
 		self.event_data_dispatch[(0x39,0x91,0x3)] = lambda dispatch_key: {
 			self.message_queue.put(('event','gold_wrapped','present_3'))
@@ -830,17 +965,25 @@ class Mario(BLE_Device):
 			self.message_queue.put(('event','multiplayer',('burnt_wrapped','present_3')))
 		}
 		self.event_data_dispatch[(0x39,0x92,0x3)] = lambda dispatch_key: {
-			self.message_queue.put(('event','multiplayer',('wrapped','present_3')))
+			self.message_queue.put(('event','multiplayer',('food_wrapped','present_3')))
 		}
 
 		self.event_data_dispatch[(0x39,0x93,0x0)] = lambda dispatch_key: {
-			self.message_queue.put(('event','turnip','from present_3'))
+			self.message_queue.put(('event','opened','present_3'))
 		}
 
-		# Scanned PRESENT3 and got this somehow
-		# peach event data:0x93 0x39 0x1 0x0
+		#object contents of present 3, similar to fruit
+		self.event_data_dispatch[(0x39,0x93,0x1)] = lambda dispatch_key: {
+			self.message_queue.put(('event','present_3','MUSHROOM'))
+		}
+		self.event_data_dispatch[(0x39,0x93,0x2)] = lambda dispatch_key: {
+			self.message_queue.put(('event','present_3','1-UP'))
+		}
+		self.event_data_dispatch[(0x39,0x93,0x3)] = lambda dispatch_key: {
+			self.message_queue.put(('event','present_3','GOLDBONE'))
+		}
 		self.event_data_dispatch[(0x39,0x93,0x4)] = lambda dispatch_key: {
-			self.message_queue.put(('event','present_3','turnip'))
+			self.message_queue.put(('event','present_3','TURNIP'))
 		}
 
 		# Randomized and customizable things?
@@ -935,9 +1078,11 @@ class Mario(BLE_Device):
 		# Definitely not sent on connect
 		await self.request_version_update()
 		await self.request_volume_update()
+
+		# Use as a guaranteed init event
 		await self.request_battery_update()
 
-		#await self.interrogate_ports()
+		await self.interrogate_ports()
 
 	# override
 	# FIXME: What if we did NOT
@@ -1038,6 +1183,8 @@ class Mario(BLE_Device):
 						self.decode_accel_data(bt_message['value'])
 					elif pd['name'] == 'LEGO Events':
 						self.decode_event_data(bt_message['value'])
+					elif pd['name'] == 'Mario Alt Events':
+						self.decode_alt_event_data(bt_message['value'])
 					else:
 						if Mario.DEBUG >= 2:
 							Mario.dp(msg_prefix+"Data on "+self.port_data[bt_message['port']]['name']+" port"+":"+" ".join(hex(n) for n in data),2)
@@ -1375,6 +1522,19 @@ class Mario(BLE_Device):
 
 			# NOTE: These seem to be organized first by key (the second number)
 
+			# Emitted at beginning and end of course
+			#peach 0X9A TYPE data:0x9a 0x38 0x3 0x0
+
+			# scan MUSIC
+			#peach 0X9A TYPE data:0x9a 0x38 0x0 0x0
+
+			#peach scanned PICNIC
+				# Select the weird three-cakes
+			#peach event data:0x99 0x38 0x5 0x0
+
+			# ate BANANA
+				#peach event data:0x95 0x38 0x7 0x0
+
 			# Static, indexable codes (set in __init__)
 			dispatch_key = (event_key, event_type, value)
 			if dispatch_key in self.event_data_dispatch:
@@ -1410,8 +1570,11 @@ class Mario(BLE_Device):
 			elif event_key == 0x20:
 				# hat tip to https://github.com/bhawkes/lego-mario-web-bluetooth/blob/master/pages/index.vue
 				#Mario.dp(self.system_type+" now has "+str(value)+" coins (obtained via "+str(hex(event_type))+")",2)
+				if not event_type in self.event_scanner_coinsource:
+					Mario.dp(self.system_type+" unknown coin source "+str(event_type),2)
 				self.message_queue.put(('event','coincount',(value, event_type)))
 				decoded_something = True
+
 
 			# Goals and ghosts
 			elif event_key == 0x30:
@@ -1419,6 +1582,9 @@ class Mario(BLE_Device):
 					# SOMETIMES, on a successful finish, data[3] is 0x2, but most of the time it's 0x0
 					# on failure, 0,1,2,3
 					# 0x4 for STARTC50 ?
+
+					# START2 failure, hit a ghost as well
+					#peach unknown goal status: 601: (89,2) :0x59 0x2
 					Mario.dp(self.system_type+" unknown goal status: "+str(value)+": ("+str(data[2])+","+str(data[3])+") :"+" ".join(hex(n) for n in [data[2],data[3]]),2)
 					decoded_something = True
 
@@ -1453,6 +1619,9 @@ class Mario(BLE_Device):
 					self.message_queue.put(('event','coin50_count',value))
 					decoded_something = True
 
+				# DK RIDE
+				# peach event data:0x62 0x38 0x2 0x0
+
 				# Poltergust stop
 				elif event_type == 0x6e:
 					if value != 0x0:
@@ -1474,6 +1643,7 @@ class Mario(BLE_Device):
 				if event_type == 0x3:
 					# 3 coins per unlock.  FIXME: Hellooo, look at the event_type value here...
 					# This message shows on each player
+					# FIXME: This is shows up on multiplayer dual STEERING codes with synchronous fire under 5.5 fw
 					self.message_queue.put(('event','multiplayer',('trap_coincount?',value)))
 					decoded_something = True
 
@@ -1565,14 +1735,41 @@ class Mario(BLE_Device):
 
 		pass
 
+	def decode_alt_event_data(self, data):
+		if len(data) == 4:
+			# Peach goodbye mario
+			# 0x2 0x0 0x1 0x0
+
+			# Luigi goodbye peach
+			# 0x2 0x0 0x3 0x0
+			action = Mario.mario_bytes_to_int(data[:2])
+			if action == 2:
+				player = Mario.mario_bytes_to_int(data[2:])
+				if player == 1:
+					self.message_queue.put(('event','multiplayer', ('goodbye', 'mario')))
+				elif player == 2:
+					self.message_queue.put(('event','multiplayer', ('goodbye', 'luigi')))
+				elif player == 3:
+					self.message_queue.put(('event','multiplayer', ('goodbye', 'peach')))
+				else:
+					Mario.dp(self.system_type+" unknown goodbye event for player:"+" ".join(hex(n) for n in data[2:]),2)
+			else:
+				Mario.dp(self.system_type+" alternate event data:"+" ".join(hex(n) for n in data),2)
+		else:
+			Mario.dp(self.system_type+" non-mode-0-style alternate event data:"+" ".join(hex(n) for n in data),2)
+
 	def decode_advertising_name(self, name):
 		#LEGO Mario_j_r
 
 		if name.startswith("LEGO Mario_") == False or len(name) != 14:
 			# print(name.encode("utf-8").hex())
+			# Four spaces after the name
 			if name == "LEGO Peach    ":
-				# Four spaces after the name
 				Mario.dp("Peach has no icon or color set")
+			elif name == "LEGO Mario    ":
+				Mario.dp("Mario has no icon or color set")
+			elif name == "LEGO Luigi    ":
+				Mario.dp("Luigi has no icon or color set")
 			else:
 				Mario.dp("Unusual advertising name set:"+name)
 			return
@@ -1744,17 +1941,63 @@ class Mario(BLE_Device):
 		#print("Valid BR codes: "+str(valid_codes)+" Invalid: "+str(forbidden_codes+mirrored_codes)+" ("+str(forbidden_codes)+" contain black, "+str(mirrored_codes)+" have mirrors)")
 		# Valid BR codes: 100 Invalid: 110 (90 contain black, 20 have mirrors)
 
+	# Thanks to Peach misscanning (DK BLOON) BRTGL as TRPBG, my initial guess of Pink had to be hedged and I only printed a page of _half_ bad codes
+	# TR support as far back App 2.6.4 firmwares (5.5, maybe earlier)
+	def generate_tr_codespace():
+		valid_codes = 0
+		forbidden_codes = 0
+		mirrored_codes = 0
+		prefix = "TR"
+		mario_numbers = ['B','P','?','Y','V','G','L']
+		potential_position_1 = mario_numbers[:]
+		# resume from the end of the GR space
+		count = 421
+		for p1 in potential_position_1:
+			potential_position_2 = mario_numbers[:]
+			potential_position_2.remove(p1)
+			for p2 in potential_position_2:
+				potential_position_3 = potential_position_2[:]
+				potential_position_3.remove(p2)
+				for p3 in potential_position_3:
+					code = None
+					mirrorcode = ""
+					if p1 != '?' and p2 != '?' and p3 != '?':
+						# Note order compared to GR.  I just copypasted this from BR and it aligned emprically vs using GRs
+						code = prefix+p1+p3+p2
+						mirrorcode = Mario.does_code_have_mirror(code)
+						if mirrorcode:
+							# When scanned "backwards" this code is equivalent to a GR or BR code that has T in the third position
+							# Ignore it because the lowest code's number is the one that is returned (BR or GR)_
+							code = "--M--\t"+mirrorcode
+							mirrored_codes += 1
+						else:
+							code = code+"\t"
+							valid_codes += 1
+					else:
+						code = "-----\t"
+						forbidden_codes += 1
+					mario_hex = Mario.int_to_mario_bytes(count)
+					Mario.dp(str(count)+"\t"+code+"\t"+" ".join('0x{:02x}'.format(n) for n in mario_hex),4)
+					Mario.tr_codespace[count] = code
+					count += 1
+
+		#print("Valid TR codes: "+str(valid_codes)+" Invalid: "+str(forbidden_codes+mirrored_codes)+" ("+str(forbidden_codes)+" contain black, "+str(mirrored_codes)+" have mirrors)")
+		# Valid TR codes: 80 Invalid: 130 (90 contain black, 40 have mirrors)
+
 	def print_codespace():
 		# i\tcode\tmirror\tlabel\tscanner hex\tbinary
 		Mario.generate_codespace()
 		Mario.print_gr_codespace()
 		Mario.print_br_codespace()
+		Mario.print_tr_codespace()
 
 	def generate_codespace():
 		if not Mario.gr_codespace:
 			Mario.generate_gr_codespace()
 		if not Mario.br_codespace:
 			Mario.generate_br_codespace()
+		if not Mario.tr_codespace:
+			Mario.generate_tr_codespace()
 
 	def print_gr_codespace():
 		if not Mario.gr_codespace:
@@ -1765,6 +2008,11 @@ class Mario(BLE_Device):
 		if not Mario.br_codespace:
 			Mario.generate_br_codespace()
 		Mario.print_cached_codespace(Mario.br_codespace)
+
+	def print_tr_codespace():
+		if not Mario.tr_codespace:
+			Mario.generate_tr_codespace()
+		Mario.print_cached_codespace(Mario.tr_codespace)
 
 	def print_cached_codespace(codespace_cache):
 		for i,c in codespace_cache.items():
@@ -1800,6 +2048,12 @@ class Mario(BLE_Device):
 			if mariocode[2] == 'B':
 				return 'BRG'+mariocode[4]+mariocode[3]
 			return None
+		elif mariocode.startswith('TR'):
+			if mariocode[2] == 'B':
+				return 'BRT'+mariocode[4]+mariocode[3]
+			elif mariocode[2] == 'G':
+				return 'GRT'+mariocode[4]+mariocode[3]
+			return None
 		else:
 			return "INVAL"
 
@@ -1810,6 +2064,8 @@ class Mario(BLE_Device):
 			code = Mario.br_codespace[mario_int]
 		elif mario_int in Mario.gr_codespace:
 			code = Mario.gr_codespace[mario_int]
+		elif mario_int in Mario.tr_codespace:
+			code = Mario.tr_codespace[mario_int]
 		else:
 			return "--U--"
 		splitcode = code.split('\t')
