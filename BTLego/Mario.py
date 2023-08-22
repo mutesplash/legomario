@@ -1082,7 +1082,7 @@ class Mario(BLE_Device):
 		# Use as a guaranteed init event
 		await self.request_battery_update()
 
-		await self.interrogate_ports()
+		#await self.interrogate_ports()
 
 	# override
 	# FIXME: What if we did NOT
