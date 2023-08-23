@@ -1,3 +1,17 @@
+# Setup
+# -----
+# * Connect any number of LEGO Mario devices to the computer running this app
+#		(Try and not connect them at the same time or they'll connect to themselves)
+# * Connect the LEGO 88010 controller to this app
+#
+# Use
+# -----
+# * Use the green controller button to switch which LEGO Mario device to control
+#		(LED will change color to match)
+# * Use the right +/- button to change the selected LEGO Mario device's volume by 10
+# * Use the right center red button to power off the selected LEGO Mario device
+# * Use the left center red button to power off the controller after cycling through the LED colors
+
 import sys
 import platform
 import asyncio
@@ -64,11 +78,8 @@ async def select_next_player():
 			await handset_device.write_mode_data_RGB_color(BTLego.Controller.RGB_LIGHT_PORT, 0xa)
 			await asyncio.sleep(0.2)
 
-async def btlecallbacks(message):
+async def mario_callback(message):
 	# ( dev_addr, type, key, value )
-	global volume
-	global selected_device
-	global selected_device_index
 	global lego_devices
 	global callbacks_to_device_addresses
 
@@ -93,6 +104,18 @@ async def btlecallbacks(message):
 				if temp_message_lastscan:
 					print("Gained coins from last scan of "+temp_message_lastscan+" which is numbered "+str(message[3][1])+" and NOT KNOWN in the database!")
 			temp_message_lastscan = None
+
+
+async def controller_callback(message):
+	global volume
+	global selected_device
+	global selected_device_index
+
+	global lego_devices
+	global callbacks_to_device_addresses
+
+	print("CALLBACK:"+str(message))
+	current_device = lego_devices[callbacks_to_device_addresses[message[0]]]
 
 	if message[1] == 'controller_buttons':
 		if message[2] == 'left' and message[3] == 'center':
@@ -166,7 +189,7 @@ async def detect_device_callback(bleak_device, advertisement_data):
 
 				if system_type == 'handset':
 					lego_devices[bleak_device.address] = BTLego.Controller(advertisement_data)
-					callback_uuid = await lego_devices[bleak_device.address].register_callback(btlecallbacks)
+					callback_uuid = await lego_devices[bleak_device.address].register_callback(controller_callback)
 					callbacks_to_device_addresses[callback_uuid] = bleak_device.address
 
 					await lego_devices[bleak_device.address].subscribe_to_messages_on_callback(callback_uuid, 'event')
@@ -178,7 +201,7 @@ async def detect_device_callback(bleak_device, advertisement_data):
 					await lego_devices[bleak_device.address].subscribe_to_messages_on_callback(callback_uuid, 'info')
 				else:
 					lego_devices[bleak_device.address] = BTLego.Mario(advertisement_data,code_data)
-					callback_uuid = await lego_devices[bleak_device.address].register_callback(btlecallbacks)
+					callback_uuid = await lego_devices[bleak_device.address].register_callback(mario_callback)
 					callbacks_to_device_addresses[callback_uuid] = bleak_device.address
 
 					await lego_devices[bleak_device.address].subscribe_to_messages_on_callback(callback_uuid, 'event')
