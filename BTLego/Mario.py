@@ -76,8 +76,6 @@ class Mario(BLE_Device):
 		'gesture',
 		'scanner',
 		'pants',
-		'info',
-		'error'
 	)
 
 	# https://github.com/bricklife/LEGO-Mario-Reveng
@@ -1084,173 +1082,96 @@ class Mario(BLE_Device):
 
 		#await self.interrogate_ports()
 
-	# override
-	# FIXME: What if we did NOT
-	async def set_event_subscriptions(self, current_subscriptions):
-		# FIXME: Uhh, actually doesn't allow you to unsubscribe.  Good design here. Top notch
-		if self.connected:
-			for subscription in current_subscriptions:
-				mario_specific = await self.set_subscription(subscription, True)
-				all_btlego_devices = await super().set_subscription(subscription, True)
-				if not mario_specific and not all_btlego_devices:
-					Mario.dp("INVALID Subscription option:"+subscription)
-		else:
-			Mario.dp("NOT CONNECTED.  Not setting port subscriptions",2)
-
-	async def set_subscription(self, subscription, should_subscribe):
+	async def set_subscription(self, subscription, should_subscribe=True):
 		valid_sub_name = True
 
 		if subscription == 'event':
 			# This sub includes the button, which is in super
-			await self.set_port_subscriptions([[self.EVENTS_PORT,2,5,True]])
+			# Hmm, probably need to make this mario_events
+			await self.set_port_subscriptions([[self.EVENTS_PORT,2,5,should_subscribe]])
 		elif subscription == 'motion':
-			await self.set_port_subscriptions([[self.IMU_PORT,0,5,True]])
+			await self.set_port_subscriptions([[self.IMU_PORT,0,5,should_subscribe]])
 		elif subscription == 'gesture':
-			await self.set_port_subscriptions([[self.IMU_PORT,1,5,True]])
+			await self.set_port_subscriptions([[self.IMU_PORT,1,5,should_subscribe]])
 		elif subscription == 'scanner':
-			await self.set_port_subscriptions([[self.RGB_PORT,0,5,True]])
+			await self.set_port_subscriptions([[self.RGB_PORT,0,5,should_subscribe]])
 		elif subscription == 'pants':
-			await self.set_port_subscriptions([[self.PANTS_PORT,0,5,True]])
+			await self.set_port_subscriptions([[self.PANTS_PORT,0,5,should_subscribe]])
 		else:
 			valid_sub_name = False
 
 		if valid_sub_name:
-			Mario.dp("Setting subscription to "+subscription,2)
+			if should_subscribe:
+				Mario.dp("Setting Mario subscription to "+subscription,2)
+			else:
+				Mario.dp("Removing Mario subscription to "+subscription,2)
 
-		return valid_sub_name
+		# FIXME: Should event be shared with the button in base?
+		# Pass "event" down the chain
+		super_valid_sub_name = await super().set_subscription(subscription, should_subscribe)
+		return ( valid_sub_name or super_valid_sub_name )
 
-	# override
-	async def device_events(self, sender, data):
-
-		bt_message = Decoder.decode_payload(data)
+	async def process_bt_message(self, bt_message):
 		msg_prefix = self.system_type+" "
 
-		if bt_message['error']:
-			Mario.dp(msg_prefix+"ERR:"+bt_message['readable'])
-			self.message_queue.put(('error','message',bt_message['readable']))
-
-		else:
-			if Decoder.message_type_str[bt_message['type']] == 'port_input_format_single':
-				if Mario.DEBUG >= 2:
-					msg = "Disabled notifications on "
-					if bt_message['notifications']:
-						# Returned typically after gatt write
-						msg = "Enabled notifications on "
-
-					port_text = "port "+str(bt_message['port'])
-					if bt_message['port'] in self.port_data:
-						# Sometimes the hub_attached_io messages don't come in before the port subscriptions do
-						port_text = self.port_data[bt_message['port']]['name']+" port ("+str(bt_message['port'])+")"
-
-					Mario.dp(msg_prefix+msg+port_text+", mode "+str(bt_message['mode']), 2)
-
-			# Sent on connect, without request
-			elif Decoder.message_type_str[bt_message['type']] == 'hub_attached_io':
-				event = Decoder.io_event_type_str[bt_message['event']]
-				if event == 'attached':
-					dev = "UNKNOWN DEVICE"
-					if bt_message['io_type_id'] in Decoder.io_type_id_str:
-						dev = Decoder.io_type_id_str[bt_message['io_type_id']]
-					else:
-						dev += "_"+str(bt_message['io_type_id'])
-
-					if bt_message['port'] in self.port_data:
-						Mario.dp(msg_prefix+"Re-attached "+dev+" on port "+str(bt_message['port']),2)
-						self.port_data[bt_message['port']]['status'] = bt_message['event']
-					else:
-						Mario.dp(msg_prefix+"Attached "+dev+" on port "+str(bt_message['port']),2)
-						self._init_port_data(bt_message['port'], bt_message['io_type_id'])
-
-				elif event == 'detached':
-					Mario.dp(msg_prefix+"Detached "+dev+" on port "+str(bt_message['port']),2)
-					self.port_data[bt_message['port']]['status'] = 0x0 # io_event_type_str
-
+		# FIXME: Almost got this deduplicated enough
+		if Decoder.message_type_str[bt_message['type']] == 'port_value_single':
+			if not bt_message['port'] in self.port_data:
+				Mario.dp(msg_prefix+"ERR: Attempted to process data from an unconfigured port "+str(bt_message['port']))
+			else:
+				pd = self.port_data[bt_message['port']]
+				if pd['name'] == 'Mario Pants Sensor':
+					self.decode_pants_data(bt_message['value'])
+				elif pd['name'] == 'Mario RGB Scanner':
+					self.decode_scanner_data(bt_message['value'])
+				elif pd['name'] == 'Mario Tilt Sensor':
+					self.decode_accel_data(bt_message['value'])
+				elif pd['name'] == 'LEGO Events':
+					self.decode_event_data(bt_message['value'])
+				elif pd['name'] == 'Mario Alt Events':
+					self.decode_alt_event_data(bt_message['value'])
 				else:
-					Mario.dp(msg_prefix+"HubAttachedIO: "+bt_message['readable'],1)
+					if Mario.DEBUG >= 2:
+						Mario.dp(msg_prefix+"Data on "+self.port_data[bt_message['port']]['name']+" port"+":"+" ".join(hex(n) for n in data),2)
 
-			elif Decoder.message_type_str[bt_message['type']] == 'port_value_single':
-				if not bt_message['port'] in self.port_data:
-					Mario.dp(msg_prefix+"ERR: Attempted to process data from an unconfigured port "+str(bt_message['port']))
-				else:
-					pd = self.port_data[bt_message['port']]
-					if pd['name'] == 'Mario Pants Sensor':
-						self.decode_pants_data(bt_message['value'])
-					elif pd['name'] == 'Mario RGB Scanner':
-						self.decode_scanner_data(bt_message['value'])
-					elif pd['name'] == 'Mario Tilt Sensor':
-						self.decode_accel_data(bt_message['value'])
-					elif pd['name'] == 'LEGO Events':
-						self.decode_event_data(bt_message['value'])
-					elif pd['name'] == 'Mario Alt Events':
-						self.decode_alt_event_data(bt_message['value'])
-					else:
-						if Mario.DEBUG >= 2:
-							Mario.dp(msg_prefix+"Data on "+self.port_data[bt_message['port']]['name']+" port"+":"+" ".join(hex(n) for n in data),2)
-
-			elif Decoder.message_type_str[bt_message['type']] == 'hub_properties':
-				if not Decoder.hub_property_op_str[bt_message['operation']] == 'Update':
-					# everything else is a write, so you shouldn't be getting these messages!
-					Mario.dp(msg_prefix+"ERR NOT UPDATE: "+bt_message['readable'])
-
-				else:
-					if not bt_message['property'] in Decoder.hub_property_str:
-						Mario.dp(msg_prefix+"Unknown property "+bt_message['readable'])
-					else:
-						if Decoder.hub_property_str[bt_message['property']] == 'Button':
-							if bt_message['value']:
-								Mario.dp(msg_prefix+"Bluetooth button pressed!",2)
-								self.message_queue.put(('event','button','pressed'))
-							else:
-								# Well, nobody cares if it WASN'T pressed...
-								pass
-
-						# The app seems to be able to subscribe to Battery Voltage and get it sent constantly
-						elif Decoder.hub_property_str[bt_message['property']] == 'Battery Voltage':
-							Mario.dp(msg_prefix+"Battery is at "+str(bt_message['value'])+"%",2)
-							self.message_queue.put(('info','batt',bt_message['value']))
-
-						elif Decoder.hub_property_str[bt_message['property']] == 'Advertising Name':
-							self.decode_advertising_name(bt_message['value'])
-
-						# hat tip to https://github.com/djipko/legomario.py/blob/master/legomario.py
-						elif Decoder.hub_property_str[bt_message['property']] == 'Mario Volume':
-							Mario.dp(msg_prefix+"Volume set to "+str(bt_message['value']),2)
-							self.message_queue.put(('info','volume',bt_message['value']))
-							self.volume = bt_message['value']
-
-						else:
-							Mario.dp(msg_prefix+bt_message['readable'],2)
-
-			elif Decoder.message_type_str[bt_message['type']] == 'port_output_command_feedback':
-				# Don't really care about these messages?  Just a bunch of queue status reporting
-				Mario.dp(msg_prefix+" "+bt_message['readable'],3)
-				pass
-
-			elif Decoder.message_type_str[bt_message['type']] == 'hub_alerts':
-				# Ignore "status OK" messages
-				if bt_message['status'] == True:
-					Mario.dp(msg_prefix+"ALERT! "+bt_message['alert_type_str']+" - "+bt_message['operation_str'])
-					self.message_queue.put(('error','message',bt_message['alert_type_str']+" - "+bt_message['operation_str']))
-
-			elif Decoder.message_type_str[bt_message['type']] == 'hub_actions':
-				self.decode_hub_action(bt_message)
-
-			elif Decoder.message_type_str[bt_message['type']] == 'port_info':
-				await self.decode_mode_info_and_interrogate(bt_message)
-
-			elif Decoder.message_type_str[bt_message['type']] == 'port_mode_info':
-				# Debug stuff for the ports and modes, similar to list command on BuildHAT
-				self.decode_port_mode_info(bt_message)
-
-			elif Decoder.message_type_str[bt_message['type']] == 'hw_network_cmd':
-				self.decode_hardware_network_command(bt_message)
+		elif Decoder.message_type_str[bt_message['type']] == 'hub_properties':
+			if not Decoder.hub_property_op_str[bt_message['operation']] == 'Update':
+				# everything else is a write, so you shouldn't be getting these messages!
+				Mario.dp(msg_prefix+"ERR NOT UPDATE: "+bt_message['readable'])
 
 			else:
-				# debug for messages we've never seen before
-				Mario.dp(msg_prefix+"-?- "+bt_message['readable'],1)
+				if not bt_message['property'] in Decoder.hub_property_str:
+					Mario.dp(msg_prefix+"Unknown property "+bt_message['readable'])
+				else:
+					if Decoder.hub_property_str[bt_message['property']] == 'Button':
+						if bt_message['value']:
+							Mario.dp(msg_prefix+"Bluetooth button pressed!",2)
+							self.message_queue.put(('event','button','pressed'))
+						else:
+							# Well, nobody cares if it WASN'T pressed...
+							pass
 
-		Mario.dp("Draining for: "+bt_message['readable'],3)
-		await self.drain_messages()
+					# The app seems to be able to subscribe to Battery Voltage and get it sent constantly
+					elif Decoder.hub_property_str[bt_message['property']] == 'Battery Voltage':
+						Mario.dp(msg_prefix+"Battery is at "+str(bt_message['value'])+"%",2)
+						self.message_queue.put(('info','batt',bt_message['value']))
+
+					elif Decoder.hub_property_str[bt_message['property']] == 'Advertising Name':
+						self.decode_advertising_name(bt_message)
+
+					# hat tip to https://github.com/djipko/legomario.py/blob/master/legomario.py
+					elif Decoder.hub_property_str[bt_message['property']] == 'Mario Volume':
+						Mario.dp(msg_prefix+"Volume set to "+str(bt_message['value']),2)
+						self.message_queue.put(('info','volume',bt_message['value']))
+						self.volume = bt_message['value']
+
+					else:
+						Mario.dp(msg_prefix+bt_message['readable'],2)
+
+		else:
+			return await super().process_bt_message(bt_message)
+
+		return True
 
 	# ---- Make data useful ----
 
@@ -1756,8 +1677,9 @@ class Mario(BLE_Device):
 		else:
 			Mario.dp(self.system_type+" non-mode-0-style alternate event data:"+" ".join(hex(n) for n in data),2)
 
-	def decode_advertising_name(self, name):
+	def decode_advertising_name(self, bt_message):
 		#LEGO Mario_j_r
+		name = bt_message['value']
 
 		if name.startswith("LEGO Mario_") == False or len(name) != 14:
 			# print(name.encode("utf-8").hex())
