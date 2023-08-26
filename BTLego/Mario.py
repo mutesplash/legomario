@@ -576,6 +576,9 @@ class Mario(BLE_Device):
 			Mario.dp(self.system_type+" ... events ...",4)
 		}
 
+# Received during connection in conjunction with the first battery low warning, 12%, maybe related
+#peach event data:0x62 0x38 0x2 0x0
+
 		# But... WHY is this duplicated?  Don't bother sending...
 		self.event_data_dispatch[(0x38,0x66,0x0)] = lambda dispatch_key: {
 			# self.message_queue.put(('event','consciousness_2','asleep'))
@@ -808,6 +811,10 @@ class Mario(BLE_Device):
 		self.event_data_dispatch[(0x38,0x86,0x5)] = lambda dispatch_key: {
 			self.message_queue.put(('event','number_block','complete'))
 		}
+
+#peach event data:0x87 0x38 0x2 0x0
+# Sings "la la la... do do doot doot"  bored??
+#	Was sitting on green, might make a difference
 
 		# Warming up by the fire BRTYG
 		self.event_data_dispatch[(0x38,0x89,0x0)] = lambda dispatch_key: {
@@ -1070,45 +1077,48 @@ class Mario(BLE_Device):
 		}
 
 	# override
-	async def inital_connect_updates(self):
+	async def _inital_connect_updates(self):
 		# Not always sent on connect
 		await self.request_name_update()
 		# Definitely not sent on connect
 		await self.request_version_update()
 		await self.request_volume_update()
 
-		# Use as a guaranteed init event
-		await self.request_battery_update()
-
 		#await self.interrogate_ports()
 
-	async def set_subscription(self, subscription, should_subscribe=True):
+	# add message_types, got to do this...
+	def _reset_event_subscription_counters(self):
+		for message_type in self.message_types:
+			self.BLE_event_subscriptions[message_type] = 0;
+		super()._reset_event_subscription_counters()
+
+	async def set_BLE_subscription(self, message_type, should_subscribe=True):
+		if not message_type in self.BLE_event_subscriptions:
+			return False
+
 		valid_sub_name = True
 
-		if subscription == 'event':
+		if message_type == 'event':
 			# This sub includes the button, which is in super
 			# Hmm, probably need to make this mario_events
 			await self.set_port_subscriptions([[self.EVENTS_PORT,2,5,should_subscribe]])
-		elif subscription == 'motion':
+		elif message_type == 'motion':
 			await self.set_port_subscriptions([[self.IMU_PORT,0,5,should_subscribe]])
-		elif subscription == 'gesture':
+		elif message_type == 'gesture':
 			await self.set_port_subscriptions([[self.IMU_PORT,1,5,should_subscribe]])
-		elif subscription == 'scanner':
+		elif message_type == 'scanner':
 			await self.set_port_subscriptions([[self.RGB_PORT,0,5,should_subscribe]])
-		elif subscription == 'pants':
+		elif message_type == 'pants':
 			await self.set_port_subscriptions([[self.PANTS_PORT,0,5,should_subscribe]])
 		else:
 			valid_sub_name = False
 
 		if valid_sub_name:
-			if should_subscribe:
-				Mario.dp("Setting Mario subscription to "+subscription,2)
-			else:
-				Mario.dp("Removing Mario subscription to "+subscription,2)
+			BLE_Device.dp(f'{self.system_type} set Mario hardware messages for {message_type} to {should_subscribe}',2)
 
-		# FIXME: Should event be shared with the button in base?
+		# FIXME: _Should_ event be shared with the button in base?
 		# Pass "event" down the chain
-		super_valid_sub_name = await super().set_subscription(subscription, should_subscribe)
+		super_valid_sub_name = await super().set_BLE_subscription(message_type, should_subscribe)
 		return ( valid_sub_name or super_valid_sub_name )
 
 	async def process_bt_message(self, bt_message):
@@ -1132,7 +1142,7 @@ class Mario(BLE_Device):
 					self.decode_alt_event_data(bt_message['value'])
 				else:
 					if Mario.DEBUG >= 2:
-						Mario.dp(msg_prefix+"Data on "+self.port_data[bt_message['port']]['name']+" port"+":"+" ".join(hex(n) for n in data),2)
+						Mario.dp(msg_prefix+"Data on "+self.port_data[bt_message['port']]['name']+" port"+":"+" ".join(hex(n) for n in bt_message['raw']),2)
 
 		elif Decoder.message_type_str[bt_message['type']] == 'hub_properties':
 			if not Decoder.hub_property_op_str[bt_message['operation']] == 'Update':
