@@ -125,7 +125,7 @@ class Decoder():
 		0x12:'Mario Volume'		# Can't enable updates on this property, which is annoying. Also won't send an update when you update it
 	}
 
-	subscribable_hub_properties = [
+	hub_properties_that_update = [
 		0x1,	# Advertising Name
 		0x2,	# Button
 		0x5,	# RSSI
