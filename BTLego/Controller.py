@@ -30,10 +30,18 @@ class Controller(BLE_Device):
 	BUTTONS_RIGHT_PORT = 1
 	CONTROLLER_RSSI_PORT = 60
 
-	# True if subscription is valid, false otherwise
-	async def set_subscription(self, subscription, should_subscribe=True):
+	# add message_types, got to do this...
+	def _reset_event_subscription_counters(self):
+		for message_type in self.message_types:
+			self.BLE_event_subscriptions[message_type] = 0;
+		super()._reset_event_subscription_counters()
+
+	# True if message_type is valid, false otherwise
+	async def set_BLE_subscription(self, message_type, should_subscribe=True):
+
 		valid_sub_name = True
-		if subscription == 'controller_buttons':
+
+		if message_type == 'controller_buttons':
 			await self.set_port_subscriptions([
 				[self.BUTTONS_LEFT_PORT,1,0,should_subscribe],
 				[self.BUTTONS_RIGHT_PORT,1,0,should_subscribe]
@@ -43,24 +51,36 @@ class Controller(BLE_Device):
 			# 3: returns 0x0 and nothing else
 			# 4: returns 0x0 0x0 0x0 and nothing else
 
-		elif subscription == 'controller_rgb':
+		elif message_type == 'controller_rgb':
 			await self.set_port_subscriptions([[self.RGB_LIGHT_PORT,0,5,should_subscribe]])
-		elif subscription == 'controller_volts':
+		elif message_type == 'controller_volts':
 			await self.set_port_subscriptions([[self.CONTROLLER_VOLTS_PORT,0,5,should_subscribe]])
-		elif subscription == 'controller_RSSI':
+		elif message_type == 'controller_RSSI':
 			await self.set_port_subscriptions([[self.CONTROLLER_RSSI_PORT,0,5,should_subscribe]])
 		else:
 			valid_sub_name = False
 
 		if valid_sub_name:
-			if should_subscribe:
-				Controller.dp("Setting Controller subscription to "+subscription,2)
-			else:
-				Controller.dp("Removing Controller subscription to "+subscription,2)
+			BLE_Device.dp(f'{self.system_type} set Controller hardware messages for {message_type} to {should_subscribe}',2)
 		else:
-			valid_sub_name = await super().set_subscription(subscription, should_subscribe)
+			# No passthrough
+			valid_sub_name = await super().set_BLE_subscription(message_type, should_subscribe)
 
 		return valid_sub_name
+
+	async def process_bt_message(self, bt_message):
+		msg_prefix = self.system_type+" "
+
+		if Decoder.message_type_str[bt_message['type']] == 'port_value_single':
+			if not bt_message['port'] in self.port_data:
+				Controller.dp(msg_prefix+"WARN: Received data for unconfigured port "+str(bt_message['port'])+':'+bt_message['readable'])
+			else:
+				pd = self.port_data[bt_message['port']]
+				if pd['name'] == 'Powered Up Handset Buttons':
+					self.decode_button_data(bt_message['port'], bt_message['value'])
+					return True
+
+		return await super().process_bt_message(bt_message)
 
 	# ---- Make data useful ----
 
