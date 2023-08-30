@@ -328,6 +328,7 @@ class Mario(BLE_Device):
 		175:'YOSHI E5',
 		176:'fireball pants blip',
 		179:'propeller pants flying',
+		181:'tanooki pants twirl',
 		182:'bee pants flying',
 		184:'vacuumed anything (also ghost?)',
 		187:'NABBIT',
@@ -1084,6 +1085,9 @@ class Mario(BLE_Device):
 		await self.request_version_update()
 		await self.request_volume_update()
 
+		# Use as a guaranteed init event
+		await self.request_battery_update()
+
 		#await self.interrogate_ports()
 
 	# add message_types, got to do this...
@@ -1124,11 +1128,10 @@ class Mario(BLE_Device):
 	async def process_bt_message(self, bt_message):
 		msg_prefix = self.system_type+" "
 
-		# FIXME: Almost got this deduplicated enough
+		mario_processed = True
+
 		if Decoder.message_type_str[bt_message['type']] == 'port_value_single':
-			if not bt_message['port'] in self.port_data:
-				Mario.dp(msg_prefix+"ERR: Attempted to process data from an unconfigured port "+str(bt_message['port']))
-			else:
+			if bt_message['port'] in self.port_data:
 				pd = self.port_data[bt_message['port']]
 				if pd['name'] == 'Mario Pants Sensor':
 					self.decode_pants_data(bt_message['value'])
@@ -1141,47 +1144,31 @@ class Mario(BLE_Device):
 				elif pd['name'] == 'Mario Alt Events':
 					self.decode_alt_event_data(bt_message['value'])
 				else:
+					mario_processed = False
 					if Mario.DEBUG >= 2:
 						Mario.dp(msg_prefix+"Data on "+self.port_data[bt_message['port']]['name']+" port"+":"+" ".join(hex(n) for n in bt_message['raw']),2)
+			else:
+				mario_processed = False
 
 		elif Decoder.message_type_str[bt_message['type']] == 'hub_properties':
-			if not Decoder.hub_property_op_str[bt_message['operation']] == 'Update':
-				# everything else is a write, so you shouldn't be getting these messages!
-				Mario.dp(msg_prefix+"ERR NOT UPDATE: "+bt_message['readable'])
+			# Logic inversion in this branch...
+			mario_processed = False
 
-			else:
-				if not bt_message['property'] in Decoder.hub_property_str:
-					Mario.dp(msg_prefix+"Unknown property "+bt_message['readable'])
-				else:
-					if Decoder.hub_property_str[bt_message['property']] == 'Button':
-						if bt_message['value']:
-							Mario.dp(msg_prefix+"Bluetooth button pressed!",2)
-							self.message_queue.put(('event','button','pressed'))
-						else:
-							# Well, nobody cares if it WASN'T pressed...
-							pass
-
-					# The app seems to be able to subscribe to Battery Voltage and get it sent constantly
-					elif Decoder.hub_property_str[bt_message['property']] == 'Battery Voltage':
-						Mario.dp(msg_prefix+"Battery is at "+str(bt_message['value'])+"%",2)
-						self.message_queue.put(('info','batt',bt_message['value']))
-
-					elif Decoder.hub_property_str[bt_message['property']] == 'Advertising Name':
-						self.decode_advertising_name(bt_message)
-
+			if Decoder.hub_property_op_str[bt_message['operation']] == 'Update':
+				if bt_message['property'] in Decoder.hub_property_str:
 					# hat tip to https://github.com/djipko/legomario.py/blob/master/legomario.py
-					elif Decoder.hub_property_str[bt_message['property']] == 'Mario Volume':
+					if Decoder.hub_property_str[bt_message['property']] == 'Mario Volume':
 						Mario.dp(msg_prefix+"Volume set to "+str(bt_message['value']),2)
 						self.message_queue.put(('info','volume',bt_message['value']))
 						self.volume = bt_message['value']
-
-					else:
-						Mario.dp(msg_prefix+bt_message['readable'],2)
-
+						mario_processed = True
 		else:
-			return await super().process_bt_message(bt_message)
+			mario_processed = False
 
-		return True
+		if not mario_processed:
+			return await super().process_bt_message(bt_message)
+		else:
+			return True
 
 	# ---- Make data useful ----
 
@@ -1687,6 +1674,7 @@ class Mario(BLE_Device):
 		else:
 			Mario.dp(self.system_type+" non-mode-0-style alternate event data:"+" ".join(hex(n) for n in data),2)
 
+	# Override
 	def decode_advertising_name(self, bt_message):
 		#LEGO Mario_j_r
 		name = bt_message['value']
