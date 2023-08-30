@@ -72,9 +72,7 @@ class Controller(BLE_Device):
 		msg_prefix = self.system_type+" "
 
 		if Decoder.message_type_str[bt_message['type']] == 'port_value_single':
-			if not bt_message['port'] in self.port_data:
-				Controller.dp(msg_prefix+"WARN: Received data for unconfigured port "+str(bt_message['port'])+':'+bt_message['readable'])
-			else:
+			if bt_message['port'] in self.port_data:
 				pd = self.port_data[bt_message['port']]
 				if pd['name'] == 'Powered Up Handset Buttons':
 					self.decode_button_data(bt_message['port'], bt_message['value'])
@@ -108,16 +106,6 @@ class Controller(BLE_Device):
 
 		else:
 			Controller.dp(self.system_type+" Unknown button "+hex(button_id))
-
-	def decode_bt_rssi_data(self, data):
-		# Lower numbers are larger distances from the computer
-		rssi8 = int.from_bytes(data, byteorder="little", signed=True)
-		Controller.dp("RSSI: "+str(rssi8))
-
-	def decode_voltage_data(self,data):
-		# FIXME: L or S and what do they mean?
-		volts16 = int.from_bytes(data, byteorder="little", signed=False)
-		Controller.dp("Voltage: "+str(volts16)+ " millivolts")
 
 	# ---- Random stuff ----
 
