@@ -30,19 +30,21 @@ class Controller(BLE_Device):
 	BUTTONS_RIGHT_PORT = 1
 	CONTROLLER_RSSI_PORT = 60
 
+	# Override
 	# add message_types, got to do this...
 	def _reset_event_subscription_counters(self):
 		for message_type in self.message_types:
 			self.BLE_event_subscriptions[message_type] = 0;
 		super()._reset_event_subscription_counters()
 
+	# Override
 	# True if message_type is valid, false otherwise
-	async def set_BLE_subscription(self, message_type, should_subscribe=True):
+	async def _set_BLE_subscription(self, message_type, should_subscribe=True):
 
 		valid_sub_name = True
 
 		if message_type == 'controller_buttons':
-			await self.set_port_subscriptions([
+			await self._set_port_subscriptions([
 				[self.BUTTONS_LEFT_PORT,1,0,should_subscribe],
 				[self.BUTTONS_RIGHT_PORT,1,0,should_subscribe]
 			])
@@ -52,11 +54,11 @@ class Controller(BLE_Device):
 			# 4: returns 0x0 0x0 0x0 and nothing else
 
 		elif message_type == 'controller_rgb':
-			await self.set_port_subscriptions([[self.RGB_LIGHT_PORT,0,5,should_subscribe]])
+			await self._set_port_subscriptions([[self.RGB_LIGHT_PORT,0,5,should_subscribe]])
 		elif message_type == 'controller_volts':
-			await self.set_port_subscriptions([[self.CONTROLLER_VOLTS_PORT,0,5,should_subscribe]])
+			await self._set_port_subscriptions([[self.CONTROLLER_VOLTS_PORT,0,5,should_subscribe]])
 		elif message_type == 'controller_RSSI':
-			await self.set_port_subscriptions([[self.CONTROLLER_RSSI_PORT,0,5,should_subscribe]])
+			await self._set_port_subscriptions([[self.CONTROLLER_RSSI_PORT,0,5,should_subscribe]])
 		else:
 			valid_sub_name = False
 
@@ -64,27 +66,28 @@ class Controller(BLE_Device):
 			BLE_Device.dp(f'{self.system_type} set Controller hardware messages for {message_type} to {should_subscribe}',2)
 		else:
 			# No passthrough
-			valid_sub_name = await super().set_BLE_subscription(message_type, should_subscribe)
+			valid_sub_name = await super()._set_BLE_subscription(message_type, should_subscribe)
 
 		return valid_sub_name
 
-	async def process_bt_message(self, bt_message):
+	# Override
+	async def _process_bt_message(self, bt_message):
 		msg_prefix = self.system_type+" "
 
 		if Decoder.message_type_str[bt_message['type']] == 'port_value_single':
 			if bt_message['port'] in self.port_data:
 				pd = self.port_data[bt_message['port']]
 				if pd['name'] == 'Powered Up Handset Buttons':
-					self.decode_button_data(bt_message['port'], bt_message['value'])
+					self._decode_button_data(bt_message['port'], bt_message['value'])
 					return True
 
-		return await super().process_bt_message(bt_message)
+		return await super()._process_bt_message(bt_message)
 
 	# ---- Make data useful ----
 
 	# After getting the Value Format out of the controller, that allowed me to find this page
 	# https://virantha.github.io/bricknil/lego_api/lego.html#remote-buttons
-	def decode_button_data(self, port, data):
+	def _decode_button_data(self, port, data):
 		if len(data) != 1:
 			Controller.dp(self.system_type+" UNKNOWN BUTTON DATA, WEIRD LENGTH OF "+str(len(data))+":"+" ".join(hex(n) for n in data))
 			# PORT 1: handset UNKNOWN BUTTON DATA, WEIRD LENGTH OF 3:0x0 0x0 0x0
@@ -116,6 +119,7 @@ class Controller(BLE_Device):
 
 	# ---- Bluetooth port writes ----
 
+	# FIXME: If you let mere mortals write this, you gotta verify the port and color vars
 	async def write_mode_data_RGB_color(self, port, color):
 		if color not in Decoder.rgb_light_colors:
 			return
