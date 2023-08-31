@@ -4,6 +4,7 @@
     [View the HTML live from the repository](https://raw.githack.com/mutesplash/legomario/main/mariocodes.html)
 * Provides a Python library for interacting with LEGO Mario
 * Provides a Python library for interacting with the LEGO Powered Up Remote Control (88010)
+* Provides a Python library for interacting with the DUPLO Train Hub No. 5
 * Does not have great documentation yet
 
 ## Requires
