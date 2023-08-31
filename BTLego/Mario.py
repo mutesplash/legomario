@@ -377,6 +377,9 @@ class Mario(BLE_Device):
 	def __init__(self,advertisement_data=None, json_code_dict=None):
 		super().__init__(advertisement_data)
 
+		# Override
+#		self.updateable_attributes = self.updateable_attributes + ('mario_volume',)
+
 		# Translates static event sequences into messages
 		self.event_data_dispatch = {
 		}
@@ -1077,7 +1080,7 @@ class Mario(BLE_Device):
 			self.message_queue.put(('event','nabbit','10 coins'))
 		}
 
-	# override
+	# Override
 	async def _inital_connect_updates(self):
 		# Not always sent on connect
 		await self.request_name_update()
@@ -1090,13 +1093,15 @@ class Mario(BLE_Device):
 
 		#await self.interrogate_ports()
 
+	# Override
 	# add message_types, got to do this...
 	def _reset_event_subscription_counters(self):
 		for message_type in self.message_types:
 			self.BLE_event_subscriptions[message_type] = 0;
 		super()._reset_event_subscription_counters()
 
-	async def set_BLE_subscription(self, message_type, should_subscribe=True):
+	# Override
+	async def _set_BLE_subscription(self, message_type, should_subscribe=True):
 		if not message_type in self.BLE_event_subscriptions:
 			return False
 
@@ -1105,15 +1110,15 @@ class Mario(BLE_Device):
 		if message_type == 'event':
 			# This sub includes the button, which is in super
 			# Hmm, probably need to make this mario_events
-			await self.set_port_subscriptions([[self.EVENTS_PORT,2,5,should_subscribe]])
+			await self._set_port_subscriptions([[self.EVENTS_PORT,2,5,should_subscribe]])
 		elif message_type == 'motion':
-			await self.set_port_subscriptions([[self.IMU_PORT,0,5,should_subscribe]])
+			await self._set_port_subscriptions([[self.IMU_PORT,0,5,should_subscribe]])
 		elif message_type == 'gesture':
-			await self.set_port_subscriptions([[self.IMU_PORT,1,5,should_subscribe]])
+			await self._set_port_subscriptions([[self.IMU_PORT,1,5,should_subscribe]])
 		elif message_type == 'scanner':
-			await self.set_port_subscriptions([[self.RGB_PORT,0,5,should_subscribe]])
+			await self._set_port_subscriptions([[self.RGB_PORT,0,5,should_subscribe]])
 		elif message_type == 'pants':
-			await self.set_port_subscriptions([[self.PANTS_PORT,0,5,should_subscribe]])
+			await self._set_port_subscriptions([[self.PANTS_PORT,0,5,should_subscribe]])
 		else:
 			valid_sub_name = False
 
@@ -1122,10 +1127,11 @@ class Mario(BLE_Device):
 
 		# FIXME: _Should_ event be shared with the button in base?
 		# Pass "event" down the chain
-		super_valid_sub_name = await super().set_BLE_subscription(message_type, should_subscribe)
+		super_valid_sub_name = await super()._set_BLE_subscription(message_type, should_subscribe)
 		return ( valid_sub_name or super_valid_sub_name )
 
-	async def process_bt_message(self, bt_message):
+	# Override
+	async def _process_bt_message(self, bt_message):
 		msg_prefix = self.system_type+" "
 
 		mario_processed = True
@@ -1134,15 +1140,15 @@ class Mario(BLE_Device):
 			if bt_message['port'] in self.port_data:
 				pd = self.port_data[bt_message['port']]
 				if pd['name'] == 'Mario Pants Sensor':
-					self.decode_pants_data(bt_message['value'])
+					self._decode_pants_data(bt_message['value'])
 				elif pd['name'] == 'Mario RGB Scanner':
-					self.decode_scanner_data(bt_message['value'])
+					self._decode_scanner_data(bt_message['value'])
 				elif pd['name'] == 'Mario Tilt Sensor':
-					self.decode_accel_data(bt_message['value'])
+					self._decode_accel_data(bt_message['value'])
 				elif pd['name'] == 'LEGO Events':
-					self.decode_event_data(bt_message['value'])
+					self._decode_event_data(bt_message['value'])
 				elif pd['name'] == 'Mario Alt Events':
-					self.decode_alt_event_data(bt_message['value'])
+					self._decode_alt_event_data(bt_message['value'])
 				else:
 					mario_processed = False
 					if Mario.DEBUG >= 2:
@@ -1166,13 +1172,20 @@ class Mario(BLE_Device):
 			mario_processed = False
 
 		if not mario_processed:
-			return await super().process_bt_message(bt_message)
+			return await super()._process_bt_message(bt_message)
 		else:
 			return True
 
+	# Override
+#	async def _request_info(self, hub_attribute):
+#		if hub_attribute == 'mario_volume':
+#			await self._request_volume_update()
+#		else:
+#			super()._request_info(hub_attribute)
+
 	# ---- Make data useful ----
 
-	def decode_pants_data(self, data):
+	def _decode_pants_data(self, data):
 		if len(data) == 1:
 			Mario.dp(self.system_type+" put on "+Mario.mario_pants_to_string(data[0])+" pants",2)
 			if data[0] in self.pants_codes:
@@ -1183,7 +1196,7 @@ class Mario(BLE_Device):
 			Mario.dp(self.system_type+" UNKNOWN PANTS DATA, WEIRD LENGTH OF "+len(data)+":"+" ".join(hex(n) for n in data))
 
 	# RGB Mode 0
-	def decode_scanner_data(self, data):
+	def _decode_scanner_data(self, data):
 		if len(data) != 4:
 			Mario.dp(self.system_type+" UNKNOWN SCANNER DATA, WEIRD LENGTH OF "+len(data)+":"+" ".join(hex(n) for n in data))
 			return
@@ -1220,7 +1233,7 @@ class Mario(BLE_Device):
 			Mario.dp(self.system_type+" scanned nothing",2)
 
 	# IMU Mode 0,1
-	def decode_accel_data(self, data):
+	def _decode_accel_data(self, data):
 		# The "default" value is around 32, which seems like g at 32 ft/s^2
 		# But when you flip a sensor 180, it's -15
 		# "Waggle" is probably detected by rapid accelerometer events that don't meaningfully change the values
@@ -1423,7 +1436,7 @@ class Mario(BLE_Device):
 			if notes:
 				Mario.dp(self.system_type+" gesture data:"+notes+" ".join(hex(n) for n in data),2)
 
-	def decode_event_data(self, data):
+	def _decode_event_data(self, data):
 
 		# Mode 2
 		if len(data) == 4:
@@ -1651,7 +1664,7 @@ class Mario(BLE_Device):
 
 		pass
 
-	def decode_alt_event_data(self, data):
+	def _decode_alt_event_data(self, data):
 		if len(data) == 4:
 			# Peach goodbye mario
 			# 0x2 0x0 0x1 0x0
@@ -1675,7 +1688,7 @@ class Mario(BLE_Device):
 			Mario.dp(self.system_type+" non-mode-0-style alternate event data:"+" ".join(hex(n) for n in data),2)
 
 	# Override
-	def decode_advertising_name(self, bt_message):
+	def _decode_advertising_name(self, bt_message):
 		#LEGO Mario_j_r
 		name = bt_message['value']
 
