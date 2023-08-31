@@ -6,6 +6,7 @@ import struct	# bin to FP32
 class Decoder():
 
 	advertised_system_type = {
+		0x20:'duplotrain',
 		0x42:'handset',		# Lego 88010 Remote Control for Powered Up
 		0x43:'mario',
 		0x44:'luigi',
@@ -80,6 +81,10 @@ class Decoder():
 		# Pybricks
 		0x37:'Powered Up Handset Buttons',
 		0x38:'Powered Up hub Bluetooth RSSI',	# 88010 also has this
+		0x29:'DUPLO Train hub built-in motor',
+		0x2a:'DUPLO Train hub built-in beeper',
+		0x2b:'DUPLO Train hub built-in color sensor',
+		0x2c:'DUPLO Train hub built-in speed',
 
 		# My names
 		0x46:'LEGO Events',			# Events from 88010 Powered Up controller and LEGO Mario
@@ -225,10 +230,22 @@ class Decoder():
 			# ff Last network ID (FF is not implemented)
 			# ff Status (I can be everything)
 			# 00 Option (unused)
+
+			# Train
+			# 0x0 0x20 0x2 0xfe 0x41 0x0
+			# 02 Capabilities
+			#	0000 0010
+			#          10	Peripheral role
+
 			if advertisement_data.manufacturer_data[919][1] in Decoder.advertised_system_type:
+				# print("Dumping LEGO Manuf. ID advertisement data:"+" ".join(hex(n) for n in advertisement_data.manufacturer_data[919]))
 				return Decoder.advertised_system_type[advertisement_data.manufacturer_data[919][1]]
 			else:
 				return 'UNKNOWN_LEGO_'+hex(advertisement_data.manufacturer_data[919][1])
+		else:
+			# Fun for finding everything else
+			#print(advertisement_data)
+			pass
 		return None
 
 	def decode_payload(message_bytes):
@@ -673,9 +690,13 @@ class Decoder():
 		elif mode_info_type == 0x4:
 			# SYMBOL
 			bt_message['symbol'] = bytearray(payload[3:]).decode()
-			while bt_message['symbol'][-1] == '\u0000':
+			while bt_message['symbol'][-1] == '\u0000' and len(bt_message['symbol']) > 1:
 				bt_message['symbol'] = bt_message['symbol'][:-1]
+			if bt_message['symbol'] == '\u0000':
+				bt_message['symbol'] = 'ERR_NO_SYMBOL_FOR_PORT'
+
 			bt_message['readable'] += bt_message['symbol']
+
 		elif mode_info_type == 0x5:
 			# Mapping, 16 bits
 			# FIXME
