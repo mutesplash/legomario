@@ -48,17 +48,17 @@ class BLE_Device():
 		'error',
 	)
 
-	updateable_attributes = {
-		'hub_name',
-		'hub_version',
-		'hub_battery_pct',
-		'hub_port_modes'
-	}
+#	updateable_attributes = (
+#		'hub_name',
+#		'hub_version',
+#		'hub_battery_pct',
+#		'hub_port_modes'
+#	)
 
 	characteristic_uuid = '00001624-1212-efde-1623-785feabcd123'
 	hub_service_uuid = '00001623-1212-efde-1623-785feabcd123'
 
-	# populated in __init__
+	# ---- Initializations, obviously ----
 
 	def __init__(self, advertisement_data=None):
 
@@ -120,10 +120,23 @@ class BLE_Device():
 					if isinstance(mode,int) or mode.isdigit():
 						self.port_mode_info[port].pop(mode,None)
 
+	# Overrideable
+	async def _inital_connect_updates(self):
+		await self.request_name_update()
+		await self.request_version_update()
+
+		# Use as a guaranteed init event
+		await self.request_battery_update()
+
+		#await self.interrogate_ports()
+
 	# Override in subclass and call super if you subclass to initialize BLE_event_subscriptions with all available message types
 	def _reset_event_subscription_counters(self):
 		for message_type in BLE_Device.message_types:
 			self.BLE_event_subscriptions[message_type] = 0;
+
+	# ---- Things Normal People Can Do ----
+	# (Not really all of them, there are some direct bluetooth things below)
 
 	async def dump_status(self):
 		BLE_Device.dp("EVENT SUBS\n"+json.dumps(self.BLE_event_subscriptions, indent=4))
@@ -146,7 +159,7 @@ class BLE_Device():
 					self.message_queue.put(('info','player',self.system_type))
 					self.connected = True
 					self.address = device.address
-					await self.client.start_notify(BLE_Device.characteristic_uuid, self.device_events)
+					await self.client.start_notify(BLE_Device.characteristic_uuid, self._device_events)
 					await asyncio.sleep(0.1)
 
 					# turn on everything everybody registered for
@@ -164,16 +177,6 @@ class BLE_Device():
 
 			except Exception as e:
 				BLE_Device.dp("Unable to connect to "+str(device.address) + ": "+str(e))
-
-	# Overrideable
-	async def _inital_connect_updates(self):
-		await self.request_name_update()
-		await self.request_version_update()
-
-		# Use as a guaranteed init event
-		await self.request_battery_update()
-
-		#await self.interrogate_ports()
 
 	# FIXME: should register the callback an all the subscriptions at once
 	# set/unset registrations separately
@@ -197,7 +200,39 @@ class BLE_Device():
 			async with self.drain_lock:
 				await self.__process_drainlock_queue()
 
-	# MUST be called within drain_lock
+	# ask for anything in updateable_attributes
+#	async def request_update_on_callback(self,callback_uuid, update_request):
+#		if not update_request in self.updateable_attributes:
+#			BLE_Device.dp("INVALID update request:"+parameters[1])
+
+#		self.drainlock_changes_queue.put(('callback', 'update', (callback_uuid, update_request)))
+
+		# Outside of the drain
+#		if not self.drain_lock.locked():
+#			async with self.drain_lock:
+#				await self.__process_drainlock_queue()
+
+	# Hmm... just because this returns true doesn't mean you're going to get the messages (see failure modes in __process_drainlock_queue)
+	async def subscribe_to_messages_on_callback(self, callback_uuid, message_type, subscribe=True):
+		# Not going to check if the callback is valid here, because it could be on the queue
+
+		# Contains all message_types for the class after _reset_event_subscription_counters() in subclasses
+		if not message_type in self.BLE_event_subscriptions:
+			BLE_Device.dp("Invalid message type "+message_type)
+			return False
+
+		self.drainlock_changes_queue.put(('subscription', 'change', (callback_uuid,message_type,subscribe)))
+
+		# Outside of the drain
+		if not self.drain_lock.locked():
+			async with self.drain_lock:
+				await self.__process_drainlock_queue()
+
+		return True
+
+	# ---- Message processing ----
+
+	# MUST be called within drain_lock because commands in here modify callbacks and their subscriptions and therefore the drain loop
 	async def __process_drainlock_queue(self):
 		while not self.drainlock_changes_queue.empty():
 			change_order = self.drainlock_changes_queue.get()
@@ -232,17 +267,17 @@ class BLE_Device():
 					self.callbacks[parameters[0]] = (parameters[1], ())
 
 				# Request an update about something
-				elif change_order[1] == 'update':
+#				elif change_order[1] == 'update':
 					# Callback on parameters[0] doesn't really get used here since you're just going to update the info subscription
-					await self.request_info(parameters[1])
+#					await self._request_info(parameters[1])
 
-				else:
-					BLE_Device.dp("Invalid message type "+message_type,0)
+#				else:
+#					BLE_Device.dp("Invalid message type "+message_type,0)
 
 			# Caller verifies message_type
 			# (callback_uuid, message_type, boolean_subscription)
 			elif change_order[0] == 'subscription' and change_order[1] == 'change':
-				BLE_Device.dp(f'Requesting {parameters[2]} subscription to {parameters[1]}',2)
+				BLE_Device.dp(f'Requesting {parameters[2]} subscription to {parameters[1]} on callback parameters[0]',2)
 				self._set_callback_subscriptions(parameters[0], parameters[1], parameters[2])
 
 				# first subscribing callback: turn on the event	OR last subscribing callback: turn off the subscription
@@ -251,46 +286,29 @@ class BLE_Device():
 					if not await self._set_hardware_subscription(parameters[1], parameters[2]):
 						BLE_Device.dp("INVALID Subscription option:"+parameters[1])
 
-	# ask for anything in updateable_attributes
-	async def request_update_on_callback(self,callback_uuid, update_request):
-		if not update_request in self.updateable_attributes:
-			BLE_Device.dp("INVALID update request:"+parameters[1])
+	# Override in subclass and call super if you have something that can send an update
+#	async def _request_info(self, hub_attribute):
+#		if hub_attribute == 'hub_name':
+#			await self._request_name_update()
+#		elif hub_attribute == 'hub_version':
+#			await self._request_version_update()
+#		elif hub_attribute == 'hub_battery_pct':
+#			await self._request_battery_update()
+#		elif hub_attribute == 'hub_port_modes':
+#			await self.interrogate_ports()
 
-		self.drainlock_changes_queue.put(('callback', 'update', (callback_uuid, update_request)))
+	async def _drain_messages(self):
+		async with self.drain_lock:
+			while not self.message_queue.empty():
+				message = self.message_queue.get()
+				for callback_uuid, callback_settings in self.callbacks.items():
+					# message_type in subscriptions
+					if message[0] in callback_settings[1]:
+						# callback( ( dev_addr, type, key, value ) )
+						await callback_settings[0]((callback_uuid,) + message)
 
-		# Outside of the drain
-		if not self.drain_lock.locked():
-			async with self.drain_lock:
-				await self.__process_drainlock_queue()
-
-	# Override in subclass and call super
-	async def request_info(self, hub_attribute):
-		if hub_attribute == 'hub_name':
-			await self.request_name_update()
-		elif hub_attribute == 'hub_version':
-			await self.request_version_update()
-		elif hub_attribute == 'hub_battery_pct':
-			await self.request_battery_update()
-		elif hub_attribute == 'hub_port_modes':
-			await self.interrogate_ports()
-
-	# Hmm... just because this returns true doesn't mean you're going to get the messages (see failure modes in __process_drainlock_queue)
-	async def subscribe_to_messages_on_callback(self, callback_uuid, message_type, subscribe=True):
-		# Not going to check if the callback is valid here, because it could be on the queue
-
-		# Contains all message_types for the class after _reset_event_subscription_counters() in subclasses
-		if not message_type in self.BLE_event_subscriptions:
-			BLE_Device.dp("Invalid message type "+message_type)
-			return False
-
-		self.drainlock_changes_queue.put(('subscription', 'change', (callback_uuid,message_type,subscribe)))
-
-		# Outside of the drain
-		if not self.drain_lock.locked():
-			async with self.drain_lock:
-				await self.__process_drainlock_queue()
-
-		return True
+			# Process any registrations that occurred during the above dispatch
+			await self.__process_drainlock_queue()
 
 	# return the tuple of subscriptions that were set
 	# Assumes you filtered this to only valid message types
@@ -319,6 +337,7 @@ class BLE_Device():
 
 		if do_nothing:
 			new_subscriptions = current_subscriptions
+			BLE_Device.dp(f'Callback subscriptions unchanged after requesting {message_type} to {subscribe}',3)
 		else:
 			if subscribe:
 				self.BLE_event_subscriptions[message_type] += 1
@@ -331,7 +350,7 @@ class BLE_Device():
 
 		return new_subscriptions
 
-	# Filter for set_BLE_subscription so the subclasses don't have to bother
+	# Filter for _set_BLE_subscription so the subclasses don't have to bother
 	def _set_hardware_subscription(self, message_type, should_subscribe=True):
 		if not self.connected:
 			print(f'Not connected: Can\'t set subscription {message_type} to {should_subscribe}')
@@ -341,18 +360,18 @@ class BLE_Device():
 			print(f'Couldn\'t find {message_type}')
 			return False
 
-		return self.set_BLE_subscription(message_type, should_subscribe)
+		return self._set_BLE_subscription(message_type, should_subscribe)
 
 	# True if message_type is processed, false otherwise
 	# There's two low level kind of subscriptions, hub property updates and single port update format
 	# Override in subclass, call super if you don't process the message type.
-	async def set_BLE_subscription(self, message_type, should_subscribe=True):
+	async def _set_BLE_subscription(self, message_type, should_subscribe=True):
 
 		valid_sub_name = True
 
 		if message_type == 'event':
-			# await self.set_port_subscriptions([[self.EVENTS_PORT,2,5,should_subscribe]])
-			await self.set_updates_for_hub_properties([
+			# await self._set_port_subscriptions([[self.EVENTS_PORT,2,5,should_subscribe]])
+			await self._set_updates_for_hub_properties([
 				['Button',should_subscribe]				# Works as advertised (the "button" is the bluetooth button)
 			])
 
@@ -360,7 +379,7 @@ class BLE_Device():
 # You're gonna get these.  Don't know why I even let you choose?
 
 		elif message_type == 'info':
-			await self.set_updates_for_hub_properties([
+			await self._set_updates_for_hub_properties([
 				['Advertising Name',should_subscribe]	# I guess this works different than requesting the update because something else could change it, but then THAT would cause an update message
 
 				# Kind of a problem to implement in the future because you don't want these spewing at you
@@ -380,21 +399,8 @@ class BLE_Device():
 
 		return valid_sub_name
 
-	async def drain_messages(self):
-		async with self.drain_lock:
-			while not self.message_queue.empty():
-				message = self.message_queue.get()
-				for callback_uuid, callback_settings in self.callbacks.items():
-					# message_type in subscriptions
-					if message[0] in callback_settings[1]:
-						# callback( ( dev_addr, type, key, value ) )
-						await callback_settings[0]((callback_uuid,) + message)
-
-			# Process any registrations that occurred during the above dispatch
-			await self.__process_drainlock_queue()
-
-	async def device_events(self, sender, data):
-		# Bleak events get sent here
+	# Bleak events get sent here
+	async def _device_events(self, sender, data):
 		bt_message = Decoder.decode_payload(data)
 		msg_prefix = self.system_type+" "
 
@@ -403,16 +409,16 @@ class BLE_Device():
 			self.message_queue.put(('error','message',bt_message['readable']))
 
 		else:
-			if not await self.process_bt_message(bt_message):
+			if not await self._process_bt_message(bt_message):
 				# debug for messages we've never seen before
 				BLE_Device.dp(msg_prefix+"-?- "+bt_message['readable'],1)
 
 		BLE_Device.dp("Draining for: "+bt_message['readable'],3)
-		await self.drain_messages()
+		await self._drain_messages()
 
 	# Returns false if unprocessed
 	# Override in subclass, call super if you don't process the bluetooth message type
-	async def process_bt_message(self, bt_message):
+	async def _process_bt_message(self, bt_message):
 		msg_prefix = self.system_type+" "
 
 		if Decoder.message_type_str[bt_message['type']] == 'port_input_format_single':
@@ -467,9 +473,9 @@ class BLE_Device():
 			else:
 				pd = self.port_data[bt_message['port']]
 				if pd['name'] == 'Powered Up hub Bluetooth RSSI':
-					self.decode_bt_rssi_data(bt_message['value'])
+					self._decode_bt_rssi_data(bt_message['value'])
 				elif pd['name'] == 'Voltage':
-					self.decode_voltage_data(bt_message['value'])
+					self._decode_voltage_data(bt_message['value'])
 				else:
 					if BLE_Device.DEBUG >= 2:
 						BLE_Device.dp(msg_prefix+"Data on "+self.port_data[bt_message['port']]['name']+" port"+":"+" ".join(hex(n) for n in bt_message['raw']),2)
@@ -496,7 +502,7 @@ class BLE_Device():
 						self.message_queue.put(('info','batt',bt_message['value']))
 
 					elif Decoder.hub_property_str[bt_message['property']] == 'Advertising Name':
-						self.decode_advertising_name(bt_message)
+						self._decode_advertising_name(bt_message)
 
 					elif Decoder.hub_property_str[bt_message['property']] == 'HW Version' and Decoder.hub_property_op_str[bt_message['operation']] == 'Update':
 						self.message_queue.put(('info','hardware_version',bt_message['value']))
@@ -519,28 +525,28 @@ class BLE_Device():
 				self.message_queue.put(('error','message',bt_message['alert_type_str']+" - "+bt_message['operation_str']))
 
 		elif Decoder.message_type_str[bt_message['type']] == 'hub_actions':
-			self.decode_hub_action(bt_message)
+			self._decode_hub_action(bt_message)
 
 		elif Decoder.message_type_str[bt_message['type']] == 'port_info':
-			await self.decode_mode_info_and_interrogate(bt_message)
+			await self._decode_mode_info_and_interrogate(bt_message)
 
 		elif Decoder.message_type_str[bt_message['type']] == 'port_mode_info':
 			# Debug stuff for the ports and modes, similar to list command on BuildHAT
-			self.decode_port_mode_info(bt_message)
+			self._decode_port_mode_info(bt_message)
 
 		elif Decoder.message_type_str[bt_message['type']] == 'hw_network_cmd':
-			self.decode_hardware_network_command(bt_message)
+			self._decode_hardware_network_command(bt_message)
 
 		else:
 			return False
 
 		return True
 
-	# ---- Make data useful ----
+	# ---- Make data useful for the processing ----
 	# port_info_req response
 	# 'IN': Receive data from device
 	# 'OUT': Send data to device
-	async def decode_mode_info_and_interrogate(self, bt_message):
+	async def _decode_mode_info_and_interrogate(self, bt_message):
 		port = bt_message['port']
 		if not 'num_modes' in bt_message:
 			BLE_Device.dp(f'Mode combinations NOT DECODED: {bt_message["readable"]}')
@@ -573,11 +579,19 @@ class BLE_Device():
 					},
 					'direction':direction
 				}
+
+				if self.system_type == 'duplotrain':
+					#self.port_mode_info[port][mode]['requests_outstanding'][0x7] = True
+					self.port_mode_info[port][mode]['requests_outstanding'][0x8] = True
 			frozen_requests = list(self.port_mode_info[port][mode]['requests_outstanding'].items())
 			for hexkey, requested in frozen_requests:
 				if requested:
 					# print('Request '+direction+' port '+str(port)+' info for mode '+str(mode))
-					await self.write_port_mode_info_request(port,mode,hexkey)
+
+					# Hrrr, don't like going up for special cases, but this thing is SUPER PICKY about messages being sent too fast
+					if self.system_type == 'duplotrain':
+						await asyncio.sleep(0.9) # 0.8 doesn't work
+					await self._write_port_mode_info_request(port,mode,hexkey)
 
 			await asyncio.sleep(0.3)
 
@@ -633,13 +647,15 @@ class BLE_Device():
 
 			self.port_mode_info.pop('requests_until_complete',None)
 			if bt_corruption:
-				self.message_queue.put(('info','port_json',json.dumps(self.port_mode_info))) # , indent=4
-			else:
 				# Blank on error
 				self.message_queue.put(('info','port_json','')) # , indent=4
+				BLE_Device.dp(f'DUMPING INCOMPLETE PORT JSON: {json.dumps(self.port_mode_info)}')
+			else:
+				self.message_queue.put(('info','port_json',json.dumps(self.port_mode_info))) # , indent=4
+
 			BLE_Device.dp("Port interrogation complete!")
 
-	def decode_port_mode_info(self, bt_message):
+	def _decode_port_mode_info(self, bt_message):
 
 		if 'requests_until_complete' in self.port_mode_info:
 			if self.port_mode_info['requests_until_complete'] <= 0:
@@ -660,7 +676,7 @@ class BLE_Device():
 
 		# FIXME: Stuff all this in a structure and then dump it out
 		if not mode in self.port_mode_info[port]:
-			print(f'ERROR: MODE {mode} MISSING FOR PORT {port}: SHOULD HAVE BEEN SET in decode_mode_info_and_interrogate. Dumping: {bt_message["readable"]}')
+			print(f'ERROR: MODE {mode} MISSING FOR PORT {port}: SHOULD HAVE BEEN SET in _decode_mode_info_and_interrogate. Dumping: {bt_message["readable"]}')
 			print("Keys:")
 			print(self.port_mode_info[port].keys())
 			return
@@ -730,7 +746,7 @@ class BLE_Device():
 		if not decoded:
 			BLE_Device.dp('Not decoded:'+readable)
 		else:
-			#BLE_Device.dp(readable)
+			BLE_Device.dp('PMI Decoded:'+ readable)
 			pass
 
 		if 'requests_outstanding' in self.port_mode_info[port][mode]:
@@ -748,17 +764,17 @@ class BLE_Device():
 		else:
 			print(f"EXTRA mode info type {hex(bt_message['mode_info_type'])} on port {port} mode {mode} DUMP:{bt_message['readable']}")
 
-	def decode_bt_rssi_data(self, data):
+	def _decode_bt_rssi_data(self, data):
 		# Lower numbers are larger distances from the computer
 		rssi8 = int.from_bytes(data, byteorder="little", signed=True)
 		BLE_Device.dp("RSSI: "+str(rssi8))
 
-	def decode_voltage_data(self,data):
+	def _decode_voltage_data(self,data):
 		# FIXME: L or S and what do they mean?
 		volts16 = int.from_bytes(data, byteorder="little", signed=False)
 		BLE_Device.dp("Voltage: "+str(volts16)+ " millivolts")
 
-	def decode_hub_action(self, bt_message):
+	def _decode_hub_action(self, bt_message):
 		BLE_Device.dp(self.system_type+" "+bt_message['action_str'],2)
 		# Decoder.hub_action_type
 		if bt_message['action'] == 0x30:
@@ -768,7 +784,7 @@ class BLE_Device():
 		else:
 			BLE_Device.dp(self.system_type+" unknown hub action "+hex(bt_message['action']),1)
 
-	def decode_hardware_network_command(self, bt_message):
+	def _decode_hardware_network_command(self, bt_message):
 		if 'command' in bt_message:
 			if bt_message['command'] == 'connection_request':
 				message = None
@@ -782,7 +798,7 @@ class BLE_Device():
 		else:
 			BLE_Device.dp(self.system_type+" "+bt_message['readable'],1)
 
-	def decode_advertising_name(self, bt_message):
+	def _decode_advertising_name(self, bt_message):
 		# FIXME: Clearly this should be a message and not a debugging statement
 		msg_prefix = self.system_type+" "
 		BLE_Device.dp(msg_prefix+"Advertising as \""+str(bt_message['value'])+"\"",2)
@@ -794,7 +810,7 @@ class BLE_Device():
 			if BLE_Device.DEBUG >= level:
 				print(pstr)
 
-	# ---- Bluetooth port writes ----
+	# ---- Bluetooth port writes for mortals ----
 	async def interrogate_ports(self):
 		BLE_Device.dp("Starting port interrogation...")
 		self._reset_port_mode_info()
@@ -802,69 +818,8 @@ class BLE_Device():
 			# This should be done as some kind of batch, blocking operation
 			self.port_mode_info['requests_until_complete'] += 1
 
-			await self.write_port_info_request(port, True)
+			await self._write_port_info_request(port, True)
 			await asyncio.sleep(0.2)
-
-	async def set_port_subscriptions(self, portlist):
-		# array of 4-item arrays [port, mode, delta interval, subscribe on/off]
-		if isinstance(portlist, Iterable):
-			for port_settings in portlist:
-				if isinstance(port_settings, Iterable) and len(port_settings) == 4:
-
-					# Port Input Format Setup (Single) message
-					# Sending this results in port_input_format_single response
-
-					payload = bytearray([
-						0x0A,				# length
-						0x00,
-						0x41,				# Port input format (single)
-						port_settings[0],	# port
-						port_settings[1],	# mode
-					])
-
-					# delta interval (uint32)
-					# 5 is what was suggested by https://github.com/salendron/pyLegoMario
-					# 88010 Controller buttons for +/- DO NOT WORK without a delta of zero.
-					# Amusingly, this is strongly _not_ recommended by the LEGO docs
-					# Kind of makes sense, though, since they are discrete (and debounced, I assume)
-					payload += port_settings[2].to_bytes(4,byteorder='little',signed=False)
-
-					if port_settings[3]:
-						payload.append(0x1)		# notification enable
-					else:
-						payload.append(0x0)		# notification disable
-					#print(" ".join(hex(n) for n in payload))
-					await self.client.write_gatt_char(BLE_Device.characteristic_uuid, payload)
-					await asyncio.sleep(1)
-
-	async def set_updates_for_hub_properties(self, hub_properties):
-		# array of [str(hub_property_str),bool] arrays
-		if isinstance(hub_properties, Iterable):
-			for hub_property_settings in hub_properties:
-				if isinstance(hub_property_settings, Iterable) and len(hub_property_settings) == 2:
-					hub_property = str(hub_property_settings[0])
-					hub_property_set_updates = bool(hub_property_settings[1])
-					if hub_property in Decoder.hub_property_ints:
-						hub_property_int = Decoder.hub_property_ints[hub_property]
-						if hub_property_int in Decoder.hub_properties_that_update:
-							hub_property_operation = 0x3
-							if hub_property_set_updates:
-								BLE_Device.dp(f'{self.system_type} Requesting updates for hub property: {hub_property}',2)
-								hub_property_operation = 0x2
-							else:
-								BLE_Device.dp(f'{self.system_type} Disabling updates for hub property: {hub_property}',2)
-								pass
-							hub_property_update_subscription_bytes = bytearray([
-								0x05,	# len
-								0x00,	# padding but maybe stuff in the future (:
-								0x1,	# 'hub_properties'
-								hub_property_int,
-								hub_property_operation
-							])
-							await self.client.write_gatt_char(BLE_Device.characteristic_uuid, hub_property_update_subscription_bytes)
-							await asyncio.sleep(0.1)
-						else:
-							BLE_Device.dp("Decoder chars says not able to subscribe to: "+hub_property,2)
 
 	async def turn_off(self):
 		name_update_bytes = bytearray([
@@ -922,7 +877,70 @@ class BLE_Device():
 		await self.client.write_gatt_char(BLE_Device.characteristic_uuid, name_update_bytes)
 		await asyncio.sleep(0.1)
 
-	async def write_port_mode_info_request(self, port, mode, infotype):
+	# ---- Bluetooth port writes for the class ----
+
+	async def _set_port_subscriptions(self, portlist):
+		# array of 4-item arrays [port, mode, delta interval, subscribe on/off]
+		if isinstance(portlist, Iterable):
+			for port_settings in portlist:
+				if isinstance(port_settings, Iterable) and len(port_settings) == 4:
+
+					# Port Input Format Setup (Single) message
+					# Sending this results in port_input_format_single response
+
+					payload = bytearray([
+						0x0A,				# length
+						0x00,
+						0x41,				# Port input format (single)
+						port_settings[0],	# port
+						port_settings[1],	# mode
+					])
+
+					# delta interval (uint32)
+					# 5 is what was suggested by https://github.com/salendron/pyLegoMario
+					# 88010 Controller buttons for +/- DO NOT WORK without a delta of zero.
+					# Amusingly, this is strongly _not_ recommended by the LEGO docs
+					# Kind of makes sense, though, since they are discrete (and debounced, I assume)
+					payload.extend(port_settings[2].to_bytes(4,byteorder='little',signed=False))
+
+					if port_settings[3]:
+						payload.append(0x1)		# notification enable
+					else:
+						payload.append(0x0)		# notification disable
+					#print(" ".join(hex(n) for n in payload))
+					await self.client.write_gatt_char(BLE_Device.characteristic_uuid, payload)
+					await asyncio.sleep(1)
+
+	async def _set_updates_for_hub_properties(self, hub_properties):
+		# array of [str(hub_property_str),bool] arrays
+		if isinstance(hub_properties, Iterable):
+			for hub_property_settings in hub_properties:
+				if isinstance(hub_property_settings, Iterable) and len(hub_property_settings) == 2:
+					hub_property = str(hub_property_settings[0])
+					hub_property_set_updates = bool(hub_property_settings[1])
+					if hub_property in Decoder.hub_property_ints:
+						hub_property_int = Decoder.hub_property_ints[hub_property]
+						if hub_property_int in Decoder.hub_properties_that_update:
+							hub_property_operation = 0x3
+							if hub_property_set_updates:
+								BLE_Device.dp(f'{self.system_type} Requesting updates for hub property: {hub_property}',2)
+								hub_property_operation = 0x2
+							else:
+								BLE_Device.dp(f'{self.system_type} Disabling updates for hub property: {hub_property}',2)
+								pass
+							hub_property_update_subscription_bytes = bytearray([
+								0x05,	# len
+								0x00,	# padding but maybe stuff in the future (:
+								0x1,	# 'hub_properties'
+								hub_property_int,
+								hub_property_operation
+							])
+							await self.client.write_gatt_char(BLE_Device.characteristic_uuid, hub_property_update_subscription_bytes)
+							await asyncio.sleep(0.1)
+						else:
+							BLE_Device.dp("Decoder chars says not able to subscribe to: "+hub_property,2)
+
+	async def _write_port_mode_info_request(self, port, mode, infotype):
 		if mode < 0 or mode > 255:
 			BLE_Device.dp('ERROR: Invalid mode '+str(mode)+' for mode info request')
 			return
@@ -950,7 +968,7 @@ class BLE_Device():
 		await self.client.write_gatt_char(BLE_Device.characteristic_uuid, payload)
 		await asyncio.sleep(0.2)
 
-	async def write_port_info_request(self, port, mode_info=False):
+	async def _write_port_info_request(self, port, mode_info=False):
 		# 0: Request port_value_single value
 		# 1: Request port_info for port modes
 		mode_int = 0x0
