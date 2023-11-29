@@ -2072,6 +2072,34 @@
       "code": "BRTYV",
       "label": "BONGOS",
       "note": "Music notes, 'go go go', different DK music. Switch between scanning Yellow and Orange to hit the bongos. Set 71424"
+    },
+    {
+      "code": "BRLGP",
+      "note": "Yellow toad random item.  New item: Ice cream!"
+    },
+    {
+      "code": "BRLPG",
+      "note": "Mario Kart?"
+    },
+    {
+      "code": "BRLVG",
+      "note": "! Gloopy sounds"
+    },
+    {
+      "code": "BRLVP",
+      "note": "Penguin that wants a treat"
+    },
+    {
+      "code": "BRLYG",
+      "note": "Water world"
+    },
+    {
+      "code": "BRLTG",
+      "note": "Yoshi egg: Blue, purple, red, green, yellow.  Hatches after jumping a bunch"
+    },
+    {
+      "code": "BRLTV",
+      "note": "Baby yoshi"
     }
   ]
 }
