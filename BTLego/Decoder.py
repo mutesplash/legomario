@@ -11,7 +11,7 @@ class Decoder():
 		0x43:'mario',
 		0x44:'luigi',
 		0x45:'peach',
-		0x80:'hub_2'		# Lego 88012
+		0x80:'hub_2'		# Lego 88012 Default name of "Technic Hub"
 	}
 
 	#https://lego.github.io/lego-ble-wireless-protocol-docs/index.html#message-typ

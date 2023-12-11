@@ -197,7 +197,7 @@ try:
 	asyncio.run(callbackscan(run_seconds))
 except KeyboardInterrupt:
 	print("Recieved keyboard interrupt, stopping.")
-except asyncio.exceptions.InvalidStateError:
+except asyncio.InvalidStateError:
 	print("ERROR: Invalid state in Bluetooth stack, we're done here...")
 stop_time = time.perf_counter()
 
