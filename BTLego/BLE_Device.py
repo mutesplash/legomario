@@ -72,12 +72,16 @@ class BLE_Device():
 		self.advertisement = None
 		self.message_queue = None
 		self.callbacks = None
+		self.disconnect_callback = lambda bleak_dev: BLE_Device._bleak_disconnect(self, bleak_dev)
 
 		self.port_data = {
 		}
 
+		self.device_ports = {
+		}
+
 		self.port_mode_info = {
-			'port_count':-1,
+			'port_count':0,
 			'requests_until_complete':0		# Port interrogation
 		}
 
@@ -106,6 +110,7 @@ class BLE_Device():
 		self.port_mode_info[port] = {
 			'mode_count': -1
 		}
+		self.device_ports[port_id] = port
 		self.port_mode_info['port_count'] += 1
 
 	def _reset_port_mode_info(self):
@@ -151,32 +156,54 @@ class BLE_Device():
 			self.device = device
 			self.advertisement = advertisement_data
 			try:
-				async with BleakClient(device.address) as self.client:
-					if not self.client.is_connected:
-						BLE_Device.dp("Failed to connect after client creation")
-						return
-					BLE_Device.dp("Connected to "+self.system_type+"! ("+str(device.name)+")",2)
-					self.message_queue.put(('info','player',self.system_type))
-					self.connected = True
-					self.address = device.address
-					await self.client.start_notify(BLE_Device.characteristic_uuid, self._device_events)
-					await asyncio.sleep(0.1)
+				self.client = BleakClient(device.address, self.disconnect_callback)
+				await self.client.connect()
+				if not self.client.is_connected:
+					BLE_Device.dp("Failed to connect after client creation")
+					return
+				BLE_Device.dp("Connected to "+self.system_type+"! ("+str(device.name)+")",2)
+				self.message_queue.put(('info','player',self.system_type))
+				self.connected = True
+				self.address = device.address
+				await self.client.start_notify(BLE_Device.characteristic_uuid, self._device_events)
+				await asyncio.sleep(0.1)
 
-					# turn on everything everybody registered for
-					for event_sub_type,sub_count in self.BLE_event_subscriptions.items():
-						if sub_count > 0:
-							if not await self._set_hardware_subscription(event_sub_type, True):
-								BLE_Device.dp("INVALID Subscription option on connect:"+event_sub_type)
+				# turn on everything everybody registered for
+				for event_sub_type,sub_count in self.BLE_event_subscriptions.items():
+					if sub_count > 0:
+						if not await self._set_hardware_subscription(event_sub_type, True):
+							BLE_Device.dp("INVALID Subscription option on connect:"+event_sub_type)
 
-					await self._inital_connect_updates()
-
-					while self.client.is_connected:
-						await asyncio.sleep(0.05)
-					self.connected = False
-					BLE_Device.dp(self.system_type+" has disconnected.",2)
+				await self._inital_connect_updates()
 
 			except Exception as e:
 				BLE_Device.dp("Unable to connect to "+str(device.address) + ": "+str(e))
+
+	async def disconnect(self):
+		async with self.lock:
+			self.connected = False
+			BLE_Device.dp(self.system_type+" has disconnected.",2)
+
+	def _bleak_disconnect(self, bleak_dev):
+		"""Called by the BleakClient when disconnected"""
+		print(f'Bleak disconnect {self.system_type}: {bleak_dev.address}')
+		# This whole function is a bit annoying as it isn't awaited by Bleak
+		# and therefore can't be called async, so it can't lock to set this
+		# variable.
+		# The disconnect callback for BleakClient also can't be on an instance
+		# of a class, because that needs to be passed self, and the callback
+		# takes only one parameter: BleakClient
+		# Therefore in init, there's a lambda that closes over self to pass it
+		# here and calls this function on the class, allowing BleakClient to take
+		# that lambda as the callback, which means it's a bit deceptive to use
+		# self as the variable name, but everything is dying here so... WHATEVER
+		self.connected = False
+		# Note about why self has to be passed, anyway
+		# https://stackoverflow.com/a/10003918
+
+	async def is_connected(self):
+		async with self.lock:
+			return self.connected
 
 	# FIXME: should register the callback an all the subscriptions at once
 	# set/unset registrations separately
@@ -313,12 +340,12 @@ class BLE_Device():
 	# return the tuple of subscriptions that were set
 	# Assumes you filtered this to only valid message types
 	def _set_callback_subscriptions(self, callback_uuid, message_type, subscribe=True):
-		do_nothing = False
 		if not callback_uuid in self.callbacks:
 			# Could happen with getting deferred in the queue?
 			BLE_Device.dp(f'Given UUID {callback_uuid} disappeared.  Failed to subscribe to {message_type}')
 			return False
 
+		do_nothing = False
 		callback_settings = self.callbacks[callback_uuid]
 		current_subscriptions = callback_settings[1]
 		new_subscriptions = ()
@@ -350,7 +377,7 @@ class BLE_Device():
 
 		return new_subscriptions
 
-	# Filter for _set_BLE_subscription so the subclasses don't have to bother
+	# Decorator for _set_BLE_subscription so the subclasses don't have to bother filtering garbage when they override
 	def _set_hardware_subscription(self, message_type, should_subscribe=True):
 		if not self.connected:
 			print(f'Not connected: Can\'t set subscription {message_type} to {should_subscribe}')
@@ -497,7 +524,7 @@ class BLE_Device():
 							# Well, nobody cares if it WASN'T pressed...
 							pass
 
-					# The app seems to be able to subscribe to Battery Voltage and get it sent constantly
+					# The app seems to be able to subscribe to Battery Voltage (%) and get it sent constantly
 					elif Decoder.hub_property_str[bt_message['property']] == 'Battery Voltage':
 						self.message_queue.put(('info','batt',bt_message['value']))
 

@@ -10,7 +10,8 @@ class Decoder():
 		0x42:'handset',		# Lego 88010 Remote Control for Powered Up
 		0x43:'mario',
 		0x44:'luigi',
-		0x45:'peach'
+		0x45:'peach',
+		0x80:'hub_2'		# Lego 88012
 	}
 
 	#https://lego.github.io/lego-ble-wireless-protocol-docs/index.html#message-typ
@@ -79,8 +80,13 @@ class Decoder():
 		0x28:'Internal Tilt',
 
 		# Pybricks
+		0x36:'Powered Up hub IMU gesture',
 		0x37:'Powered Up Handset Buttons',
 		0x38:'Powered Up hub Bluetooth RSSI',	# 88010 also has this
+		0x39:'Powered Up hub IMU accelerometer',
+		0x3A:'Powered Up hub IMU gyro',
+		0x3B:'Powered Up hub IMU position',
+		0x3C:'Powered Up hub IMU temperature',
 		0x29:'DUPLO Train hub built-in motor',
 		0x2a:'DUPLO Train hub built-in beeper',
 		0x2b:'DUPLO Train hub built-in color sensor',

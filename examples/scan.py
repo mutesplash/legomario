@@ -56,7 +56,7 @@ async def detect_device_callback(device, advertisement_data):
 
 				await mario_devices[device.address].connect(device, advertisement_data)
 			else:
-				if not mario_devices[device.address].connected:
+				if not await mario_devices[device.address].is_connected():
 					await mario_devices[device.address].connect(device, advertisement_data)
 				else:
 					print("Refusing to reconnect to "+mario_devices[device.address].system_type)
@@ -71,9 +71,8 @@ async def detect_device_callback(device, advertisement_data):
 					pass
 
 async def callbackscan(duration=10):
-	scanner = BleakScanner()
+	scanner = BleakScanner(detect_device_callback)
 	print("Ready to find LEGO Mario!")
-	scanner.register_detection_callback(detect_device_callback)
 	print("Scanning...")
 	await scanner.start()
 	await asyncio.sleep(duration)
@@ -94,12 +93,16 @@ if check_file.is_file():
 if not code_data:
 	print("Known code database (mariocodes.json) NOT loaded!")
 
+start_time = time.perf_counter()
 try:
 	asyncio.run(callbackscan(run_seconds))
 except KeyboardInterrupt:
 	print("Recieved keyboard interrupt, stopping.")
+except asyncio.exceptions.InvalidStateError:
+	print("ERROR: Invalid state in Bluetooth stack, we're done here...")
+stop_time = time.perf_counter()
 
 if len(mario_devices):
-	print("Done with LEGO Mario session after "+str(run_seconds)+" seconds...")
+	print(f'Done with LEGO Mario session after {int(stop_time - start_time)} seconds...')
 else:
 	print("Didn't connect to a LEGO Mario.  Quitting.")

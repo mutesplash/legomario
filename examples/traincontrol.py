@@ -119,7 +119,7 @@ async def controller_callback(message):
 			selected_color += 1
 			if selected_color >= len(color_index):
 				selected_color = 0
-			await current_device.write_mode_data_RGB_color(BTLego.Controller.RGB_LIGHT_PORT, color_index[selected_color])
+			await current_device.write_mode_data_RGB_color(color_index[selected_color])
 			if train_device:
 				print(f'TRAIN COLOR')
 				await train_device._set_port_subscriptions([[train_device.RGB_LIGHT_PORT,train_device.LED_COLOR_MODE,1,0 ]])
@@ -130,7 +130,7 @@ async def controller_callback(message):
 			selected_color -= 1
 			if selected_color < 0:
 				selected_color = len(color_index)-1
-			await current_device.write_mode_data_RGB_color(BTLego.Controller.RGB_LIGHT_PORT, color_index[selected_color])
+			await current_device.write_mode_data_RGB_color(color_index[selected_color])
 			if train_device:
 				print(f'TRAIN COLOR')
 				await train_device._set_port_subscriptions([[train_device.RGB_LIGHT_PORT,train_device.LED_COLOR_MODE,1,0 ]])
@@ -179,26 +179,29 @@ async def detect_device_callback(bleak_device, advertisement_data):
 				if bleak_device.address in lego_devices:
 					await lego_devices[bleak_device.address].connect(bleak_device, advertisement_data)
 			else:
-				if not lego_devices[bleak_device.address].connected:
+				if not await lego_devices[bleak_device.address].is_connected():
 					await lego_devices[bleak_device.address].connect(bleak_device, advertisement_data)
 				else:
 					print("Refusing to reconnect to "+lego_devices[bleak_device.address].system_type)
 
 async def callbackscan(duration=10):
-	scanner = BleakScanner()
+	scanner = BleakScanner(detect_device_callback)
 	print("Ready to find LEGO BTLE devices!")
-	scanner.register_detection_callback(detect_device_callback)
 	print("Scanning...")
 	await scanner.start()
 	await asyncio.sleep(duration)
 	await scanner.stop()
 
+start_time = time.perf_counter()
 try:
 	asyncio.run(callbackscan(run_seconds))
 except KeyboardInterrupt:
 	print("Recieved keyboard interrupt, stopping.")
+except asyncio.exceptions.InvalidStateError:
+	print("ERROR: Invalid state in Bluetooth stack, we're done here...")
+stop_time = time.perf_counter()
 
 if len(lego_devices):
-	print("Done with LEGO bluetooth session after "+str(run_seconds)+" seconds...")
+	print(f'Done with LEGO bluetooth session after {int(stop_time - start_time)} seconds...')
 else:
 	print("Didn't connect to a LEGO device.  Quitting.")

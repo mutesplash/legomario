@@ -119,8 +119,12 @@ class Controller(BLE_Device):
 
 	# ---- Bluetooth port writes ----
 
-	# FIXME: If you let mere mortals write this, you gotta verify the port and color vars
-	async def write_mode_data_RGB_color(self, port, color):
+	# FIXME: If you let mere mortals write this, you gotta verify the color vars
+	async def write_mode_data_RGB_color(self, color):
+		# From Decoder.io_type_id_str
+		rgb_devtype = 0x17
+		port = self.device_ports[rgb_devtype]
+
 		if color not in Decoder.rgb_light_colors:
 			return
 

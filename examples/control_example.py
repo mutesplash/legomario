@@ -66,16 +66,16 @@ async def select_next_player():
 		if not is_a_handset:
 			selected_device = lego_devices[list(lego_devices)[selected_device_index]]
 			if selected_device.system_type == 'mario':
-				await handset_device.write_mode_data_RGB_color(BTLego.Controller.RGB_LIGHT_PORT, 0x9)
+				await handset_device.write_mode_data_RGB_color(0x9)
 				await asyncio.sleep(0.2)
 			elif selected_device.system_type == 'luigi':
-				await handset_device.write_mode_data_RGB_color(BTLego.Controller.RGB_LIGHT_PORT, 0x6)
+				await handset_device.write_mode_data_RGB_color(0x6)
 				await asyncio.sleep(0.2)
 			elif selected_device.system_type == 'peach':
-				await handset_device.write_mode_data_RGB_color(BTLego.Controller.RGB_LIGHT_PORT, 0x1)
+				await handset_device.write_mode_data_RGB_color(0x1)
 				await asyncio.sleep(0.2)
 		else:
-			await handset_device.write_mode_data_RGB_color(BTLego.Controller.RGB_LIGHT_PORT, 0xa)
+			await handset_device.write_mode_data_RGB_color(0xa)
 			await asyncio.sleep(0.2)
 
 async def mario_callback(message):
@@ -121,7 +121,7 @@ async def controller_callback(message):
 		if message[2] == 'left' and message[3] == 'center':
 			# Flip the light a bunch of colors and then turn off the controller
 			for color in BTLego.Decoder.rgb_light_colors:
-				await current_device.write_mode_data_RGB_color(BTLego.Controller.RGB_LIGHT_PORT, color)
+				await current_device.write_mode_data_RGB_color(color)
 				await asyncio.sleep(0.2)
 			await current_device.turn_off()
 
@@ -147,7 +147,7 @@ async def controller_callback(message):
 
 					handset_device = find_first_device('handset')
 					if handset_device:
-						await handset_device.write_mode_data_RGB_color(BTLego.Controller.RGB_LIGHT_PORT, 0xa)
+						await handset_device.write_mode_data_RGB_color(0xa)
 						await asyncio.sleep(0.2)
 
 		if message[2] == 'right' and message[3] == 'plus':
@@ -214,7 +214,7 @@ async def detect_device_callback(bleak_device, advertisement_data):
 
 				await lego_devices[bleak_device.address].connect(bleak_device, advertisement_data)
 			else:
-				if not lego_devices[bleak_device.address].connected:
+				if not await lego_devices[bleak_device.address].is_connected():
 					await lego_devices[bleak_device.address].connect(bleak_device, advertisement_data)
 				else:
 					print("Refusing to reconnect to "+lego_devices[bleak_device.address].system_type)
@@ -229,9 +229,8 @@ async def detect_device_callback(bleak_device, advertisement_data):
 					pass
 
 async def callbackscan(duration=10):
-	scanner = BleakScanner()
+	scanner = BleakScanner(detect_device_callback)
 	print("Ready to find LEGO Mario!")
-	scanner.register_detection_callback(detect_device_callback)
 	print("Scanning...")
 	await scanner.start()
 	await asyncio.sleep(duration)
@@ -252,12 +251,16 @@ if check_file.is_file():
 if not code_data:
 	print("Known code database (mariocodes.json) NOT loaded!")
 
+start_time = time.perf_counter()
 try:
 	asyncio.run(callbackscan(run_seconds))
 except KeyboardInterrupt:
 	print("Recieved keyboard interrupt, stopping.")
+except asyncio.exceptions.InvalidStateError:
+	print("ERROR: Invalid state in Bluetooth stack, we're done here...")
+stop_time = time.perf_counter()
 
 if len(lego_devices):
-	print("Done with LEGO Mario session after "+str(run_seconds)+" seconds...")
+	print(f'Done with LEGO Mario session after {int(stop_time - start_time)} seconds...')
 else:
 	print("Didn't connect to a LEGO Mario.  Quitting.")
