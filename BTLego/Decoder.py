@@ -1,17 +1,27 @@
 from binascii import hexlify
 import struct	# bin to FP32
+import importlib
 
 # FIXME: Completely confused on upstream/downstream, fix the nomenclature in the comments
 
 class Decoder():
 
 	advertised_system_type = {
-		0x20:'duplotrain',
+		0x20:'duplotrain',	# "Hub No. 5"
 		0x42:'handset',		# Lego 88010 Remote Control for Powered Up
 		0x43:'mario',
 		0x44:'luigi',
 		0x45:'peach',
-		0x80:'hub_2'		# Lego 88012 Default name of "Technic Hub"
+		0x80:'hub_2'		# "Hub No. 2" Lego 88012 Default name of "Technic Hub"
+	}
+
+	ble_dev_classes = {
+		0x20:'DuploTrain',
+		0x42:'Controller',
+		0x43:'Mario',
+		0x44:'Mario',		# Luigi
+		0x45:'Mario',		# Peach
+		0x80:'Hub2'
 	}
 
 	#https://lego.github.io/lego-ble-wireless-protocol-docs/index.html#message-typ
@@ -72,31 +82,40 @@ class Decoder():
 		0x15:'Current',
 		0x16:'Piezo Tone',
 		0x17:'RGB Light',
+		0x21:'Powered Up Hub battery current',
 		0x22:'External Tilt Sensor',
 		0x23:'Motion Sensor',
 		0x25:'Vision Sensor',
-		0x26:'External Motor with Tacho',
+		0x26:'External Motor with Tacho',	# BOOST Interactive Motor
 		0x27:'Internal Motor with Tacho',
 		0x28:'Internal Tilt',
-
-		# Pybricks
-		0x36:'Powered Up hub IMU gesture',
-		0x37:'Powered Up Handset Buttons',
-		0x38:'Powered Up hub Bluetooth RSSI',	# 88010 also has this
-		0x39:'Powered Up hub IMU accelerometer',
-		0x3A:'Powered Up hub IMU gyro',
-		0x3B:'Powered Up hub IMU position',
-		0x3C:'Powered Up hub IMU temperature',
 		0x29:'DUPLO Train hub built-in motor',
 		0x2a:'DUPLO Train hub built-in beeper',
 		0x2b:'DUPLO Train hub built-in color sensor',
 		0x2c:'DUPLO Train hub built-in speed',
 
+		# Pybricks
+		0x30:'SPIKE Prime Medium Motor',		# Medium Azure color
+		0x36:'Powered Up hub IMU gesture',
+		0x37:'Powered Up Handset Buttons',
+		0x38:'Powered Up hub Bluetooth RSSI',	# 88010 also has this
+		0x39:'Powered Up hub IMU accelerometer',
+		0x3a:'Powered Up hub IMU gyro',
+		0x3b:'Powered Up hub IMU position',
+		0x3c:'Powered Up hub IMU temperature',
+		0x3d:'Technic Color Sensor',
+		0x3e:'Technic Ultrasonic/Distance Sensor',
+		0x3f:'Technic Force Sensor',
+		0x40:'Matrix',	# FIXME: Not coordinated with pybricks...
+		0x41:'Technic Small Angular Motor',
+		0x4b:'Technic Medium Angular Motor',	# Gray color
+		0x4c:'Technic Large Angular motor',		# Gray color
+
 		# My names
 		0x46:'LEGO Events',			# Events from 88010 Powered Up controller and LEGO Mario
 		0x47:'Mario Tilt Sensor',	# aka IMU
 		0x49:'Mario RGB Scanner',	# The code & color scanner
-		0x4A:'Mario Pants Sensor',
+		0x4a:'Mario Pants Sensor',
 		0x55:'Mario Alt Events',
 	}
 
@@ -217,11 +236,26 @@ class Decoder():
 
 	message_type_ints = dict(map(reversed, message_type_str.items()))
 	hub_property_ints = dict(map(reversed, hub_property_str.items()))
+	io_type_id_ints = dict(map(reversed, io_type_id_str.items()))
 
+	def classname_from_ad_data(advertisement_data):
+		if 919 in advertisement_data.manufacturer_data:
+			type_id = advertisement_data.manufacturer_data[919][1]
+			classname = 'BLE_Device'
+
+			if type_id in Decoder.ble_dev_classes:
+				classname = Decoder.ble_dev_classes[type_id]
+
+			class_module = importlib.import_module(f'BTLego.{classname}')
+			classobj = getattr(class_module, classname)
+			return classobj
+
+		return None
 
 	def determine_device_shortname(advertisement_data):
 		# https://lego.github.io/lego-ble-wireless-protocol-docs/index.html#document-2-Advertising
 		# kCBAdvDataManufacturerData = 0x9703004403ffff00
+		# 97 03 is backwards because it's supposed to be a 16 bit int
 		# 919 aka 0x397 or the lego manufacturer id
 		if 919 in advertisement_data.manufacturer_data:
 			# 004403ffff00
@@ -229,6 +263,7 @@ class Decoder():
 			# 44 System type (44 for luigi, 43 mario)
 			#	0x44 010 00100	System type 010 (Lego system), Device number(IDK)
 			#	0x43 010 00011
+			# Device Number 3 & 4: mario... what about the Mindstorms hub?
 			# 03 Capabilites
 			#	0000 0011
 			#	       01	Central role

@@ -9,31 +9,8 @@ from bleak import BleakClient
 from .BLE_Device import BLE_Device
 from .Decoder import Decoder
 
-#{
-#    kCBAdvDataChannel = 37;
-#    kCBAdvDataIsConnectable = 1;
-#    kCBAdvDataManufacturerData = {length = 8, bytes = 0x9703004403ffff00};
-#    kCBAdvDataServiceUUIDs =     (
-#        "00001623-1212-EFDE-1623-785FEABCD123"
-#    );
-#}
-
-# https://lego.github.io/lego-ble-wireless-protocol-docs/index.html#document-2-Advertising
-# 97 03 00 44 03 ff ff 00
-# Must have stripped the length and data type name off?
-# 97 03 is backwards because it's supposed to be a 16 bit int
-# Button state is zero
-# Hub type: 44 (Luigi)
-#	0x44
-#	010 00100
-#     2     4
-#	0x43
-#	010 00011
-#     2     3
-# 2: LEGO System
-# 3&4: mario... what about the Mindstorms hub?
-# Device Capabilities: 3 (Supports central and peripheral (bitmask))
-# Rest is garbage, AFAIAC
+from .LPF_Devices.HP_Button import Button
+from .LPF_Devices.HP_AdName import AdName
 
 # Should be BTLELegoMario but that's obnoxious
 class Mario(BLE_Device):
@@ -70,35 +47,10 @@ class Mario(BLE_Device):
 	# error
 	#	message:	(str)
 
-	message_types = (
-		'event',
-		'motion',
-		'gesture',
-		'scanner',
-		'pants',
+	device_has_properties = (
+		Button,
+		AdName
 	)
-
-	# https://github.com/bricklife/LEGO-Mario-Reveng
-	IMU_PORT = 0		# Inertial Motion Unit?
-						# Pybricks calls this IMU
-		# Mode 0: RAW
-		# Mode 1: GEST (probably more useful)
-	RGB_PORT = 1
-		# Mode 0: TAG
-		# Mode 1: RGB
-	PANTS_PORT = 2
-		# Mode 0: PANT
-	EVENTS_PORT = 3
-		# Mode 0: CHAL
-		# Mode 1: VERS
-		# Mode 2: EVENTS
-		# Mode 3: DEBUG
-	ALT_EVENTS_PORT = 4
-		# Mode 0: Events
-			# More different events?  Might be bluetooth events.
-	VOLTS_PORT = 6		# Constant stream of confusing data
-		# Mode 0: VLT L
-		# Mode 1: VLT S
 
 	code_data = None
 	gr_codespace = {}
@@ -383,6 +335,8 @@ class Mario(BLE_Device):
 		# Translates static event sequences into messages
 		self.event_data_dispatch = {
 		}
+
+		self.mode_probe_ignored_info_types = ( 0x7, 0x8 )	# Doesn't support motor bias or capability bits
 
 		self.volume = 100
 
@@ -1088,72 +1042,36 @@ class Mario(BLE_Device):
 		await self.request_version_update()
 		await self.request_volume_update()
 
-		# Use as a guaranteed init event
-		await self.request_battery_update()
-
-		#await self.interrogate_ports()
-
-	# Override
-	# add message_types, got to do this...
-	def _reset_event_subscription_counters(self):
-		for message_type in self.message_types:
-			self.BLE_event_subscriptions[message_type] = 0;
-		super()._reset_event_subscription_counters()
-
-	# Override
-	async def _set_BLE_subscription(self, message_type, should_subscribe=True):
-		if not message_type in self.BLE_event_subscriptions:
-			return False
-
-		valid_sub_name = True
-
-		if message_type == 'event':
-			# This sub includes the button, which is in super
-			# Hmm, probably need to make this mario_events
-			await self._set_port_subscriptions([[self.EVENTS_PORT,2,5,should_subscribe]])
-		elif message_type == 'motion':
-			await self._set_port_subscriptions([[self.IMU_PORT,0,5,should_subscribe]])
-		elif message_type == 'gesture':
-			await self._set_port_subscriptions([[self.IMU_PORT,1,5,should_subscribe]])
-		elif message_type == 'scanner':
-			await self._set_port_subscriptions([[self.RGB_PORT,0,5,should_subscribe]])
-		elif message_type == 'pants':
-			await self._set_port_subscriptions([[self.PANTS_PORT,0,5,should_subscribe]])
-		else:
-			valid_sub_name = False
-
-		if valid_sub_name:
-			BLE_Device.dp(f'{self.system_type} set Mario hardware messages for {message_type} to {should_subscribe}',2)
-
-		# FIXME: _Should_ event be shared with the button in base?
-		# Pass "event" down the chain
-		super_valid_sub_name = await super()._set_BLE_subscription(message_type, should_subscribe)
-		return ( valid_sub_name or super_valid_sub_name )
-
 	# Override
 	async def _process_bt_message(self, bt_message):
 		msg_prefix = self.system_type+" "
-
 		mario_processed = True
 
 		if Decoder.message_type_str[bt_message['type']] == 'port_value_single':
-			if bt_message['port'] in self.port_data:
-				pd = self.port_data[bt_message['port']]
-				if pd['name'] == 'Mario Pants Sensor':
+
+			device = None
+			for port in self.ports:
+				if bt_message['port'] == port:
+					device = self.ports[port]
+					break
+
+			if device:
+				if device.name == 'Mario Pants Sensor':
 					self._decode_pants_data(bt_message['value'])
-				elif pd['name'] == 'Mario RGB Scanner':
+				elif device.name == 'Mario RGB Scanner':
 					self._decode_scanner_data(bt_message['value'])
-				elif pd['name'] == 'Mario Tilt Sensor':
+				elif device.name == 'Mario Tilt Sensor':
 					self._decode_accel_data(bt_message['value'])
-				elif pd['name'] == 'LEGO Events':
+				elif device.name == 'LEGO Events':
 					self._decode_event_data(bt_message['value'])
-				elif pd['name'] == 'Mario Alt Events':
+				elif device.name == 'Mario Alt Events':
 					self._decode_alt_event_data(bt_message['value'])
 				else:
 					mario_processed = False
 					if Mario.DEBUG >= 2:
-						Mario.dp(msg_prefix+"Data on "+self.port_data[bt_message['port']]['name']+" port"+":"+" ".join(hex(n) for n in bt_message['raw']),2)
+						Mario.dp(f'{msg_prefix}Data on {device.name} port'+":"+" ".join(hex(n) for n in bt_message['raw']),2)
 			else:
+				Mario.dp(msg_prefix+"WARN: Received data for unconfigured port "+str(bt_message['port'])+':'+bt_message['readable'])
 				mario_processed = False
 
 		elif Decoder.message_type_str[bt_message['type']] == 'hub_properties':
@@ -1175,13 +1093,6 @@ class Mario(BLE_Device):
 			return await super()._process_bt_message(bt_message)
 		else:
 			return True
-
-	# Override
-#	async def _request_info(self, hub_attribute):
-#		if hub_attribute == 'mario_volume':
-#			await self._request_volume_update()
-#		else:
-#			super()._request_info(hub_attribute)
 
 	# ---- Make data useful ----
 

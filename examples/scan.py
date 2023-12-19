@@ -17,23 +17,16 @@ code_data = None
 json_code_file = "../mariocodes.json"
 run_seconds = 60
 
-volume = 0
-
 async def mariocallbacks(message):
-	# ( type, key, value )
-	global volume
+	( cb_uuid, message_type, message_key, message_value ) = message
 
 	print("CALLBACK:"+str(message))
-	mario_device = mario_devices[callbacks_to_device_addresses[message[0]]]
+	mario_device = mario_devices[callbacks_to_device_addresses[cb_uuid]]
 
-	if message[1] == 'scanner':
-		if message[2] == 'code':
-			if message[3][1] == 2:
-				volume = volume + 10
-				if volume > 100:
-					volume = 0
-				print("Setting volume to "+str(volume))
-				await mario_device.set_volume(volume)
+	if message_type == 'scanner':
+		if message_key == 'code':
+			if message_value[1] == 2:
+				print("Stomped a goomba")
 
 
 async def detect_device_callback(device, advertisement_data):
@@ -48,13 +41,16 @@ async def detect_device_callback(device, advertisement_data):
 				mario_devices[device.address] = BTLego.Mario(advertisement_data,code_data)
 				callback_uuid = await mario_devices[device.address].register_callback(mariocallbacks)
 				callbacks_to_device_addresses[callback_uuid] = device.address
+				await mario_devices[device.address].subscribe_to_messages_on_callback(callback_uuid, 'device_ready')
 				await mario_devices[device.address].subscribe_to_messages_on_callback(callback_uuid, 'event')
 #				await mario_devices[device.address].subscribe_to_messages_on_callback(callback_uuid, 'pants')
 				await mario_devices[device.address].subscribe_to_messages_on_callback(callback_uuid, 'info')
 				# You don't have to subscribe to "error" type messages...
-				await mario_devices[device.address].subscribe_to_messages_on_callback(callback_uuid, 'scanner', True)
 
 				await mario_devices[device.address].connect(device, advertisement_data)
+
+				await mario_devices[device.address].subscribe_to_messages_on_callback(callback_uuid, 'scanner', True)
+
 			else:
 				if not await mario_devices[device.address].is_connected():
 					await mario_devices[device.address].connect(device, advertisement_data)
