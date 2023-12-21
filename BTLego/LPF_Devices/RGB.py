@@ -27,11 +27,9 @@ class RGB(LPF_Device):
 		# Probed count
 		self.mode_count = -1	# Default unprobed
 
-		self.generated_message_types = (
-			'rgb_color',
-			'rgb_rgb'
-		)
+		self.generated_message_types = ( )
 
+		# FIXME: Don't use current_led_mode, use this!
 		self.mode_subs = {
 			# mode_number: ( delta_interval, subscribe_boolean ) or None
 			0: ( 1, False),		# COL O		Color mode: 0 - 0xA
@@ -43,9 +41,9 @@ class RGB(LPF_Device):
 
 	def set_subscribe(self, message_type, should_subscribe):
 		mode_for_message_type = -1
-		if message_type == 'rgb_color':
+		if message_type == 'set_color':
 			mode_for_message_type = 0
-		if message_type == 'rgb_rgb':
+		if message_type == 'set_rgb':
 			mode_for_message_type = 1
 		else:
 			return False
@@ -141,9 +139,9 @@ class RGB(LPF_Device):
 		# FIXME: use abc
 
 		mode = -1
-		if message_type == 'rgb_color':
+		if message_type == 'set_color':
 			mode = 0
-		elif message_type == 'rgb_rgb':
+		elif message_type == 'set_rgb':
 			mode = 1
 		else:
 			return None
@@ -157,6 +155,21 @@ class RGB(LPF_Device):
 		# Sending this results in port_input_format_single response
 
 		payload = bytearray()
+
+		# You can subscribe to this device, but it doesn't return any useful data.
+		# Instead, the subscription data is necessary because sending the port
+		# along with the set command in the GATT send is insufficient to specify
+		# what you want to happen
+		# ( I guess because it has to prepare a buffer since the sizes vary )
+		# so you have to "subscribe" in the negative to change the input format.
+		# The send commands here put the mode switch before the send data
+		# in the gatt_send command
+		# SO
+		# Internally, the class will request the subscription data for the
+		# type of the send, but nobody is supposed to subscribe to it because
+		# it's generally useless and will desynchronize the class from the
+		# device state
+		# DT_Beeper is the same way
 
 		if self.current_led_mode == -1:
 			# This should only happen if you call this function directly, which you shouldn't be doing

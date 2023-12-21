@@ -77,6 +77,7 @@ class LPF_Device():
 		return None
 
 	def PIFSetup_data_for_message_type(self, message_type):
+		# PIFS: Port Input Format Setup.  Everything you need to set this bluetooth command in Section 3.17.1
 		# return 4-item array [port, mode, delta interval, subscribe on/off]
 		# Base class returns nothing
 		# FIXME: use abc

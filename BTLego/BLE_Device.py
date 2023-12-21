@@ -145,6 +145,7 @@ class BLE_Device():
 							await asyncio.sleep(self.gatt_send_rate_limit)
 					# On init, don't have to unsub
 
+
 			self.message_queue.put(('device_ready', port_id, port))
 			return True
 		else:
@@ -512,13 +513,9 @@ class BLE_Device():
 		elif Decoder.message_type_str[bt_message['type']] == 'hub_attached_io':
 			event = Decoder.io_event_type_str[bt_message['event']]
 
-			reattached = False
-			port = -1
-			for p in self.ports:
-				if p == bt_message['port']:
-					reattached = True
-					port = p
-					break
+			reattached = -1
+			if bt_message['port'] in self.ports:
+				reattached = bt_message['port']
 
 			if event == 'attached':
 				dev = "UNKNOWN DEVICE"
@@ -527,9 +524,9 @@ class BLE_Device():
 				else:
 					dev += "_"+str(bt_message['io_type_id'])
 
-				if reattached:
+				if reattached != -1:
 					BLE_Device.dp(msg_prefix+"Re-attached "+dev+" on port "+str(bt_message['port']),2)
-					self.ports[port].status = bt_message['event']
+					self.ports[reattached].status = bt_message['event']
 				else:
 					BLE_Device.dp(msg_prefix+"Attached "+dev+" on port "+str(bt_message['port']),2)
 					if not await self._init_port_data(bt_message['port'], bt_message['io_type_id']):
@@ -561,7 +558,11 @@ class BLE_Device():
 			else:
 				message = device.decode_pvs(bt_message['port'], bt_message['value'])
 				if message:
-					self.message_queue.put(message)
+					if len(message) == 3:
+						self.message_queue.put(message)
+					else:
+						# SHOULD be a No-op
+						pass
 				else:
 					BLE_Device.dp(msg_prefix+f" {device.name} FAILED TO DECODE PVS DATA:"+" ".join(hex(n) for n in bt_message['value']))
 
@@ -876,6 +877,7 @@ class BLE_Device():
 
 	# ---- Random stuff ----
 
+	# FIXME: Stop doing this and use logging
 	def dp(pstr, level=1):
 		if BLE_Device.DEBUG:
 			if BLE_Device.DEBUG >= level:

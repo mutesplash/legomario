@@ -57,6 +57,8 @@ class DT_Beeper(LPF_Device):
 		# Probed count
 		self.mode_count = -1	# Default unprobed
 
+		# FIXME: Don't use the state integer, use this!
+		# These are "negative subscribe to set" modes.  See: RGB (similar).
 		self.mode_subs = {
 			# mode_number: ( delta_interval, subscribe_boolean ) or None
 			0: ( 1, False),		# TONE		Tones (high/med/low)
