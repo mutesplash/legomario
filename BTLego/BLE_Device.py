@@ -12,12 +12,18 @@ from .Decoder import Decoder
 from .LPF_Devices import *
 from .LPF_Devices.LPF_Device import generate_valid_lpf_message_types
 
+from .LPF_Devices.HP_Button import Button
+from .LPF_Devices.HP_AdName import AdName
+from .LPF_Devices.HP_FWVersion import FWVersion
+from .LPF_Devices.HP_HWVersion import HWVersion
+from .LPF_Devices.HP_BattVolt import BattVolt
+
 class BLE_Device():
 	# 0:	Don't debug
 	# 1:	Print weird stuff
 	# 2:	Print most of the information flow
 	# 3:	Print stuff even you the debugger probably don't need
-	DEBUG = 3
+	DEBUG = 2
 
 	# MESSAGE TYPES ( type, key, value )
 	# event:
@@ -55,7 +61,14 @@ class BLE_Device():
 	lpf_message_types = generate_valid_lpf_message_types()
 
 	# All devices have ... what hub properties?
-	device_has_properties = ( )
+	device_has_properties = (
+		Button,
+		AdName,
+		BattVolt,
+		HWVersion,
+		FWVersion,
+		RSSI
+	)
 
 #	updateable_attributes = (
 #		'hub_name',
@@ -115,7 +128,7 @@ class BLE_Device():
 		for property_class in self.device_has_properties:
 			new_property = property_class()
 			self.properties[new_property.port] = new_property
-
+			BLE_Device.dp(f"Device has attached property {new_property.name}",2)
 			for message_type, sub_count in self.BLE_event_subscriptions.items():
 				if sub_count > 0:
 					if new_property.set_subscribe(message_type, True):
@@ -125,7 +138,9 @@ class BLE_Device():
 							await asyncio.sleep(self.gatt_send_rate_limit)
 						# On init, don't have to unsub
 
-	async def _init_port_data(self, port, port_id):
+	async def _init_port_data(self, bt_message):
+		port = bt_message['port']
+		port_id = bt_message['io_type_id']
 		port_classname = LPF_class_for_type_id(port_id)
 		if port_classname:
 			# https://stackoverflow.com/a/547867
@@ -134,6 +149,8 @@ class BLE_Device():
 			self.ports[port] = port_classobj()
 			self.ports[port].port = port
 			self.ports[port].port_id = port_id
+			self.ports[port].hw_ver_str = bt_message['hw_ver_str']
+			self.ports[port].fw_ver_str = bt_message['sw_ver_str']
 			self.ports[port].name = Decoder.io_type_id_str[port_id]
 			self.ports[port].status = 0x1		# Decoder.io_event_type_str[0x1]
 			for message_type, sub_count in self.BLE_event_subscriptions.items():
@@ -174,8 +191,7 @@ class BLE_Device():
 
 	# Overrideable
 	async def _inital_connect_updates(self):
-		await self.request_name_update()
-		#await self.request_battery_type_update()
+		await self.send_property_message( Decoder.hub_property_ints['Advertising Name'], ('get_ad_name', (None,)) )
 		#await self.interrogate_ports()
 
 	# Override in subclass and call super if you subclass to initialize BLE_event_subscriptions with all available message types
@@ -199,7 +215,7 @@ class BLE_Device():
 		BLE_Device.dp("PORT LIST\n")
 		for port in self.ports:
 			dev = self.ports[port]
-			print(f'\tPort {dev.port} {dev.name} : {dev.devtype} {dev.mode_subs}')
+			print(f'\tPort {dev.port} {dev.name} : {dev.devtype} {dev.mode_subs} HW:{dev.hw_ver_str} FW:{dev.fw_ver_str}')
 		BLE_Device.dp("PROPERTY LIST\n")
 		for prop in self.properties:
 			probobj = self.properties[prop]
@@ -220,7 +236,6 @@ class BLE_Device():
 					BLE_Device.dp("Failed to connect after client creation")
 					return
 				BLE_Device.dp("Connected to "+self.system_type+"! ("+str(device.name)+")",2)
-				self.message_queue.put(('info','player',self.system_type))
 				self.connected = True
 				self.address = device.address
 				await self.client.start_notify(BLE_Device.characteristic_uuid, self._device_events)
@@ -237,6 +252,7 @@ class BLE_Device():
 
 			except Exception as e:
 				BLE_Device.dp("Unable to connect to "+str(device.address) + ": "+str(e))
+		self.message_queue.put(('info','player',self.system_type))
 
 	async def disconnect(self):
 		async with self.lock:
@@ -493,21 +509,9 @@ class BLE_Device():
 				port_text = "port "+str(bt_message['port'])
 
 				if bt_message['port'] in self.ports:
-					# Sometimes the hub_attached_io messages don't come in before the port subscriptions do (despite the sleep() in connect())
-					# So you'll get
-					# peach Enabled notifications on port 3, mode 2
-					# peach Attached Mario RGB Scanner on port 1 (in time)
-					# peach Attached LEGO Events on port 3 (whoops, name came in late)
-					# peach Enabled notifications on Mario RGB Scanner port (1), mode 0
-
-					# Caused by messages from auto-subs sometimes coming in before attachements?
-
 					port_text = self.ports[bt_message['port']].name+" port ("+str(bt_message['port'])+")"
 
 				BLE_Device.dp(msg_prefix+msg+port_text+", mode "+str(bt_message['mode']), 2)
-
-				# Getting "Enabled notifications on LEGO Events port (3), mode 2"
-				# after .unregister_callback() and
 
 		# Sent on connect, without request
 		elif Decoder.message_type_str[bt_message['type']] == 'hub_attached_io':
@@ -529,7 +533,7 @@ class BLE_Device():
 					self.ports[reattached].status = bt_message['event']
 				else:
 					BLE_Device.dp(msg_prefix+"Attached "+dev+" on port "+str(bt_message['port']),2)
-					if not await self._init_port_data(bt_message['port'], bt_message['io_type_id']):
+					if not await self._init_port_data(bt_message):
 						if bt_message['io_type_id'] in Decoder.io_type_id_str:
 							BLE_Device.dp(msg_prefix+" NO CLASS EXISTS FOR LPF ATTACHED DEVICE "+Decoder.io_type_id_str[bt_message['io_type_id']]+": "+str(bt_message['readable']))
 						else:
@@ -569,7 +573,7 @@ class BLE_Device():
 		elif Decoder.message_type_str[bt_message['type']] == 'hub_properties':
 			if not Decoder.hub_property_op_str[bt_message['operation']] == 'Update':
 				# everything else is a write, so you shouldn't be getting these messages!
-				BLE_Device.dp(msg_prefix+"ERR NOT UPDATE: "+bt_message['readable'])
+				BLE_Device.dp(msg_prefix+"ERROR: THIS CLIENT DOES NOT UPDATE: "+bt_message['readable'])
 
 			else:
 				if not bt_message['property'] in Decoder.hub_property_str:
@@ -579,26 +583,11 @@ class BLE_Device():
 
 					if prop_id in self.properties:
 						prop = self.properties[prop_id]
-#						BLE_Device.dp(msg_prefix+"generating event for message: "+bt_message['readable'],2)
 						message = prop.get_message(bt_message)
 						if message:
 							self.message_queue.put(message)
 					else:
-						if Decoder.hub_property_str[prop_id] == 'HW Version' and Decoder.hub_property_op_str[bt_message['operation']] == 'Update':
-							self.message_queue.put(('info','hardware_version',bt_message['value']))
-
-						elif Decoder.hub_property_str[prop_id] == 'FW Version' and Decoder.hub_property_op_str[bt_message['operation']] == 'Update':
-
-							self.message_queue.put(('info','firmware_version',bt_message['value']))
-
-						# This is useless because the information provided is a
-						# total lie, but it's useful in that nobody asks for it
-						#elif Decoder.hub_property_str[prop_id] == 'Battery Type' and Decoder.hub_property_op_str[bt_message['operation']] == 'Update':
-
-						# KEEP THIS WHEN EVERYHING ABOVE HAS BEEN MOVED TO Hub_Property CLASSES
-						else:
-							BLE_Device.dp(msg_prefix+"(unprocessed) "+bt_message['readable'],2)
-
+						BLE_Device.dp(msg_prefix+"(unprocessed) "+bt_message['readable'],2)
 
 		elif Decoder.message_type_str[bt_message['type']] == 'port_output_command_feedback':
 			# Don't really care about these messages?  Just a bunch of queue status reporting
@@ -904,63 +893,6 @@ class BLE_Device():
 		await self.client.write_gatt_char(BLE_Device.characteristic_uuid, name_update_bytes)
 		await asyncio.sleep(self.gatt_send_rate_limit)
 
-	async def request_name_update(self):
-		# Triggers hub_properties message
-		name_update_bytes = bytearray([
-			0x05,	# len
-			0x00,	# padding but maybe stuff in the future (:
-			0x1,	# 'hub_properties'
-			0x1,	# 'Advertising Name'
-			0x5		# 'Request Update'
-		])
-		await self.client.write_gatt_char(BLE_Device.characteristic_uuid, name_update_bytes)
-		await asyncio.sleep(self.gatt_send_rate_limit)
-
-	async def request_version_update(self):
-		# Triggers hub_properties message
-		name_update_bytes = bytearray([
-			0x05,	# len
-			0x00,	# padding but maybe stuff in the future (:
-			0x1,	# 'hub_properties'
-			0x3,	# 'Firmware version'
-			0x5		# 'Request Update'
-		])
-		await self.client.write_gatt_char(BLE_Device.characteristic_uuid, name_update_bytes)
-		await asyncio.sleep(self.gatt_send_rate_limit)
-
-		name_update_bytes = bytearray([
-			0x05,	# len
-			0x00,	# padding but maybe stuff in the future (:
-			0x1,	# 'hub_properties'
-			0x4,	# 'Hardware version'
-			0x5		# 'Request Update'
-		])
-		await self.client.write_gatt_char(BLE_Device.characteristic_uuid, name_update_bytes)
-		await asyncio.sleep(self.gatt_send_rate_limit)
-
-	async def request_battery_update(self):
-		# Triggers hub_properties message
-		name_update_bytes = bytearray([
-			0x05,	# len
-			0x00,	# padding but maybe stuff in the future (:
-			0x1,	# 'hub_properties'
-			0x6,	# 'Battery Percentage'
-			0x5		# 'Request Update'
-		])
-		await self.client.write_gatt_char(BLE_Device.characteristic_uuid, name_update_bytes)
-		await asyncio.sleep(self.gatt_send_rate_limit)
-
-	async def request_battery_type_update(self):
-		name_update_bytes = bytearray([
-			0x05,	# len
-			0x00,	# padding but maybe stuff in the future (:
-			0x1,	# 'hub_properties'
-			0x7,	# 'Battery Percentage'
-			0x5		# 'Request Update'
-		])
-		await self.client.write_gatt_char(BLE_Device.characteristic_uuid, name_update_bytes)
-		await asyncio.sleep(self.gatt_send_rate_limit)
-
 	# Send any attached devices a message to process (or a specific device on a port)
 	async def send_device_message(self, devtype, message, port=None):
 		target_devs = []
@@ -981,6 +913,22 @@ class BLE_Device():
 			else:
 #				print(f'SENDING {message}')
 				await self.process_message_result(dev.send_message(message))
+
+
+	# Send a message to a property for processing
+	async def send_property_message(self, property_type, message):
+		target_property = None
+		for current_property_idx in self.properties:
+			current_property = self.properties[current_property_idx]
+			if current_property.port == property_type:		# Decoder.hub_property_str
+				target_property = current_property
+				break
+
+		if target_property:
+			await self.process_message_result(target_property.send_message(message))
+		else:
+			pass
+			print(f"Didn't find property {property_type} for message {message}")
 
 	# Do any gatt_send operations that the LPF_Device suggests
 	async def process_message_result(self, message_result):

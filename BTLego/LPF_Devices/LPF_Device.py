@@ -52,6 +52,9 @@ class LPF_Device():
 		self.status = 0x0	# Decoder.io_event_type_str[0x1]
 		self.delta_interval = 5
 
+		self.hw_ver_str = None
+		self.fw_ver_str = None
+
 		self.mode_subs = {
 			# mode_number: ( delta_interval, subscribe_boolean ) or None
 		}

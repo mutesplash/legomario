@@ -10,8 +10,7 @@ from .BLE_Device import BLE_Device
 from .Decoder import Decoder
 from .MarioScanspace import MarioScanspace
 
-from .LPF_Devices.HP_Button import Button
-from .LPF_Devices.HP_AdName import AdName
+from .LPF_Devices.HP_MarioVolume import MarioVolume
 
 # Should be BTLELegoMario but that's obnoxious
 class Mario(BLE_Device):
@@ -48,9 +47,8 @@ class Mario(BLE_Device):
 	# error
 	#	message:	(str)
 
-	device_has_properties = (
-		Button,
-		AdName
+	device_has_properties = BLE_Device.device_has_properties + (
+		MarioVolume,
 	)
 
 	code_data = None
@@ -266,8 +264,8 @@ class Mario(BLE_Device):
 	app_icon_color_ints = {}
 
 	# reverse map some dicts so you can index them either way
-	Mario.app_icon_ints = dict(map(reversed, app_icon_names.items()))
-	Mario.app_icon_color_ints = dict(map(reversed, app_icon_color_names.items()))
+	app_icon_ints = dict(map(reversed, app_icon_names.items()))
+	app_icon_color_ints = dict(map(reversed, app_icon_color_names.items()))
 
 	def __init__(self,advertisement_data=None):
 		super().__init__(advertisement_data)
@@ -275,7 +273,7 @@ class Mario(BLE_Device):
 		self.mode_probe_ignored_info_types = ( 0x7, 0x8 )	# Doesn't support motor bias or capability bits
 
 		# Mario defaults to this
-		self.volume = 100
+#		self.volume = 100
 
 		# Translates static event sequences into messages
 		self.event_data_dispatch = {
@@ -966,14 +964,6 @@ class Mario(BLE_Device):
 		}
 
 	# Override
-	async def _inital_connect_updates(self):
-		# Not always sent on connect
-		await self.request_name_update()
-		# Definitely not sent on connect
-		await self.request_version_update()
-		await self.request_volume_update()
-
-	# Override
 	async def _process_bt_message(self, bt_message):
 		msg_prefix = self.system_type+" "
 		mario_processed = True
@@ -1007,18 +997,18 @@ class Mario(BLE_Device):
 				Mario.dp(msg_prefix+"WARN: Received data for unconfigured port "+str(bt_message['port'])+':'+bt_message['readable'])
 				mario_processed = False
 
-		elif Decoder.message_type_str[bt_message['type']] == 'hub_properties':
-			# Logic inversion in this branch...
-			mario_processed = False
-
-			if Decoder.hub_property_op_str[bt_message['operation']] == 'Update':
-				if bt_message['property'] in Decoder.hub_property_str:
-					# hat tip to https://github.com/djipko/legomario.py/blob/master/legomario.py
-					if Decoder.hub_property_str[bt_message['property']] == 'Mario Volume':
-						Mario.dp(msg_prefix+"Volume set to "+str(bt_message['value']),2)
-						self.message_queue.put(('info','volume',bt_message['value']))
-						self.volume = bt_message['value']
-						mario_processed = True
+# 		elif Decoder.message_type_str[bt_message['type']] == 'hub_properties':
+# 			# Logic inversion in this branch...
+# 			mario_processed = False
+#
+# 			if Decoder.hub_property_op_str[bt_message['operation']] == 'Update':
+# 				if bt_message['property'] in Decoder.hub_property_str:
+# 					# hat tip to https://github.com/djipko/legomario.py/blob/master/legomario.py
+# 					if Decoder.hub_property_str[bt_message['property']] == 'Mario Volume':
+# 						Mario.dp(msg_prefix+"Volume set to "+str(bt_message['value']),2)
+# 						self.message_queue.put(('info','volume',bt_message['value']))
+# 						self.volume = bt_message['value']
+# 						mario_processed = True
 		else:
 			mario_processed = False
 
@@ -1379,35 +1369,4 @@ class Mario(BLE_Device):
 		set_name_bytes[0] = len(set_name_bytes)
 
 		await self.client.write_gatt_char(BLE_Device.characteristic_uuid, set_name_bytes)
-		await asyncio.sleep(0.1)
-
-	async def set_volume(self, volume):
-		if volume > 100 or volume < 0:
-			return
-		# The levels in the app are 100, 90, 75, 50, 0
-		# Which is weird, but whatever
-		set_volume_bytes = bytearray([
-			0x06,	# len placeholder
-			0x00,	# padding but maybe stuff in the future (:
-			0x1,	# 'hub_properties'
-			0x12,	# 'Mario Volume'
-			0x1,	# 'Set'
-			volume
-		])
-
-		self.volume = volume
-
-		await self.client.write_gatt_char(BLE_Device.characteristic_uuid, set_volume_bytes)
-		await asyncio.sleep(0.1)
-
-	async def request_volume_update(self):
-		# Triggers hub_properties message
-		name_update_bytes = bytearray([
-			0x05,	# len
-			0x00,	# padding but maybe stuff in the future (:
-			0x1,	# 'hub_properties'
-			0x12,	# 'Mario Volume'
-			0x5		# 'Request Update'
-		])
-		await self.client.write_gatt_char(BLE_Device.characteristic_uuid, name_update_bytes)
 		await asyncio.sleep(0.1)

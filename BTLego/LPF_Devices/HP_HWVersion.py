@@ -5,15 +5,13 @@ from .Hub_Property import Hub_Property
 from ..Decoder import Decoder
 
 # Not actually SURE about the built-in devices fitting into the LPF2 model but whatever
-class BattVolt(Hub_Property):
+class HWVersion(Hub_Property):
 
 	def __init__(self, port=-1):
 		# Port number the device is attached to on the BLE Device
 
-		# OLD self.port_data[port]
-
 		self.devtype = Devtype.PROPERTY
-		self.name = 'Battery Voltage'
+		self.name = 'HW Version'
 		self.port = Decoder.hub_property_ints[self.name]
 		self.port_id = 0x0	# Identifier for the type of device attached
 							# Index into Decoder.io_type_id_str
@@ -29,14 +27,13 @@ class BattVolt(Hub_Property):
 			0: (0, False)
 		}
 
-		# Don't need to index by self.device_ports[port_id] anymore?
-		# Index: Port Type per Decoder.io_type_id_str index, value: attached hardware port identifier (int or tuple)
-
 	def get_message(self, bt_message):
 		if self.mode_subs[0][1]:
-			# The app seems to be able to subscribe to Battery Voltage (%) and get it sent constantly
-			return ('info','batt',bt_message['value'])
+			return ('info','hardware_version',bt_message['value'])
 		return None
+
+		# Don't need to index by self.device_ports[port_id] anymore?
+		# Index: Port Type per Decoder.io_type_id_str index, value: attached hardware port identifier (int or tuple)
 
 	def PIFSetup_data_for_message_type(self, message_type):
 		if message_type == 'info':
@@ -62,17 +59,18 @@ class BattVolt(Hub_Property):
 		action = message[0]
 		parameters = message[1]
 
-		if action == 'get_pct':
-			battery_update_bytes = bytearray([
+		if action == 'get_version':
+			# Triggers hub_properties message
+			property_update_bytes = bytearray([
 				0x05,	# len
 				0x00,	# padding but maybe stuff in the future (:
 				0x1,	# 'hub_properties'
-				self.port,	# 'Battery Percentage'
+				self.port,
 				0x5		# 'Request Update'
 			])
 
-			battery_update_bytes[0] = len(battery_update_bytes)
-			ret_message = { 'gatt_send': (battery_update_bytes,) }
+			property_update_bytes[0] = len(property_update_bytes)
+			ret_message = { 'gatt_send': (property_update_bytes,) }
 			return ret_message
 
 		return None

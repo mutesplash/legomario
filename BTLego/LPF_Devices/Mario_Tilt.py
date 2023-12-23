@@ -43,6 +43,8 @@ class Mario_Tilt(LPF_Device):
 		# Index: Port Type per Decoder.io_type_id_str index, value: attached hardware port identifier (int or tuple)
 
 	def decode_pvs(self, port, data):
+		if port != self.port:
+			return None
 
 		# FIXME: Doesn't really verify if you subscribed to the data before sending it
 

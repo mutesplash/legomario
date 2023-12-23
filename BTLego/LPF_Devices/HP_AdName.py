@@ -10,8 +10,6 @@ class AdName(Hub_Property):
 	def __init__(self, port=-1):
 		# Port number the device is attached to on the BLE Device
 
-		# OLD self.port_data[port]
-
 		self.devtype = Devtype.PROPERTY
 		self.name = 'Advertising Name'
 		self.port = Decoder.hub_property_ints[self.name]
@@ -55,3 +53,23 @@ class AdName(Hub_Property):
 		else:
 			return False
 		return True
+
+	def send_message(self, message):
+		# ( action, (parameters,) )
+		action = message[0]
+		parameters = message[1]
+
+		if action == 'get_ad_name':
+			name_update_bytes = bytearray([
+				0x05,	# len
+				0x00,	# padding but maybe stuff in the future (:
+				0x1,	# 'hub_properties'
+				self.port,	# 'Advertising Name'
+				0x5		# 'Request Update'
+			])
+
+			name_update_bytes[0] = len(name_update_bytes)
+			ret_message = { 'gatt_send': (name_update_bytes,) }
+			return ret_message
+
+		return None

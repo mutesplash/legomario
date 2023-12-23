@@ -57,7 +57,7 @@ class Tilt(LPF_Device):
 		# Index: Port Type per Decoder.io_type_id_str index, value: attached hardware port identifier (int or tuple)
 
 	def decode_pvs(self, port, data):
-		if port != port:
+		if port != self.port:
 			return None
 
 		if len(data) == 2:

@@ -103,6 +103,9 @@ class Mario_Pants(LPF_Device):
 			return 'unknown('+str(hex(mariobyte))+')'
 
 	def decode_pvs(self, port, data):
+		if port != self.port:
+			return None
+
 #	def _decode_pants_data(self, data):
 		if len(data) == 1:
 			# FIXME

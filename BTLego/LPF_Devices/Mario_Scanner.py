@@ -38,6 +38,9 @@ class Mario_Scanner(LPF_Device):
 		# Index: Port Type per Decoder.io_type_id_str index, value: attached hardware port identifier (int or tuple)
 
 	def decode_pvs(self, port, data):
+		if port != self.port:
+			return None
+
 		# RGB Mode 0
 		if len(data) != 4:
 			print("(Mario_Scanner) UNKNOWN SCANNER DATA, WEIRD LENGTH OF "+len(data)+":"+" ".join(hex(n) for n in data))
@@ -62,14 +65,14 @@ class Mario_Scanner(LPF_Device):
 			if barcode_int != 32767:
 				# Happens when Black is used as a color
 				code_info = MarioScanspace.get_code_info(barcode_int)
-				print("(Mario_Scanner) scanned "+code_info['label']+" (" + code_info['barcode']+ " "+str(barcode_int)+")")
+#				print("(Mario_Scanner) scanned "+code_info['label']+" (" + code_info['barcode']+ " "+str(barcode_int)+")")
 				return ('scanner','code',(code_info['barcode'], barcode_int))
 			else:
 				# FIXME: Scanner, error, instead?
 				return ('error','message','Scanned malformed code')
 		elif scantype == 'color':
 			color = MarioScanspace.mario_bytes_to_solid_color(data[2:4])
-			print("(Mario_Scanner) scanned color "+color)
+#			print("(Mario_Scanner) scanned color "+color)
 			return ('scanner','color',color)
 		else:
 			#scantype == 'nothing':

@@ -59,6 +59,9 @@ class Controller_Buttons(LPF_Device):
 	# After getting the Value Format out of the controller, that allowed me to find this page
 	# https://virantha.github.io/bricknil/lego_api/lego.html#remote-buttons
 	def decode_pvs(self, port, data):
+		if port != self.port:
+			return None
+
 		if len(data) != 1:
 			# PORT 1: handset UNKNOWN BUTTON DATA, WEIRD LENGTH OF 3:0x0 0x0 0x0
 			return None
