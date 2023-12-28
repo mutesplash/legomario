@@ -171,6 +171,9 @@ class MarioScanspace():
 		255:'gold grow turns item into coins' # 5 (turnip, mushroom, 1-up, goldbone)
 	}
 
+# Hey, past me, why did you copy this from Mario.py and put it here?
+# Was your plan to consolidate information in an effort to make coinsource less terrible?
+# Well, guess what, you left event_scanner_coinsource in Mario.py! so that's a FIXME
 # 	def _decode_event_data(self, data):
 # 		# Mode 2
 # 		if len(data) == 4:

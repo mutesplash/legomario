@@ -7,7 +7,7 @@ import json
 
 from bleak import BleakClient
 
-from .Decoder import Decoder
+from .Decoder import Decoder, HProp
 
 from .LPF_Devices import *
 from .LPF_Devices.LPF_Device import generate_valid_lpf_message_types
@@ -70,19 +70,22 @@ class BLE_Device():
 	def __init__(self, advertisement_data=None):
 
 		self.system_type = None
-		self.address = None
 		self.client = None
 		self.connected = False
 
 		self.gatt_send_rate_limit = 0.1
 		self.mode_probe_rate_limit = 0.3
+
+		# Override in subclass __init__ and set to a list of hex values for
+		# Mode Information Types over which the device throws errors when doing
+		# port mode information requests ( interrogate_ports() )
 		self.mode_probe_ignored_info_types = ()
 
-		# keep around for whatever
+		# keep around for... whatever?
 		self.device = None
 		self.advertisement = None
-		self.message_queue = None
-		self.callbacks = None
+		self.address = None
+
 		self.disconnect_callback = lambda bleak_dev: BLE_Device._bleak_disconnect(self, bleak_dev)
 
 		self.port_mode_info = {
@@ -90,24 +93,24 @@ class BLE_Device():
 			'requests_until_complete':0		# Port interrogation
 		}
 
-		self.message_queue = SimpleQueue()
-		self.drainlock_changes_queue = SimpleQueue()
+		self.message_queue = SimpleQueue()				# Messages to send to callbacks
+		self.drainlock_changes_queue = SimpleQueue()	# Changes to those callbacks
 
 		# Message type subscriptions reference count
 		self.BLE_event_subscriptions = {}
+		self._reset_event_subscription_counters()
 
 		self.callbacks = {}
 		# UUID indexed tuples of...
 		# 0: callback function
 		# 1: Tuple of message type subscriptions
 
-		self.lock = asyncio.Lock()
-		self.drain_lock = asyncio.Lock()
-
-		self._reset_event_subscription_counters()
+		self.lock = asyncio.Lock()			# Connect lock
+		self.drain_lock = asyncio.Lock()	# Draining message_queue
 
 		self.ports = {}
 		self.properties = {}
+
 		self._init_hub_properties()
 
 	def _init_hub_properties(self):
@@ -166,8 +169,7 @@ class BLE_Device():
 
 	# Overrideable
 	async def _inital_connect_updates(self):
-		await self.send_property_message( Decoder.hub_property_ints['Advertising Name'], ('get', None) )
-		#await self.interrogate_ports()
+		await self.send_property_message( HProp.AD_NAME, ('get', None) )
 
 	# Override in subclass and call super if you subclass to initialize BLE_event_subscriptions with all available message types
 	def _reset_event_subscription_counters(self):
@@ -186,10 +188,10 @@ class BLE_Device():
 		BLE_Device.dp("PORT LIST\n")
 		for port in self.ports:
 			dev = self.ports[port]
-			print(f'\tPort {dev.port} {dev.name} : {dev.devtype} {dev.mode_subs} HW:{dev.hw_ver_str} FW:{dev.fw_ver_str}')
+			BLE_Device.dp(f'\tPort {dev.port} {dev.name} : {dev.devtype} {dev.mode_subs} HW:{dev.hw_ver_str} FW:{dev.fw_ver_str}')
 		BLE_Device.dp("PROPERTY LIST\n")
 		for prop_int, propobj in self.properties.items():
-			print(f'\tProperty {propobj.name} ({propobj.reference_number}) Subscribed: {propobj.subscribed}')
+			BLE_Device.dp(f'\tProperty {propobj.name} ({propobj.reference_number}) Subscribed: {propobj.subscribed}')
 		BLE_Device.dp("CALLBACKS\n"+json.dumps(self.callbacks, indent=4, default=lambda function: '<function callback>'))
 		BLE_Device.dp("PORT MODE INFO\n"+json.dumps(self.port_mode_info, indent=4))
 
@@ -260,7 +262,7 @@ class BLE_Device():
 		callback_uuid = str(uuid.uuid4())
 		self.drainlock_changes_queue.put(('callback', 'register', (callback_uuid,callback)))
 
-		# Outside of the drain
+		# If outside of the drain, process now!
 		if not self.drain_lock.locked():
 			async with self.drain_lock:
 				await self.__process_drainlock_queue()
@@ -270,7 +272,7 @@ class BLE_Device():
 	async def unregister_callback(self, callback_uuid):
 		self.drainlock_changes_queue.put(('callback', 'unregister', (callback_uuid,)))
 
-		# Outside of the drain
+		# If outside of the drain, process now!
 		if not self.drain_lock.locked():
 			async with self.drain_lock:
 				await self.__process_drainlock_queue()
@@ -286,7 +288,7 @@ class BLE_Device():
 
 		self.drainlock_changes_queue.put(('subscription', 'change', (callback_uuid,message_type,subscribe)))
 
-		# Outside of the drain
+		# If outside of the drain, process now!
 		if not self.drain_lock.locked():
 			async with self.drain_lock:
 				await self.__process_drainlock_queue()

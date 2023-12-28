@@ -20,6 +20,7 @@ from queue import SimpleQueue
 import BTLego
 from BTLego.MarioScanspace import MarioScanspace
 from BTLego import Decoder
+from BTLego.Decoder import LDev, HProp
 
 MARIO_JSON_CODE_FILENAME = "../mariocodes.json"
 run_seconds = 60
@@ -72,7 +73,7 @@ async def select_next_player(sys_data):
 
 	if rgb_color:
 		async def set_rgb(this_device, rgb_color):
-			await this_device.send_device_message(Decoder.io_type_id_ints['RGB Light'], ('set_color',(rgb_color,)))
+			await this_device.send_device_message(LDev.RGB, ('set_color',(rgb_color,)))
 		sys_data['off_callback_functions'].put(set_rgb(handset_device, rgb_color))
 
 async def mario_callback(message):
@@ -103,7 +104,7 @@ async def mario_callback(message):
 					print("Gained coins from last scan of "+temp_message_lastscan+" which is numbered "+str(message_value[1])+" and NOT KNOWN in the database!")
 			temp_message_lastscan = None
 	elif message_type == 'property':
-		if message_key == Decoder.hub_property_ints['Mario Volume']:
+		if message_key == HProp.MARIO_VOLUME:
 #			print(f'MARIO VOLUME IS CURRENTLY {message_value}')
 			setattr(current_device, 'volume', message_value)
 
@@ -121,7 +122,7 @@ async def controller_callback(message):
 				if current_device:
 					# Flip the light a bunch of colors and then turn off the controller
 					for color in Decoder.rgb_light_colors:
-						await current_device.send_device_message(Decoder.io_type_id_ints['RGB Light'], ('set_color',(color,)))
+						await current_device.send_device_message(LDev.RGB, ('set_color',(color,)))
 					await current_device.turn_off()
 					await asyncio.sleep(1)
 				else:
@@ -151,7 +152,7 @@ async def controller_callback(message):
 
 							handset_device = find_first_device('handset')
 							if handset_device:
-								await handset_device.send_device_message(Decoder.io_type_id_ints['RGB Light'], ('set_color',(0xa,)))
+								await handset_device.send_device_message(LDev.RGB, ('set_color',(0xa,)))
 					sys_data['off_callback_functions'].put(turnoff(sys_data, sys_data['selected_device']))
 
 		if message_key == 'right' and message_value == 'plus':
@@ -162,7 +163,7 @@ async def controller_callback(message):
 				async def setvolume(sys_data):
 					print("Cranking "+sys_data['selected_device'].system_type+" volume to "+str(set_volume))
 					sys_data['selected_device'].volume = set_volume
-					await sys_data['selected_device'].send_property_message( Decoder.hub_property_ints['Mario Volume'], ('set', set_volume) )
+					await sys_data['selected_device'].send_property_message( HProp.MARIO_VOLUME, ('set', set_volume) )
 				sys_data['off_callback_functions'].put(setvolume(sys_data))
 
 		if message_key == 'right' and message_value == 'minus':
@@ -173,7 +174,7 @@ async def controller_callback(message):
 				async def setvolume(sys_data):
 					print("Turning "+sys_data['selected_device'].system_type+" volume down to "+str(set_volume))
 					sys_data['selected_device'].volume = set_volume
-					await sys_data['selected_device'].send_property_message( Decoder.hub_property_ints['Mario Volume'], ('set', set_volume) )
+					await sys_data['selected_device'].send_property_message( HProp.MARIO_VOLUME, ('set', set_volume) )
 				sys_data['off_callback_functions'].put(setvolume(sys_data))
 
 	elif message_type == 'connection_request':
@@ -216,7 +217,7 @@ async def detect_device_callback(bleak_device, advertisement_data):
 				await sys_data['lego_devices'][bleak_device.address].connect(bleak_device, advertisement_data)
 
 				if system_type != 'handset':
-					await sys_data['lego_devices'][bleak_device.address].send_property_message( Decoder.hub_property_ints['Mario Volume'], ('get', None) )
+					await sys_data['lego_devices'][bleak_device.address].send_property_message( HProp.MARIO_VOLUME, ('get', None) )
 			else:
 				if not await sys_data['lego_devices'][bleak_device.address].is_connected():
 					await sys_data['lego_devices'][bleak_device.address].connect(bleak_device, advertisement_data)

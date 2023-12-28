@@ -7,7 +7,7 @@ from os.path import dirname, basename, isfile, join
 import glob
 
 class Devtype(IntEnum):
-	PROPERTY = 0
+#	PROPERTY = 0
 	FIXED = 1
 	LPF = 2
 
@@ -17,7 +17,7 @@ def generate_valid_lpf_message_types():
 	class_objects = []
 	for i, f in list(enumerate(modules)):
 		b = basename(f)[:-3]
-		if isfile(f) and not b.startswith('HP_') and not f.endswith('__init__.py'):
+		if isfile(f) and not f.endswith('__init__.py'):
 			lpf_classname = basename(f)[:-3]
 			lpf_class_module = importlib.import_module(f'BTLego.LPF_Devices.{lpf_classname}')
 			lpf_classobj = getattr(lpf_class_module, lpf_classname)
@@ -42,8 +42,10 @@ class LPF_Device():
 
 	generated_message_types = ( )
 
-	def __init__(self, port):
+	def __init__(self, port=-1):
 		# Port number the device is attached to on the BLE Device
+
+		self.devtype = Devtype.FIXED
 
 		self.port = port
 		self.name = ''		# Decoder.io_type_id_str[self.port_id]

@@ -106,7 +106,6 @@ class Mario_Pants(LPF_Device):
 		if port != self.port:
 			return None
 
-#	def _decode_pants_data(self, data):
 		if len(data) == 1:
 			# FIXME
 			# Really could use that logging framework right now

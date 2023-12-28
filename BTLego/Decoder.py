@@ -1,6 +1,68 @@
 from binascii import hexlify
 import struct	# bin to FP32
 import importlib
+from enum import IntEnum
+
+# Hub properties (hub_property_str indicies)
+class HProp(IntEnum):
+	AD_NAME = 0x1
+	BUTTON = 0x2
+	FIRMWARE = 0x3
+	HARDWARE = 0x4
+	RSSI = 0x5
+	BATT = 0x6
+	BATT_TYPE = 0x7
+	MANUF_NAME = 0x8
+	RADIO_FW = 0x9
+	LWPVER = 0xa
+	SYSTYPE = 0xb
+	HWNET = 0xc
+	MAC = 0xd
+	MAC2 = 0xe
+	NW_FAM = 0xf
+	MARIO_VOLUME = 0x12
+
+# LPF2-compatible devices (io_type_id_str indicies)
+class LDev(IntEnum):
+	# 0x1:'Motor',
+	# 0x2:'System Train Motor',
+	# 0x5:'Button',
+	LED = 0x8
+	VOLTS = 0x14
+	CURRENT = 0x15
+	# 0x16:'Piezo Tone',
+	RGB = 0x17
+	# 0x21:'Powered Up Hub battery current',
+	TILT = 0x22
+	MOTION = 0x23
+	# 0x25:'Vision Sensor',
+	MOTOR_BOOST = 0x26
+	# 0x27:'Internal Motor with Tacho',
+	# 0x28:'Internal Tilt',
+	DUPLO_MOTOR = 0x29
+	DUPLO_BEEPER = 0x2a
+	DUPLO_COLOR = 0x2b
+	DUPLO_SPEED = 0x2c
+	MOTOR_M_B = 0x30
+	#0x36:'Powered Up hub IMU gesture',
+	CONTROL_BUTTON = 0x37
+	# 0x38:'Powered Up hub Bluetooth RSSI',	# 88010 also has this
+	# 0x39:'Powered Up hub IMU accelerometer',
+	# 0x3a:'Powered Up hub IMU gyro',
+	# 0x3b:'Powered Up hub IMU position',
+	# 0x3c:'Powered Up hub IMU temperature',
+	COLOR = 0x3d
+	UTLRA = 0x3e
+	FORCE = 0x3f
+	MATRIX = 0x40
+	MOTOR_S = 0x41
+	EVENTS = 0x46
+	MARIO_TILT = 0x47
+	MARIO_SCANNER = 0x49
+	MARIO_PANTS = 0x4a
+	MOTOR_M_G = 0x4b
+	MOROR_L_G = 0x4c
+	#	0x55:'Mario Alt Events',
 
 # FIXME: Completely confused on upstream/downstream, fix the nomenclature in the comments
 

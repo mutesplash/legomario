@@ -2,37 +2,20 @@
 
 from .LPF_Device import LPF_Device
 from . import *
-# PROPERTY
-#from .HP_Button import Button
-#from .HP_AdName import AdName
-
-# FIXED
-
-#from .Voltage import Voltage
-#from .PUH_BT_RSSI import PUH_BT_RSSI
-#from .Controller_Buttons import Controller_Buttons
-#from .RGB import RGB
-#from .Mario_Scanner import Mario_Scanner
-#from .Mario_Events import Mario_Events
-#from .Mario_Pants import Mario_Pants
-#from .Mario_Alt_Events import Mario_Alt_Events
-#from .Mario_Tilt import Mario_Tilt
-
-# LPF
-#from .Matrix import Matrix
-#from .LED import LED
-#from .AngularSmall import AngularSmall
+from ..Decoder import LDev
 
 #-----
+
 def LPF_class_for_type_id(type_id):
 	# io_type_id_str indicies
 	dev_classes = {
 		0x8:'LED',
 		0x14:'Voltage',
 		0x15:'Current',
-		0x17:'RGB',
+		LDev.RGB:'RGB',		# FIXME: More of this, right?
 		0x22:'Tilt',
 		0x23:'Motion',
+		0x25:'Vision',
 		0x26:'BoostMotor',
 		0x29:'DT_Motor',
 		0x2a:'DT_Beeper',
@@ -63,4 +46,5 @@ def LPF_class_for_type_id(type_id):
 	if type_id in dev_classes:
 		return dev_classes[type_id]
 	else:
-		return None
+		# Ha ha ha, ANYTHING IS A DEVICE!
+		return 'LPF_Device'

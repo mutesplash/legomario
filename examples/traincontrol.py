@@ -21,6 +21,7 @@ from pathlib import Path
 
 import BTLego
 from BTLego import Decoder
+from BTLego.Decoder import LDev
 
 lego_devices = {}
 callbacks_to_device_addresses = {}
@@ -90,14 +91,14 @@ async def controller_callback(message):
 		if message_key == 'left' and message_value == 'center':
 			if train_device:
 				print(f'TRAIN BEEP')
-				await train_device.send_device_message(Decoder.io_type_id_ints['DUPLO Train hub built-in beeper'], ('play_sound',(color_to_sounds[color_index[selected_color]],)))
+				await train_device.send_device_message(LDev.DUPLO_BEEPER, ('play_sound',(color_to_sounds[color_index[selected_color]],)))
 
 		# Stop
 		if message_key == 'right' and message_value == 'center':
 			train_speed = 0
 			print(f'TRAIN SPEED {train_speed}')
 			if train_device:
-				await train_device.send_device_message(Decoder.io_type_id_ints['DUPLO Train hub built-in motor'], ('set_speed',(train_speed,)))
+				await train_device.send_device_message(LDev.DUPLO_MOTOR, ('set_speed',(train_speed,)))
 
 		# Accel
 		if message_key == 'right' and message_value == 'plus':
@@ -105,7 +106,7 @@ async def controller_callback(message):
 				train_speed += 10
 			print(f'TRAIN SPEED {train_speed}')
 			if train_device:
-				await train_device.send_device_message(Decoder.io_type_id_ints['DUPLO Train hub built-in motor'], ('set_speed',(train_speed,)))
+				await train_device.send_device_message(LDev.DUPLO_MOTOR, ('set_speed',(train_speed,)))
 
 		# Decel
 		if message_key == 'right' and message_value == 'minus':
@@ -113,27 +114,27 @@ async def controller_callback(message):
 				train_speed -= 10
 			print(f'TRAIN SPEED {train_speed}')
 			if train_device:
-				await train_device.send_device_message(Decoder.io_type_id_ints['DUPLO Train hub built-in motor'], ('set_speed',(train_speed,)))
+				await train_device.send_device_message(LDev.DUPLO_MOTOR, ('set_speed',(train_speed,)))
 
 		# Cycle LED
 		if message_key == 'left' and message_value == 'plus':
 			selected_color += 1
 			if selected_color >= len(color_index):
 				selected_color = 0
-			await current_device.send_device_message(Decoder.io_type_id_ints['RGB Light'], ('set_color',(color_index[selected_color],)))
+			await current_device.send_device_message(LDev.RGB, ('set_color',(color_index[selected_color],)))
 			if train_device:
 				print(f'TRAIN COLOR')
-				await train_device.send_device_message(Decoder.io_type_id_ints['RGB Light'], ('set_color',(color_index[selected_color],)))
+				await train_device.send_device_message(LDev.RGB, ('set_color',(color_index[selected_color],)))
 
 		# Cycle LED
 		if message_key == 'left' and message_value == 'minus':
 			selected_color -= 1
 			if selected_color < 0:
 				selected_color = len(color_index)-1
-			await current_device.send_device_message(Decoder.io_type_id_ints['RGB Light'], ('set_color',(color_index[selected_color],)))
+			await current_device.send_device_message(LDev.RGB, ('set_color',(color_index[selected_color],)))
 			if train_device:
 				print(f'TRAIN COLOR')
-				await train_device.send_device_message(Decoder.io_type_id_ints['RGB Light'], ('set_color',(color_index[selected_color],)))
+				await train_device.send_device_message(LDev.RGB, ('set_color',(color_index[selected_color],)))
 
 
 	elif message_type == 'connection_request':
