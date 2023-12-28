@@ -10,8 +10,6 @@ from .BLE_Device import BLE_Device
 from .Decoder import Decoder
 from .MarioScanspace import MarioScanspace
 
-from .LPF_Devices.HP_MarioVolume import MarioVolume
-
 # Should be BTLELegoMario but that's obnoxious
 class Mario(BLE_Device):
 	# 0:	Don't debug
@@ -47,8 +45,7 @@ class Mario(BLE_Device):
 	# error
 	#	message:	(str)
 
-	device_has_properties = BLE_Device.device_has_properties + (
-		MarioVolume,
+	device_property_exclusion_str = (
 	)
 
 	code_data = None

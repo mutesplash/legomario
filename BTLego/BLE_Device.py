@@ -12,18 +12,14 @@ from .Decoder import Decoder
 from .LPF_Devices import *
 from .LPF_Devices.LPF_Device import generate_valid_lpf_message_types
 
-from .LPF_Devices.HP_Button import Button
-from .LPF_Devices.HP_AdName import AdName
-from .LPF_Devices.HP_FWVersion import FWVersion
-from .LPF_Devices.HP_HWVersion import HWVersion
-from .LPF_Devices.HP_BattVolt import BattVolt
+from .HubProperty import HubProperty
 
 class BLE_Device():
 	# 0:	Don't debug
 	# 1:	Print weird stuff
 	# 2:	Print most of the information flow
 	# 3:	Print stuff even you the debugger probably don't need
-	DEBUG = 2
+	DEBUG = 3
 
 	# MESSAGE TYPES ( type, key, value )
 	# event:
@@ -60,14 +56,8 @@ class BLE_Device():
 
 	lpf_message_types = generate_valid_lpf_message_types()
 
-	# All devices have ... what hub properties?
-	device_has_properties = (
-		Button,
-		AdName,
-		BattVolt,
-		HWVersion,
-		FWVersion,
-		RSSI
+	device_property_exclusion_str = (
+		'Mario Volume',
 	)
 
 #	updateable_attributes = (
@@ -123,25 +113,18 @@ class BLE_Device():
 
 		self.ports = {}
 		self.properties = {}
+		self._init_hub_properties()
 
-	async def _init_hub_properties(self):
-		for property_class in self.device_has_properties:
-			new_property = property_class()
-			self.properties[new_property.port] = new_property
-			BLE_Device.dp(f"Device has attached property {new_property.name}",2)
-			for message_type, sub_count in self.BLE_event_subscriptions.items():
-				if sub_count > 0:
-					if new_property.set_subscribe(message_type, True):
-						payload = new_property.gatt_payload_for_subscribe(message_type, True)
-						if payload:
-							await self.client.write_gatt_char(BLE_Device.characteristic_uuid, payload)
-							await asyncio.sleep(self.gatt_send_rate_limit)
-						# On init, don't have to unsub
+	def _init_hub_properties(self):
+		for property_int in Decoder.hub_property_str:
+			if Decoder.hub_property_str[property_int] not in self.device_property_exclusion_str:
+				self.properties[property_int] = HubProperty(property_int)
 
 	async def _init_port_data(self, bt_message):
 		port = bt_message['port']
 		port_id = bt_message['io_type_id']
 		port_classname = LPF_class_for_type_id(port_id)
+		self.port_mode_info['port_count'] += 1
 		if port_classname:
 			# https://stackoverflow.com/a/547867
 			port_module = __import__('BTLego.LPF_Devices.'+port_classname, fromlist=[port_classname])
@@ -162,14 +145,11 @@ class BLE_Device():
 							await asyncio.sleep(self.gatt_send_rate_limit)
 					# On init, don't have to unsub
 
-
 			self.message_queue.put(('device_ready', port_id, port))
 			return True
 		else:
 			BLE_Device.dp(f'Class {self.__class__.__name__} contains unknown device type id {port_id} on port {port}',2)
 			return False
-
-		self.port_mode_info['port_count'] += 1
 
 	def _detach_lpf_device(self,port):
 		if port in self.ports:
@@ -191,7 +171,7 @@ class BLE_Device():
 
 	# Overrideable
 	async def _inital_connect_updates(self):
-		await self.send_property_message( Decoder.hub_property_ints['Advertising Name'], ('get_ad_name', (None,)) )
+		await self.send_new_property_message( Decoder.hub_property_ints['Advertising Name'], ('get', None) )
 		#await self.interrogate_ports()
 
 	# Override in subclass and call super if you subclass to initialize BLE_event_subscriptions with all available message types
@@ -202,10 +182,8 @@ class BLE_Device():
 			self.BLE_event_subscriptions[message_type] = 0;
 		for message_type in self.lpf_message_types:
 			self.BLE_event_subscriptions[message_type] = 0;
-		for property_class in self.device_has_properties:
-			new_property = property_class()
-			for message_type in new_property.generated_message_types:
-				self.BLE_event_subscriptions[message_type] = 0;
+
+		self.BLE_event_subscriptions['property'] = 0;
 
 	# ---- Things Normal People Can Do ----
 	# (Not really all of them, there are some direct bluetooth things below)
@@ -217,9 +195,8 @@ class BLE_Device():
 			dev = self.ports[port]
 			print(f'\tPort {dev.port} {dev.name} : {dev.devtype} {dev.mode_subs} HW:{dev.hw_ver_str} FW:{dev.fw_ver_str}')
 		BLE_Device.dp("PROPERTY LIST\n")
-		for prop in self.properties:
-			probobj = self.properties[prop]
-			print(f'\tProperty {probobj.name} : {probobj.devtype} {probobj.mode_subs}')
+		for prop_int, propobj in self.properties.items():
+			print(f'\tProperty {propobj.name} ({propobj.reference_number}) Subscribed: {propobj.subscribed}')
 		BLE_Device.dp("CALLBACKS\n"+json.dumps(self.callbacks, indent=4, default=lambda function: '<function callback>'))
 		BLE_Device.dp("PORT MODE INFO\n"+json.dumps(self.port_mode_info, indent=4))
 
@@ -239,8 +216,6 @@ class BLE_Device():
 				self.connected = True
 				self.address = device.address
 				await self.client.start_notify(BLE_Device.characteristic_uuid, self._device_events)
-
-				await self._init_hub_properties()
 
 				# turn back on everything everybody registered for (For reconnection)
 				for event_sub_type,sub_count in self.BLE_event_subscriptions.items():
@@ -460,23 +435,16 @@ class BLE_Device():
 						BLE_Device.dp(f'{self.system_type} asked to subscribe {message_type} to {should_subscribe} and the device {self.ports[port].name} on port {port} sent NO PAYLOAD',2)
 				else:
 					BLE_Device.dp(f'{self.system_type} asked to subscribe {message_type} to {should_subscribe} and the device {self.ports[port].name} on port {port} refused despite sending PIFS data for the message type (this is a bug)',2)
-
-		for hub_property_id in self.properties:
-			fake_pifs_data = self.properties[hub_property_id].PIFSetup_data_for_message_type(message_type)
-			if fake_pifs_data:
-				if self.properties[hub_property_id].set_subscribe(message_type, should_subscribe):
-					write_bytes = self.properties[hub_property_id].gatt_payload_for_subscribe(message_type, should_subscribe)
-					if write_bytes:
-						# This could be writing a hub property operation or a port input format single
-						# but only the LPF_Device knows and this class doesn't care
-						await self.client.write_gatt_char(BLE_Device.characteristic_uuid, write_bytes)
-						await asyncio.sleep(self.gatt_send_rate_limit)
-					else:
-						BLE_Device.dp(f'{self.system_type} asked to subscribe {message_type} to {should_subscribe} and the property {self.properties[hub_property_id]} sent NO PAYLOAD',2)
-				else:
-					BLE_Device.dp(f'{self.system_type} asked to subscribe {message_type} to {should_subscribe} and the property {self.properties[hub_property_id]} refused despite sending fake PIFS data for the message type (this is a bug)',2)
-
 		return True
+
+	async def _set_property_subscription(self, property_int, should_subscribe=True):
+		if property_int in self.properties:
+			payload = self.properties[property_int].gatt_payload_for_subscribe(should_subscribe)
+			if payload:
+				await self.client.write_gatt_char(BLE_Device.characteristic_uuid, payload)
+				await asyncio.sleep(self.gatt_send_rate_limit)
+		else:
+			BLE_Device.dp(f'{self.system_type} does not have a property numbered {property_int}',2)
 
 	# Bleak events get sent here
 	async def _device_events(self, sender, data):
@@ -533,11 +501,13 @@ class BLE_Device():
 					self.ports[reattached].status = bt_message['event']
 				else:
 					BLE_Device.dp(msg_prefix+"Attached "+dev+" on port "+str(bt_message['port']),2)
-					if not await self._init_port_data(bt_message):
-						if bt_message['io_type_id'] in Decoder.io_type_id_str:
-							BLE_Device.dp(msg_prefix+" NO CLASS EXISTS FOR LPF ATTACHED DEVICE "+Decoder.io_type_id_str[bt_message['io_type_id']]+": "+str(bt_message['readable']))
-						else:
-							BLE_Device.dp(msg_prefix+" TOTALLY UNKNOWN DEVICE "+str(bt_message['io_type_id'])+": "+str(bt_message['readable']))
+					# Can't mess with the port list outside of the drain lock
+					async with self.drain_lock:
+						if not await self._init_port_data(bt_message):
+							if bt_message['io_type_id'] in Decoder.io_type_id_str:
+								BLE_Device.dp(msg_prefix+" NO CLASS EXISTS FOR LPF ATTACHED DEVICE "+Decoder.io_type_id_str[bt_message['io_type_id']]+": "+str(bt_message['readable']))
+							else:
+								BLE_Device.dp(msg_prefix+" TOTALLY UNKNOWN DEVICE "+str(bt_message['io_type_id'])+": "+str(bt_message['readable']))
 
 			elif event == 'detached':
 				BLE_Device.dp(msg_prefix+"Detached device on port "+str(bt_message['port']),2)
@@ -580,12 +550,9 @@ class BLE_Device():
 					BLE_Device.dp(msg_prefix+"Unknown property "+bt_message['readable'])
 				else:
 					prop_id = bt_message['property']
-
-					if prop_id in self.properties:
-						prop = self.properties[prop_id]
-						message = prop.get_message(bt_message)
-						if message:
-							self.message_queue.put(message)
+					if bt_message['value']:
+						message = ('property', prop_id, bt_message['value'])
+						self.message_queue.put(message)
 					else:
 						BLE_Device.dp(msg_prefix+"(unprocessed) "+bt_message['readable'],2)
 
@@ -914,21 +881,39 @@ class BLE_Device():
 #				print(f'SENDING {message}')
 				await self.process_message_result(dev.send_message(message))
 
+	async def send_new_property_message(self, property_type_int, message):
+		if property_type_int in Decoder.hub_property_str:
+			if property_type_int in self.properties:
+				target_property = self.properties[property_type_int]
+				if len(message) == 2:
+					if message[0] == 'set':
+						payload = target_property.gatt_payload_for_property_set(message[1])
+						if payload:
+							await self.client.write_gatt_char(BLE_Device.characteristic_uuid, payload)
+							await asyncio.sleep(self.gatt_send_rate_limit)
+					elif message[0] == 'get':
+						payload = target_property.gatt_payload_for_property_value_fetch()
+						if payload:
+							await self.client.write_gatt_char(BLE_Device.characteristic_uuid, payload)
+							await asyncio.sleep(self.gatt_send_rate_limit)
+					elif message[0] == 'subscribe':
+						payload = target_property.gatt_payload_for_subscribe(message[1])
+						if payload:
+							if message[1]:
+								target_property.subscribed = True
+							else:
+								target_property.subscribed = False
 
-	# Send a message to a property for processing
-	async def send_property_message(self, property_type, message):
-		target_property = None
-		for current_property_idx in self.properties:
-			current_property = self.properties[current_property_idx]
-			if current_property.port == property_type:		# Decoder.hub_property_str
-				target_property = current_property
-				break
-
-		if target_property:
-			await self.process_message_result(target_property.send_message(message))
+							await self.client.write_gatt_char(BLE_Device.characteristic_uuid, payload)
+							await asyncio.sleep(self.gatt_send_rate_limit)
+					else:
+						BLE_Device.dp(f"Invalid command ({message[0]}) to {target_property.name}")
+				else:
+					BLE_Device.dp(f"Invalid message to {target_property.name}: {message}")
+			else:
+				BLE_Device.dp(f"Property doesn\'t exist for {property_type_int}: Message {message} failed.")
 		else:
-			pass
-			print(f"Didn't find property {property_type} for message {message}")
+			BLE_Device.dp(f"Didn't find property {property_type_int} for message {message}")
 
 	# Do any gatt_send operations that the LPF_Device suggests
 	async def process_message_result(self, message_result):

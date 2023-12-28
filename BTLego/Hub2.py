@@ -9,11 +9,6 @@ from bleak import BleakClient
 from .BLE_Device import BLE_Device
 from .Decoder import Decoder
 
-from .LPF_Devices.HP_Button import Button
-from .LPF_Devices.HP_AdName import AdName
-from .LPF_Devices.HP_RSSI import RSSI
-from .LPF_Devices.HP_BattVolt import BattVolt
-
 class Hub2(BLE_Device):
 	# 0:	Don't debug
 	# 1:	Print weird stuff
@@ -26,13 +21,6 @@ class Hub2(BLE_Device):
 # 		'hub2_rgb',
 # 		'rgb_i',		# Ok this is a problem: Can't sub to devices dynamically NOPE, FIXED THAT
 # 	)
-
-	device_has_properties = (
-		Button,
-		AdName,
-		RSSI,
-		BattVolt
-	)
 
 	def __init__(self,advertisement_data=None, json_code_dict=None):
 		super().__init__(advertisement_data)

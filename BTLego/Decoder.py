@@ -140,7 +140,7 @@ class Decoder():
 		0x3:'FW Version',
 		0x4:'HW Version',
 		0x5:'RSSI',
-		0x6:'Battery Voltage',
+		0x6:'Battery Voltage',	# Seems to actually be percentage?
 		0x7:'Battery Type',
 		0x8:'Manufacturer Name',
 		0x9:'Radio Firmware Version',
@@ -152,7 +152,11 @@ class Decoder():
 		0xf:'Hardware Network Family',
 
 		# My name
-		0x12:'Mario Volume'		# Can't enable updates on this property, which is annoying. Also won't send an update when you update it
+		0x12:'Mario Volume'		# Can't enable updates on this property, which is annoying.
+								# Also won't send an Update when you Set it
+								# Valid Set values: 0 - 100
+								# The levels in the app are 100, 90, 75, 50, 0
+								# Which is weird, but whatever
 	}
 
 	hub_properties_that_update = [
