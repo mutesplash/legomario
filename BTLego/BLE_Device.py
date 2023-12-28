@@ -52,6 +52,8 @@ class BLE_Device():
 		'info',
 		'error',
 		'device_ready',
+		'connection_request',
+		'property',
 	)
 
 	lpf_message_types = generate_valid_lpf_message_types()
@@ -59,13 +61,6 @@ class BLE_Device():
 	device_property_exclusion_str = (
 		'Mario Volume',
 	)
-
-#	updateable_attributes = (
-#		'hub_name',
-#		'hub_version',
-#		'hub_battery_pct',
-#		'hub_port_modes'
-#	)
 
 	characteristic_uuid = '00001624-1212-efde-1623-785feabcd123'
 	hub_service_uuid = '00001623-1212-efde-1623-785feabcd123'
@@ -171,7 +166,7 @@ class BLE_Device():
 
 	# Overrideable
 	async def _inital_connect_updates(self):
-		await self.send_new_property_message( Decoder.hub_property_ints['Advertising Name'], ('get', None) )
+		await self.send_property_message( Decoder.hub_property_ints['Advertising Name'], ('get', None) )
 		#await self.interrogate_ports()
 
 	# Override in subclass and call super if you subclass to initialize BLE_event_subscriptions with all available message types
@@ -182,8 +177,6 @@ class BLE_Device():
 			self.BLE_event_subscriptions[message_type] = 0;
 		for message_type in self.lpf_message_types:
 			self.BLE_event_subscriptions[message_type] = 0;
-
-		self.BLE_event_subscriptions['property'] = 0;
 
 	# ---- Things Normal People Can Do ----
 	# (Not really all of them, there are some direct bluetooth things below)
@@ -550,11 +543,8 @@ class BLE_Device():
 					BLE_Device.dp(msg_prefix+"Unknown property "+bt_message['readable'])
 				else:
 					prop_id = bt_message['property']
-					if bt_message['value']:
-						message = ('property', prop_id, bt_message['value'])
-						self.message_queue.put(message)
-					else:
-						BLE_Device.dp(msg_prefix+"(unprocessed) "+bt_message['readable'],2)
+					message = ('property', prop_id, bt_message['value'])
+					self.message_queue.put(message)
 
 		elif Decoder.message_type_str[bt_message['type']] == 'port_output_command_feedback':
 			# Don't really care about these messages?  Just a bunch of queue status reporting
@@ -881,7 +871,7 @@ class BLE_Device():
 #				print(f'SENDING {message}')
 				await self.process_message_result(dev.send_message(message))
 
-	async def send_new_property_message(self, property_type_int, message):
+	async def send_property_message(self, property_type_int, message):
 		if property_type_int in Decoder.hub_property_str:
 			if property_type_int in self.properties:
 				target_property = self.properties[property_type_int]

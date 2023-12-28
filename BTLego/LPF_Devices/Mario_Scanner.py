@@ -76,7 +76,7 @@ class Mario_Scanner(LPF_Device):
 			return ('scanner','color',color)
 		else:
 			#scantype == 'nothing':
-			print("(Mario_Scanner) scanned nothing")
+#			print("(Mario_Scanner) scanned nothing")
 			return ( None, )
 
 

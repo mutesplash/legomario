@@ -1,14 +1,9 @@
-import sys
-import platform
 import asyncio
 import time
 from bleak import BleakScanner, BleakClient
-import io
-import os
-from pathlib import Path
-import json
 
 import BTLego
+from BTLego.MarioScanspace import MarioScanspace
 
 mario_devices = {}
 callbacks_to_device_addresses = {}
@@ -32,13 +27,12 @@ async def mariocallbacks(message):
 async def detect_device_callback(device, advertisement_data):
 	global mario_devices
 	global callbacks_to_device_addresses
-	global code_data
 
 	if device:
 		mario_device = BTLego.Decoder.determine_device_shortname(advertisement_data)
 		if mario_device:
 			if not device.address in mario_devices:
-				mario_devices[device.address] = BTLego.Mario(advertisement_data,code_data)
+				mario_devices[device.address] = BTLego.Mario(advertisement_data)
 				callback_uuid = await mario_devices[device.address].register_callback(mariocallbacks)
 				callbacks_to_device_addresses[callback_uuid] = device.address
 				await mario_devices[device.address].subscribe_to_messages_on_callback(callback_uuid, 'device_ready')
@@ -78,16 +72,8 @@ async def callbackscan(duration=10):
 	#for d in scanner.discovered_devices:
 	#	print(d)
 
-check_file = Path(os.path.expanduser(json_code_file))
-if check_file.is_file():
-	with open(check_file, "rb") as f:
-		try:
-			code_data = json.loads(f.read())
-		except ValueError as e:  # also JSONDecodeError
-			print("Unable to load code translation JSON:"+str(e))
-
-if not code_data:
-	print("Known code database (mariocodes.json) NOT loaded!")
+if not MarioScanspace.import_codefile(json_code_file):
+	print(f'Known code database ({json_code_file}) NOT loaded!')
 
 start_time = time.perf_counter()
 try:

@@ -12,30 +12,23 @@
 # * Use the right center red button to power off the selected LEGO Mario device
 # * Use the left center red button to power off the controller after cycling through the LED colors
 
-import sys
-import platform
 import asyncio
 import time
 from bleak import BleakScanner, BleakClient
 from queue import SimpleQueue
-import io
-import os
-from pathlib import Path
-import json
 
 import BTLego
+from BTLego.MarioScanspace import MarioScanspace
+from BTLego import Decoder
 
 MARIO_JSON_CODE_FILENAME = "../mariocodes.json"
 run_seconds = 60
-
-volume = 0
 
 temp_message_lastscan = None
 
 sys_data = {
 	'lego_devices': {},							# BLE_Subclasses
 	'callbacks_to_device_addresses': {},	# mac addresses by BTLego callback UUID
-	'mario_json_data': None,
 	'session_over':False,
 	'off_callback_functions': SimpleQueue(),	# Don't call back into a Bleak device on a Bleak callback, queue it
 
@@ -79,7 +72,7 @@ async def select_next_player(sys_data):
 
 	if rgb_color:
 		async def set_rgb(this_device, rgb_color):
-			await this_device.send_device_message(BTLego.Decoder.io_type_id_ints['RGB Light'], ('set_color',(rgb_color,)))
+			await this_device.send_device_message(Decoder.io_type_id_ints['RGB Light'], ('set_color',(rgb_color,)))
 		sys_data['off_callback_functions'].put(set_rgb(handset_device, rgb_color))
 
 async def mario_callback(message):
@@ -99,17 +92,20 @@ async def mario_callback(message):
 	# Find things that aren't in the table yet...
 	if message_type == 'event':
 		if message_key == 'scanner':
-			scanner_code = BTLego.Mario.get_code_info(message_value)
+			scanner_code = MarioScanspace.get_code_info(message_value)
 			temp_message_lastscan = scanner_code['label']
 		elif message_key == 'coincount':
-			if message_value[1] in BTLego.Mario.event_scanner_coinsource:
+			if message_value[1] in MarioScanspace.event_scanner_coinsource:
 				#print("This source is known as: "+BTLego.Mario.event_scanner_coinsource[message_value[1]])
 				pass
 			else:
 				if temp_message_lastscan:
 					print("Gained coins from last scan of "+temp_message_lastscan+" which is numbered "+str(message_value[1])+" and NOT KNOWN in the database!")
 			temp_message_lastscan = None
-
+	elif message_type == 'property':
+		if message_key == Decoder.hub_property_ints['Mario Volume']:
+#			print(f'MARIO VOLUME IS CURRENTLY {message_value}')
+			setattr(current_device, 'volume', message_value)
 
 async def controller_callback(message):
 	global sys_data
@@ -124,8 +120,8 @@ async def controller_callback(message):
 			async def turnoff_handset(current_device):
 				if current_device:
 					# Flip the light a bunch of colors and then turn off the controller
-					for color in BTLego.Decoder.rgb_light_colors:
-						await current_device.send_device_message(BTLego.Decoder.io_type_id_ints['RGB Light'], ('set_color',(color,)))
+					for color in Decoder.rgb_light_colors:
+						await current_device.send_device_message(Decoder.io_type_id_ints['RGB Light'], ('set_color',(color,)))
 					await current_device.turn_off()
 					await asyncio.sleep(1)
 				else:
@@ -155,7 +151,7 @@ async def controller_callback(message):
 
 							handset_device = find_first_device('handset')
 							if handset_device:
-								await handset_device.send_device_message(BTLego.Decoder.io_type_id_ints['RGB Light'], ('set_color',(0xa,)))
+								await handset_device.send_device_message(Decoder.io_type_id_ints['RGB Light'], ('set_color',(0xa,)))
 					sys_data['off_callback_functions'].put(turnoff(sys_data, sys_data['selected_device']))
 
 		if message_key == 'right' and message_value == 'plus':
@@ -165,7 +161,8 @@ async def controller_callback(message):
 					set_volume = 10
 				async def setvolume(sys_data):
 					print("Cranking "+sys_data['selected_device'].system_type+" volume to "+str(set_volume))
-					await sys_data['selected_device'].set_volume(set_volume)
+					sys_data['selected_device'].volume = set_volume
+					await sys_data['selected_device'].send_property_message( Decoder.hub_property_ints['Mario Volume'], ('set', set_volume) )
 				sys_data['off_callback_functions'].put(setvolume(sys_data))
 
 		if message_key == 'right' and message_value == 'minus':
@@ -175,11 +172,12 @@ async def controller_callback(message):
 					set_volume = 100
 				async def setvolume(sys_data):
 					print("Turning "+sys_data['selected_device'].system_type+" volume down to "+str(set_volume))
-					await sys_data['selected_device'].set_volume(set_volume)
+					sys_data['selected_device'].volume = set_volume
+					await sys_data['selected_device'].send_property_message( Decoder.hub_property_ints['Mario Volume'], ('set', set_volume) )
 				sys_data['off_callback_functions'].put(setvolume(sys_data))
 
-	elif message_type == 'event':
-		if message_key == 'button' and message_value == 'pressed':
+	elif message_type == 'connection_request':
+		if message_key == 'button' and message_value == 'down':
 			# Change player the the right buttons control
 			await select_next_player(sys_data)
 
@@ -193,7 +191,7 @@ async def detect_device_callback(bleak_device, advertisement_data):
 	global sys_data
 
 	if bleak_device:
-		system_type = BTLego.Decoder.determine_device_shortname(advertisement_data)
+		system_type = Decoder.determine_device_shortname(advertisement_data)
 		if system_type:
 			if not bleak_device.address in sys_data['lego_devices']:
 
@@ -203,17 +201,22 @@ async def detect_device_callback(bleak_device, advertisement_data):
 					sys_data['callbacks_to_device_addresses'][callback_uuid] = bleak_device.address
 
 					await sys_data['lego_devices'][bleak_device.address].subscribe_to_messages_on_callback(callback_uuid, 'event')
+					await sys_data['lego_devices'][bleak_device.address].subscribe_to_messages_on_callback(callback_uuid, 'connection_request')
 					await sys_data['lego_devices'][bleak_device.address].subscribe_to_messages_on_callback(callback_uuid, 'controller_buttons')
 					await sys_data['lego_devices'][bleak_device.address].subscribe_to_messages_on_callback(callback_uuid, 'info')
 				else:
-					sys_data['lego_devices'][bleak_device.address] = BTLego.Mario(advertisement_data,sys_data['mario_json_data'])
+					sys_data['lego_devices'][bleak_device.address] = BTLego.Mario(advertisement_data)
 					callback_uuid = await sys_data['lego_devices'][bleak_device.address].register_callback(mario_callback)
 					sys_data['callbacks_to_device_addresses'][callback_uuid] = bleak_device.address
 
+					await sys_data['lego_devices'][bleak_device.address].subscribe_to_messages_on_callback(callback_uuid, 'property')
 					await sys_data['lego_devices'][bleak_device.address].subscribe_to_messages_on_callback(callback_uuid, 'event')
 					await sys_data['lego_devices'][bleak_device.address].subscribe_to_messages_on_callback(callback_uuid, 'info')
 
 				await sys_data['lego_devices'][bleak_device.address].connect(bleak_device, advertisement_data)
+
+				if system_type != 'handset':
+					await sys_data['lego_devices'][bleak_device.address].send_property_message( Decoder.hub_property_ints['Mario Volume'], ('get', None) )
 			else:
 				if not await sys_data['lego_devices'][bleak_device.address].is_connected():
 					await sys_data['lego_devices'][bleak_device.address].connect(bleak_device, advertisement_data)
@@ -233,12 +236,9 @@ def lego_device_from_advertisement_data(advertisement_data):
 	"""Generate a lego device from the given advertisement data"""
 	global device_data
 
-	devclass = BTLego.Decoder.classname_from_ad_data(advertisement_data)
+	devclass = Decoder.classname_from_ad_data(advertisement_data)
 	if devclass:
-		if isinstance(devclass, BTLego.Mario):
-			return devclass(advertisement_data, device_data['mario_json_data'])
-		else:
-			return devclass(advertisement_data)
+		return devclass(advertisement_data)
 	return None
 
 async def drain_callback_calls(sys_data):
@@ -284,24 +284,13 @@ async def callbackscan(sys_data, duration=10):
 	#for d in scanner.discovered_devices:
 	#	print(d)
 
-def get_mario_code_json(filename):
-	if filename.is_file():
-		with open(filename, "rb") as f:
-			try:
-				return json.loads(f.read())
-			except ValueError as e:  # also JSONDecodeError
-				print("Unable to load code translation JSON:"+str(e))
-	return None
-
 async def mainloop(run_seconds, sys_data):
 	await asyncio.gather(
 		callbackscan(sys_data, run_seconds),
 		drain_callback_calls(sys_data)
 	)
 
-check_file = Path(os.path.expanduser(MARIO_JSON_CODE_FILENAME))
-sys_data['mario_json_data'] = get_mario_code_json(check_file)
-if not sys_data['mario_json_data']:
+if not MarioScanspace.import_codefile(MARIO_JSON_CODE_FILENAME):
 	print(f'Known code database ({MARIO_JSON_CODE_FILENAME}) NOT loaded!')
 
 start_time = time.perf_counter()

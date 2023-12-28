@@ -20,6 +20,7 @@ import os
 from pathlib import Path
 
 import BTLego
+from BTLego import Decoder
 
 lego_devices = {}
 callbacks_to_device_addresses = {}
@@ -89,14 +90,14 @@ async def controller_callback(message):
 		if message_key == 'left' and message_value == 'center':
 			if train_device:
 				print(f'TRAIN BEEP')
-				await train_device.write_mode_data_play_noise(color_to_sounds[color_index[selected_color]], train_device.BEEP_MODE_SOUND)
+				await train_device.send_device_message(Decoder.io_type_id_ints['DUPLO Train hub built-in beeper'], ('play_sound',(color_to_sounds[color_index[selected_color]],)))
 
 		# Stop
 		if message_key == 'right' and message_value == 'center':
 			train_speed = 0
 			print(f'TRAIN SPEED {train_speed}')
 			if train_device:
-				await train_device.write_mode_motor_speed(train_speed)
+				await train_device.send_device_message(Decoder.io_type_id_ints['DUPLO Train hub built-in motor'], ('set_speed',(train_speed,)))
 
 		# Accel
 		if message_key == 'right' and message_value == 'plus':
@@ -104,7 +105,7 @@ async def controller_callback(message):
 				train_speed += 10
 			print(f'TRAIN SPEED {train_speed}')
 			if train_device:
-				await train_device.write_mode_motor_speed(train_speed)
+				await train_device.send_device_message(Decoder.io_type_id_ints['DUPLO Train hub built-in motor'], ('set_speed',(train_speed,)))
 
 		# Decel
 		if message_key == 'right' and message_value == 'minus':
@@ -112,31 +113,31 @@ async def controller_callback(message):
 				train_speed -= 10
 			print(f'TRAIN SPEED {train_speed}')
 			if train_device:
-				await train_device.write_mode_motor_speed(train_speed)
+				await train_device.send_device_message(Decoder.io_type_id_ints['DUPLO Train hub built-in motor'], ('set_speed',(train_speed,)))
 
 		# Cycle LED
 		if message_key == 'left' and message_value == 'plus':
 			selected_color += 1
 			if selected_color >= len(color_index):
 				selected_color = 0
-			await current_device.write_mode_data_RGB_color(color_index[selected_color])
+			await current_device.send_device_message(Decoder.io_type_id_ints['RGB Light'], ('set_color',(color_index[selected_color],)))
 			if train_device:
 				print(f'TRAIN COLOR')
-				await train_device.write_mode_data_RGB_color(color_index[selected_color])
+				await train_device.send_device_message(Decoder.io_type_id_ints['RGB Light'], ('set_color',(color_index[selected_color],)))
 
 		# Cycle LED
 		if message_key == 'left' and message_value == 'minus':
 			selected_color -= 1
 			if selected_color < 0:
 				selected_color = len(color_index)-1
-			await current_device.write_mode_data_RGB_color(color_index[selected_color])
+			await current_device.send_device_message(Decoder.io_type_id_ints['RGB Light'], ('set_color',(color_index[selected_color],)))
 			if train_device:
 				print(f'TRAIN COLOR')
-				await train_device.write_mode_data_RGB_color(color_index[selected_color])
+				await train_device.send_device_message(Decoder.io_type_id_ints['RGB Light'], ('set_color',(color_index[selected_color],)))
 
 
-	elif message_type == 'event':
-		if message_key == 'button' and message_value == 'pressed':
+	elif message_type == 'connection_request':
+		if message_key == 'button' and message_value == 'down':
 			# Change player the the right buttons control
 			if train_device:
 				await train_device.turn_off()
@@ -149,7 +150,7 @@ async def detect_device_callback(bleak_device, advertisement_data):
 	global train_device
 
 	if bleak_device:
-		system_type = BTLego.Decoder.determine_device_shortname(advertisement_data)
+		system_type = Decoder.determine_device_shortname(advertisement_data)
 		if system_type:
 			if not bleak_device.address in lego_devices:
 
@@ -159,6 +160,7 @@ async def detect_device_callback(bleak_device, advertisement_data):
 					callbacks_to_device_addresses[callback_uuid] = bleak_device.address
 
 					await lego_devices[bleak_device.address].subscribe_to_messages_on_callback(callback_uuid, 'event')
+					await lego_devices[bleak_device.address].subscribe_to_messages_on_callback(callback_uuid, 'connection_request')
 					await lego_devices[bleak_device.address].subscribe_to_messages_on_callback(callback_uuid, 'controller_buttons')
 					await lego_devices[bleak_device.address].subscribe_to_messages_on_callback(callback_uuid, 'info')
 				elif system_type == 'duplotrain':
