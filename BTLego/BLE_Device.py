@@ -19,7 +19,7 @@ class BLE_Device():
 	# 1:	Print weird stuff
 	# 2:	Print most of the information flow
 	# 3:	Print stuff even you the debugger probably don't need
-	DEBUG = 3
+	DEBUG = 0
 
 	# MESSAGE TYPES ( type, key, value )
 	# event:
