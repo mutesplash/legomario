@@ -40,83 +40,74 @@ class DT_Beeper(LPF_Device):
 	}
 
 	def __init__(self, port=-1):
-		# Port number the device is attached to on the BLE Device
+		super().__init__(port)
 
 		self.devtype = Devtype.FIXED
-
-		self.port = port
 
 		self.port_id = 0x2a
 		self.name = Decoder.io_type_id_str[self.port_id]
 							# Identifier for the type of device attached
 							# Index into Decoder.io_type_id_str
-		self.status = 0x1	# Decoder.io_event_type_str[0x1]
+
+		# Hmm, why, again?
+		self.delta_interval = 1
 
 		self.current_beeper_mode = -1
 
-		# Probed count
-		self.mode_count = -1	# Default unprobed
-
-		# FIXME: Don't use the state integer, use this!
+		# FIXME: Don't use the state integer, use this! (yeah, but it's easier than searching...)
 		# These are "negative subscribe to set" modes.  See: RGB (similar).
 		self.mode_subs = {
-			# mode_number: ( delta_interval, subscribe_boolean ) or None
-			0: ( 1, False),		# TONE		Tones (high/med/low)
-			1: ( 1, False),		# SOUND		Sounds (from the default interaction mode)
-			2: ( 1, False)		# UI SND	Beeps the UI typically makes
+			# mode_number: [ delta_interval, subscribe_boolean, Mode Information Name (Section 3.20.1), tuple of generated messages when subscribed to this mode ]
+			0: [ self.delta_interval, False, 'TONE', ()],		# Tones (high/med/low)
+			1: [ self.delta_interval, False, 'SOUND', ()],	# Sounds (from the default interaction mode)
+			2: [ self.delta_interval, False, 'UI SND', ()]	# Beeps the UI typically makes
 		}
 
-		# Don't need to index by self.device_ports[port_id] anymore?
-		# Index: Port Type per Decoder.io_type_id_str index, value: attached hardware port identifier (int or tuple)
-
 	# Switch the mode by unsubscribing to the mode you want
-	# If a change occurs (and a unsubscribe needs to be sent), return True
-	def switch_beeper_mode(self, action):
+	# If action is valid, return True
+	async def switch_beeper_mode(self, action, gatt_payload_writer):
 		if action == 'play_tone':
 			if self.current_beeper_mode != 0:
 				self.current_beeper_mode = 0
-				return True
+				await self.PIF_single_setup(self.current_beeper_mode, False, gatt_payload_writer)
+			return True
 		elif action == 'play_sound':
 			if self.current_beeper_mode != 1:
 				self.current_beeper_mode = 1
-				return True
+				await self.PIF_single_setup(self.current_beeper_mode, False, gatt_payload_writer)
+			return True
 		elif action == 'play_beep':
 			if self.current_beeper_mode != 2:
 				self.current_beeper_mode = 2
-				return True
-
+				await self.PIF_single_setup(self.current_beeper_mode, False, gatt_payload_writer)
+			return True
 		return False
 
-	def send_message(self, message):
+	async def send_message(self, message, gatt_payload_writer):
 		# ( action, (parameters,) )
 		action = message[0]
 		parameters = message[1]
 
-		mode = -1
 		noise_id = -1
-		did_switch_beeper_mode = self.switch_beeper_mode(action)
+		if not await self.switch_beeper_mode(action, gatt_payload_writer):
+			return False
 
 		if action == 'play_tone':
-			mode = 0
 			noise_id = int(parameters[0])
 			if noise_id not in self.tone_numbers:
-				return None
+				return False
 
 		if action == 'play_sound':
-			mode = 1
 			noise_id = int(parameters[0])
 			if noise_id not in self.sound_numbers:
-				return None
-
+				return False
 
 		if action == 'play_beep':
-			mode = 2
 			noise_id = int(parameters[0])
 			if noise_id not in self.ui_beep_numbers:
-				return None
+				return False
 
-		if mode != -1 and noise_id != -1:
-
+		if noise_id != -1:
 			payload = bytearray([
 				0x7,	# len
 				0x0,	# padding
@@ -126,57 +117,12 @@ class DT_Beeper(LPF_Device):
 				0x0,	# Startup and completion information (Buffer if necessary (upper 0x0), No Action (lower 0x0))
 						# Node poweredup and legoino use 0x11 here always
 				0x51,	# Subcommand: WriteDirectModeData
-				mode,
+				self.current_beeper_mode,
 				noise_id
 			])
 			payload[0] = len(payload)
-			ret_message = { 'gatt_send': (payload,) }
 
-			if did_switch_beeper_mode:
-				# You _unsubscribe_ to the mode to switch to it
-				# message_type doesn't really matter
-				mode_switch_payload = self.gatt_payload_for_subscribe('play_tone', False)
-				ret_message = { 'gatt_send': (mode_switch_payload, payload) }
+			await gatt_payload_writer(payload)
+			return True
 
-			return ret_message
-
-		return None
-
-	def gatt_payload_for_subscribe(self, message_type, should_subscribe):
-		# Return the bluetooth payload to be sent via GATT write to perform the selected subscription operation
-
-		# Port Input Format Setup (Single) message
-		# Sending this results in port_input_format_single response
-
-		payload = bytearray()
-		if self.current_beeper_mode == -1:
-			# This should only happen if you call this function directly, which you shouldn't be doing
-			# The play_* messages should make sure it gets set
-			# FIXME: However, this points out an absurdity of using this function for other things!
-			print("DON'T SUBSCRIBE TO THIS")
-			switch_beeper_mode(message_type)
-
-		payload.extend([
-			0x0A,		# length
-			0x00,
-			0x41,		# Port input format (single)
-			self.port,	# port
-			self.current_beeper_mode,
-		])
-
-		# delta interval (uint32)
-		# 5 is what was suggested by https://github.com/salendron/pyLegoMario
-		# 88010 Controller buttons for +/- DO NOT WORK without a delta of zero.
-		# Amusingly, this is strongly _not_ recommended by the LEGO docs
-		# Kind of makes sense, though, since they are discrete (and debounced, I assume)
-		delta_int = self.mode_subs[self.current_beeper_mode][0]
-		payload.extend(delta_int.to_bytes(4,byteorder='little',signed=False))
-
-		if should_subscribe:
-			payload.append(0x1)		# notification enable
-		else:
-			payload.append(0x0)		# notification disable
-		#print(" ".join(hex(n) for n in payload))
-
-		return payload
-
+		return False

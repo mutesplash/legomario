@@ -233,6 +233,8 @@ class Mario(BLE_Device):
 		202:'CHEST',
 		203:'BALLOON',
 		205:'MUSIC',
+		209:'BRLYG I think?',
+		211:'Golden ice cream (or normal?)',
 		255:'gold grow turns item into coins' # 5 (turnip, mushroom, 1-up, goldbone)
 	}
 
@@ -628,6 +630,7 @@ class Mario(BLE_Device):
 		}
 		# umm, won't emit gold_wrapped in multiplayer?
 
+#peach event data:0x7c 0x38 0x8 0x0
 		# All 'lost' events are sent... unreliably
 		self.event_data_dispatch[(0x38,0x7c,0x0)] = lambda dispatch_key: {
 			self.message_queue.put(('event','lost','FRUIT RE'))
@@ -768,6 +771,12 @@ class Mario(BLE_Device):
 			self.message_queue.put(('event','lost','BANANA'))
 		}
 
+#peach event data:0x95 0x38 0x1 0x0
+# ate normal banana
+
+#peach event data:0x95 0x38 0x2 0x0
+# ate golden banana
+
 # ate or lost???
 		self.event_data_dispatch[(0x38,0x95,0x5)] = lambda dispatch_key: {
 			self.message_queue.put(('event','lost_golden','BANANA'))
@@ -800,6 +809,10 @@ class Mario(BLE_Device):
 		self.event_data_dispatch[(0x38,0x9a,0x3)] = lambda dispatch_key: {
 			self.message_queue.put(('event','danceparty','end'))
 		}
+
+#peach event data:0x9c 0x38 0x2 0x0
+# Ate golden icecream (and also normal ice cream??)
+
 
 		# Did they run out of room in their rubbish bin of 0x38?
 		# Contents of PRESENT3
@@ -975,6 +988,7 @@ class Mario(BLE_Device):
 
 			if device:
 				if device.name == 'Mario Pants Sensor' or device.name == 'Mario Tilt Sensor' or device.name == 'Mario RGB Scanner':
+					print(f'Decode PVS for {device.name} port '+str(bt_message['port']))
 					message = device.decode_pvs(bt_message['port'], bt_message['value'])
 					if message:
 						if len(message) == 3:
@@ -983,10 +997,14 @@ class Mario(BLE_Device):
 							# SHOULD be a No-op
 							pass
 				elif device.name == 'LEGO Events':
+					# FIXME: Move to a decode_pvs() function in Mario_Events
 					self._decode_event_data(bt_message['value'])
 				elif device.name == 'Mario Alt Events':
+					# FIXME: Move to a decode_pvs() function in Mario_Alt_Events
 					self._decode_alt_event_data(bt_message['value'])
 				else:
+					# FIXME: Once the above are moved to decode_pvs(), move this debugging thing out to somewhere
+					# AND THEN delete this entire override
 					mario_processed = False
 					if Mario.DEBUG >= 2:
 						Mario.dp(f'{msg_prefix}Data on {device.name} port'+":"+" ".join(hex(n) for n in bt_message['raw']),2)
@@ -1096,6 +1114,9 @@ class Mario(BLE_Device):
 					# 0x4 for STARTC50 ?
 
 					# START2 failure, hit a ghost as well
+					#peach unknown goal status: 601: (89,2) :0x59 0x2
+
+					# START failure, hit SNAGGLES
 					#peach unknown goal status: 601: (89,2) :0x59 0x2
 					Mario.dp(self.system_type+" unknown goal status: "+str(value)+": ("+str(data[2])+","+str(data[3])+") :"+" ".join(hex(n) for n in [data[2],data[3]]),2)
 					decoded_something = True

@@ -6,35 +6,29 @@ from ..Decoder import Decoder
 class Matrix(LPF_Device):
 
 	def __init__(self, port=-1):
-		# Port number the device is attached to on the BLE Device
+		super().__init__(port)
 
 		self.devtype = Devtype.LPF
-
-		self.port = port
 
 		self.port_id = 0x40
 		self.name = Decoder.io_type_id_str[self.port_id]
 							# Identifier for the type of device attached
 							# Index into Decoder.io_type_id_str
-		self.status = 0x1	# Decoder.io_event_type_str[0x1]
+
+		# Why, again?
+		self.delta_interval = 1
 
 		self.current_matrix_mode = -1
 
-		# Probed count
-		self.mode_count = -1	# Default unprobed
-
 		self.mode_subs = {
-			# mode_number: ( delta_interval, subscribe_boolean ) or None
-			0: ( 1, False),		# LEV O		Level
-			1: ( 1, False),		# COL O		Solid Color
-			2: ( 1, False),		# PIX O		Pixel set
-			3: ( 1, False)		# TRANS		Set transistion
+			# mode_number: [ delta_interval, subscribe_boolean, Mode Information Name (Section 3.20.1), tuple of generated messages when subscribed to this mode ]
+			0: [ 1, False, 'LEV O', ()],	# Level
+			1: [ 1, False, 'COL O', ()],	# Solid Color
+			2: [ 1, False, 'PIX O', ()],	# Pixel set
+			3: [ 1, False, 'TRANS', ()]		# Set transistion
 		}
 
 		self.current_matrix = Matrix.blank_matrix()
-
-		# Don't need to index by self.device_ports[port_id] anymore?
-		# Index: Port Type per Decoder.io_type_id_str index, value: attached hardware port identifier (int or tuple)
 
 	def blank_matrix():
 		return [[(0, 0) for x in range(3)] for y in range(3)]
@@ -87,19 +81,19 @@ class Matrix(LPF_Device):
 
 		return False
 
-	def send_message(self, message):
+	async def send_message(self, message, gatt_payload_writer):
 		# ( action, (parameters,) )
 
 		action = message[0]
 		parameters = message[1]
-		ret_message = None
+		payload = None
 
 		if action == 'set_level':
 			mode = 0
 			level = int(parameters[0])
 
 			if level < 0 or level > 9:
-				return
+				return False
 
 			payload = bytearray([
 				0x7,	# len
@@ -113,14 +107,13 @@ class Matrix(LPF_Device):
 				level
 			])
 			payload[0] = len(payload)
-			ret_message = { 'gatt_send': (payload,) }
 
 		elif action == 'set_color':
 			mode = 1
 
 			color = int(parameters[0])
 			if color not in Decoder.rgb_light_colors:
-				return
+				return False
 
 			payload = bytearray([
 				0x7,	# len
@@ -134,14 +127,13 @@ class Matrix(LPF_Device):
 				color
 			])
 			payload[0] = len(payload)
-			ret_message = { 'gatt_send': (payload,) }
 
 		elif action == 'set_pixels':
 			mode = 2
 
 			new_matrix = parameters[0]
 			if not Matrix.validate_matrix(new_matrix):
-				return None
+				return False
 			else:
 				self.current_matrix = new_matrix
 
@@ -161,7 +153,6 @@ class Matrix(LPF_Device):
 					payload.append((self.current_matrix[x][y][1] << 4) | self.current_matrix[x][y][0])
 
 			payload[0] = len(payload)
-			ret_message = { 'gatt_send': (payload,) }
 
 		elif action == 'set_transition':
 			mode = 3
@@ -181,7 +172,7 @@ class Matrix(LPF_Device):
 			# fade which will cause the fade to "pop" in brightness.
 
 			if transition_mode < 0 or transition_mode > 2:
-				return
+				return False
 
 			payload = bytearray([
 				0x7,	# len
@@ -195,16 +186,16 @@ class Matrix(LPF_Device):
 				transition_mode
 			])
 			payload[0] = len(payload)
-			ret_message = { 'gatt_send': (payload,) }
 
 		elif action == 'set_pixel':
+			mode = 2
 			# Synthetic action
 			x, y, color, brightness = parameters
 			pixel = (color, brightness)
 			if not Matrix.validate_pixel(pixel):
-				return None
+				return False
 			if x > 2 or x < 0 or y > 2 or y < 0:
-				return None
+				return False
 			self.current_matrix[int(x)][int(y)] = pixel
 
 			payload = bytearray([
@@ -215,61 +206,22 @@ class Matrix(LPF_Device):
 				self.port,
 				0x0,	# Startup and completion information (Buffer if necessary (upper 0x0), No Action (lower 0x0))
 				0x51,	# Subcommand: WriteDirectModeData
-				0x2,	# Mode 2: Pixel set
+				mode,	# Mode 2: Pixel set
 			])
 			for x in range(3):
 				for y in range(3):
-					# brightness in the upper bits, color in the lower
+					# brightness in the upper bits, color in the lower, max of 10 on both as 0xAA is 1010 1010 and 1010 is decimal 10
+					# chars/figures is 3, which makes sense because 0xAA is 170, or three digits
 					payload.append((self.current_matrix[x][y][1] << 4) | self.current_matrix[x][y][0])
 
 			payload[0] = len(payload)
-			ret_message = { 'gatt_send': (payload,) }
-			# Total hackjob
+			# FIXME: Total hackjob
 			action = 'set_pixels'
 
-		if ret_message:
+		if payload:
 			if self.switch_matrix_mode(action):
-				mode_switch_payload = self.gatt_payload_for_subscribe(action, False)
-				ret_message = { 'gatt_send': (mode_switch_payload, payload) }
-			return ret_message
+				await self.PIF_single_setup(mode, False, gatt_payload_writer)
+			await gatt_payload_writer(payload)
+			return True
 
-		return None
-
-	def gatt_payload_for_subscribe(self, message_type, should_subscribe):
-		# Return the bluetooth payload to be sent via GATT write to perform the selected subscription operation
-
-		# Port Input Format Setup (Single) message
-		# Sending this results in port_input_format_single response
-
-		if self.current_matrix_mode == -1:
-			# This should only happen if you call this function directly, which you shouldn't be doing
-			# The play_* messages should make sure it gets set
-			# FIXME: However, this points out an absurdity of using this function for other things!
-			print("DON'T SUBSCRIBE TO THIS")
-			switch_matrix_mode(message_type)
-
-		payload = bytearray()
-
-		payload.extend([
-			0x0A,		# length
-			0x00,
-			0x41,		# Port input format (single)
-			self.port,	# port
-			self.current_matrix_mode,
-		])
-
-		# delta interval (uint32)
-		# 5 is what was suggested by https://github.com/salendron/pyLegoMario
-		# 88010 Controller buttons for +/- DO NOT WORK without a delta of zero.
-		# Amusingly, this is strongly _not_ recommended by the LEGO docs
-		# Kind of makes sense, though, since they are discrete (and debounced, I assume)
-		delta_int = self.mode_subs[self.current_matrix_mode][0]
-		payload.extend(delta_int.to_bytes(4,byteorder='little',signed=False))
-
-		if should_subscribe:
-			payload.append(0x1)		# notification enable
-		else:
-			payload.append(0x0)		# notification disable
-		#print(" ".join(hex(n) for n in payload))
-
-		return payload
+		return False

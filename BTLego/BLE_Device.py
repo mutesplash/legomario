@@ -87,6 +87,9 @@ class BLE_Device():
 		self.address = None
 
 		self.disconnect_callback = lambda bleak_dev: BLE_Device._bleak_disconnect(self, bleak_dev)
+		# This is such a fun trick, we'll do it twice.
+		# Give connected devices this function to let them send their own gatt messages
+		self.gatt_writer = lambda payload: BLE_Device._gatt_send(self, payload)
 
 		self.port_mode_info = {
 			'port_count':0,
@@ -136,11 +139,7 @@ class BLE_Device():
 			self.ports[port].status = 0x1		# Decoder.io_event_type_str[0x1]
 			for message_type, sub_count in self.BLE_event_subscriptions.items():
 				if sub_count > 0:
-					if self.ports[port].set_subscribe(message_type, True):
-						payload = self.ports[port].gatt_payload_for_subscribe(message_type, True)
-						if payload:
-							await self.client.write_gatt_char(BLE_Device.characteristic_uuid, payload)
-							await asyncio.sleep(self.gatt_send_rate_limit)
+					await self.ports[port].subscribe_to_messages(message_type, True, self.gatt_writer)
 					# On init, don't have to unsub
 
 			self.message_queue.put(('device_ready', port_id, port))
@@ -170,6 +169,9 @@ class BLE_Device():
 	# Overrideable
 	async def _inital_connect_updates(self):
 		await self.send_property_message( HProp.AD_NAME, ('get', None) )
+
+		# Init trigger (BUT NOT ALL PORTS INIT)
+		await self.send_property_message( HProp.FIRMWARE, ('get', None) )
 
 	# Override in subclass and call super if you subclass to initialize BLE_event_subscriptions with all available message types
 	def _reset_event_subscription_counters(self):
@@ -282,6 +284,7 @@ class BLE_Device():
 		# Not going to check if the callback is valid here, because it could be on the queue
 
 		# Contains all message_types for the class after _reset_event_subscription_counters() in subclasses
+		# FIXME: Not strictly true.  This is ALL of the subscriptions that are possible.
 		if not message_type in self.BLE_event_subscriptions:
 			BLE_Device.dp(f'Class {self.__class__.__name__} can\'t subscribe to {message_type}',2)
 			return False
@@ -413,31 +416,14 @@ class BLE_Device():
 			return False
 
 		for port in self.ports:
-			# ( port, mode, delta_interval, should_subscribe)
-			pifs_data = self.ports[port].PIFSetup_data_for_message_type(message_type)
-			if pifs_data:
-				if self.ports[port].set_subscribe(message_type, should_subscribe):
-					# This device handles this message
-					write_bytes = self.ports[port].gatt_payload_for_subscribe(message_type, should_subscribe)
-					if write_bytes:
-						# This could be writing a hub property operation or a port input format single
-						# but only the LPF_Device knows and this class doesn't care
-						await self.client.write_gatt_char(BLE_Device.characteristic_uuid, write_bytes)
-						await asyncio.sleep(self.gatt_send_rate_limit)
-					else:
-						pass
-						# Device doesn't support this subscription
-						BLE_Device.dp(f'{self.system_type} asked to subscribe {message_type} to {should_subscribe} and the device {self.ports[port].name} on port {port} sent NO PAYLOAD',2)
-				else:
-					BLE_Device.dp(f'{self.system_type} asked to subscribe {message_type} to {should_subscribe} and the device {self.ports[port].name} on port {port} refused despite sending PIFS data for the message type (this is a bug)',2)
+			await self.ports[port].subscribe_to_messages(message_type, should_subscribe, self.gatt_writer)
 		return True
 
 	async def _set_property_subscription(self, property_int, should_subscribe=True):
 		if property_int in self.properties:
 			payload = self.properties[property_int].gatt_payload_for_subscribe(should_subscribe)
 			if payload:
-				await self.client.write_gatt_char(BLE_Device.characteristic_uuid, payload)
-				await asyncio.sleep(self.gatt_send_rate_limit)
+				await self._gatt_send(payload)
 		else:
 			BLE_Device.dp(f'{self.system_type} does not have a property numbered {property_int}',2)
 
@@ -602,6 +588,9 @@ class BLE_Device():
 		self.port_mode_info[port]['name'] = device.name
 		self.port_mode_info[port]['mode_info_requests_outstanding'] = { }
 
+		# FIXME: Does not note bt_message['port_mode_capabilities']
+		# IE: {'output': True, 'input': True, 'logic_combineable': True, 'logic_synchronizeable': False}
+
 		async def scan_mode(direction, port, mode):
 			if not mode in self.port_mode_info[port]:
 				self.port_mode_info[port][mode] = {
@@ -650,11 +639,19 @@ class BLE_Device():
 					# Can't really tell the difference between in and out request
 					self.port_mode_info[port]['mode_info_requests_outstanding'][mode_number] = True
 					await scan_mode('OUT',port,mode_number)
+			else:
+				if mode_number + 1 <= self.port_mode_info[port]['mode_count']:
+					if not mode_number in self.port_mode_info[port]:
+						# Neither IN nor OUT.  As seen on the Vision sensor, mode 8
+						await scan_mode('NO-IO',port,mode_number)
 
 			bit_value <<=1
 			mode_number += 1
 
 		# When 'requests_outstanding' for the port and mode are done, eliminate entry in mode_info_requests_outstanding
+		# FIXME: Sometimes this doesn't trigger and leaves trash??
+		# IE:
+		#	"mode_info_requests_outstanding": {},
 		if not self.port_mode_info[port]['mode_info_requests_outstanding']:
 			self.port_mode_info[port].pop('mode_info_requests_outstanding',None)
 
@@ -804,6 +801,7 @@ class BLE_Device():
 		# Decoder.hub_action_type
 		if bt_message['action'] == 0x30:
 			self.message_queue.put(('event','power','turned_off'))
+			# FIXME: Should we flag the device as disconnected here?  Has a message _ever_ come in AFTER this?
 		elif bt_message['action'] == 0x31:
 			self.message_queue.put(('event','bt','disconnected'))
 		else:
@@ -849,8 +847,7 @@ class BLE_Device():
 			0x2,	# 'hub_actions'
 			0x1		# Decoder.hub_action_type: 'Switch Off Hub'  (Don't use 0x2f, powers down as if you yanked the battery)
 		])
-		await self.client.write_gatt_char(BLE_Device.characteristic_uuid, name_update_bytes)
-		await asyncio.sleep(self.gatt_send_rate_limit)
+		await self._gatt_send(name_update_bytes)
 
 	# Send any attached devices a message to process (or a specific device on a port)
 	async def send_device_message(self, devtype, message, port=None):
@@ -867,11 +864,11 @@ class BLE_Device():
 		for dev in target_devs:
 			if port:
 				if dev.port == port:
-#					print(f'SENDING {message} TO SPECIFIC PORT {port}')
-					await self.process_message_result(dev.send_message(message))
+					BLE_Device.dp(f'SENDING {message} TO SPECIFIC PORT {port}',2)
+					await dev.send_message(message, self.gatt_writer )
 			else:
-#				print(f'SENDING {message}')
-				await self.process_message_result(dev.send_message(message))
+				BLE_Device.dp(f'SENDING {message}',2)
+				await dev.send_message(message, self.gatt_writer )
 
 	async def send_property_message(self, property_type_int, message):
 		if property_type_int in Decoder.hub_property_str:
@@ -881,13 +878,11 @@ class BLE_Device():
 					if message[0] == 'set':
 						payload = target_property.gatt_payload_for_property_set(message[1])
 						if payload:
-							await self.client.write_gatt_char(BLE_Device.characteristic_uuid, payload)
-							await asyncio.sleep(self.gatt_send_rate_limit)
+							await self._gatt_send(payload)
 					elif message[0] == 'get':
 						payload = target_property.gatt_payload_for_property_value_fetch()
 						if payload:
-							await self.client.write_gatt_char(BLE_Device.characteristic_uuid, payload)
-							await asyncio.sleep(self.gatt_send_rate_limit)
+							await self._gatt_send(payload)
 					elif message[0] == 'subscribe':
 						payload = target_property.gatt_payload_for_subscribe(message[1])
 						if payload:
@@ -896,8 +891,7 @@ class BLE_Device():
 							else:
 								target_property.subscribed = False
 
-							await self.client.write_gatt_char(BLE_Device.characteristic_uuid, payload)
-							await asyncio.sleep(self.gatt_send_rate_limit)
+							await self._gatt_send(payload)
 					else:
 						BLE_Device.dp(f"Invalid command ({message[0]}) to {target_property.name}")
 				else:
@@ -907,16 +901,15 @@ class BLE_Device():
 		else:
 			BLE_Device.dp(f"Didn't find property {property_type_int} for message {message}")
 
-	# Do any gatt_send operations that the LPF_Device suggests
-	async def process_message_result(self, message_result):
-		if message_result:
-			if 'gatt_send' in message_result:
-				for payload in message_result['gatt_send']:
-					if payload:
-#						print("GATT SEND: "+" ".join(hex(n) for n in payload))
-						if self.connected:
-							await self.client.write_gatt_char(BLE_Device.characteristic_uuid, payload)
-							await asyncio.sleep(self.gatt_send_rate_limit)
+	async def _gatt_send(self, payload):
+		if self.connected:
+			BLE_Device.dp("GATT SEND: "+" ".join(hex(n) for n in payload), 3)
+			await self.client.write_gatt_char(BLE_Device.characteristic_uuid, payload)
+			await asyncio.sleep(self.gatt_send_rate_limit)
+			return True
+		else:
+			BLE_Device.dp("GATT SEND PROHIBITED: NOT CONNECTED", 3)
+			return False
 
 	# ---- Bluetooth port writes for the class ----
 
@@ -945,8 +938,7 @@ class BLE_Device():
 
 # or it just disappears
 # AttributeError: 'NoneType' object has no attribute 'write_gatt_char'
-		await self.client.write_gatt_char(BLE_Device.characteristic_uuid, payload)
-		await asyncio.sleep(self.gatt_send_rate_limit)
+		await self._gatt_send(payload)
 
 	async def _write_port_info_request(self, port, mode_info=False):
 		# 0: Request port_value_single value
@@ -963,5 +955,4 @@ class BLE_Device():
 			mode_int
 		])
 		payload[0] = len(payload)
-		await self.client.write_gatt_char(BLE_Device.characteristic_uuid, payload)
-		await asyncio.sleep(self.gatt_send_rate_limit)
+		await self._gatt_send(payload)

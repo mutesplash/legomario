@@ -7,10 +7,12 @@ from ..Decoder import Decoder
 class Controller_Buttons(LPF_Device):
 
 	def __init__(self, port=-1):
+		super().__init__(port)
 		# Port number the device is attached to on the BLE Device
 
 		self.devtype = Devtype.FIXED
 
+		# Well, let's hope they don't put this device on anything else...
 		# Side A is left, port 0
 		# Side B is right, port 1
 		self.port = port
@@ -19,42 +21,21 @@ class Controller_Buttons(LPF_Device):
 		self.name = Decoder.io_type_id_str[self.port_id]
 							# Identifier for the type of device attached
 							# Index into Decoder.io_type_id_str
-		self.status = 0x1	# Decoder.io_event_type_str[0x1]
 
-		# Probed count
-		self.mode_count = -1	# Default unprobed
-
-		self.generated_message_types = (
-			'controller_buttons',
-		)
+		# 88010 Controller buttons in Mode 1 for +/- DO NOT WORK without a delta
+		# interval of zero.
+		# Amusingly, this is strongly _not_ recommended by the LEGO docs
+		# Kind of makes sense, though, since they are discrete (and debounced, I assume)
+		self.delta_interval = 0
 
 		self.mode_subs = {
-			# mode_number: ( delta_interval, subscribe_boolean ) or None
-			1: ( 0, False)	# Value other than zero doesn't really work for the buttons
+			# mode_number: [ delta_interval, subscribe_boolean, Mode Information Name (Section 3.20.1), tuple of generated messages when subscribed to this mode ]
+			0: [ self.delta_interval, False, 'RCKEY', ()],
+			1: [ self.delta_interval, False, 'KEYA', ('controller_buttons',)],
+			2: [ self.delta_interval, False, 'KEYR', ()],
+			3: [ self.delta_interval, False, 'KEYD', ()],
+			2: [ self.delta_interval, False, 'KEYSD', ()]
 		}
-
-		# Don't need to index by self.device_ports[port_id] anymore?
-		# Index: Port Type per Decoder.io_type_id_str index, value: attached hardware port identifier (int or tuple)
-
-	def set_subscribe(self, message_type, should_subscribe):
-		if message_type == 'controller_buttons':
-			mode_for_message_type = 1
-			# Don't change the delta
-			self.mode_subs[mode_for_message_type] = (self.mode_subs[mode_for_message_type][0], should_subscribe)
-		else:
-			return False
-		return True
-
-	def PIFSetup_data_for_message_type(self, message_type):
-		# return 4-item array [port, mode, delta interval, subscribe on/off]
-		# Base class returns nothing
-		# FIXME: use abc
-
-		if message_type == 'controller_buttons':
-			single_mode = 1
-			return (self.port, single_mode, *self.mode_subs[single_mode], )
-
-		return None
 
 	# After getting the Value Format out of the controller, that allowed me to find this page
 	# https://virantha.github.io/bricknil/lego_api/lego.html#remote-buttons
@@ -81,36 +62,3 @@ class Controller_Buttons(LPF_Device):
 			return ('controller_buttons',side,'minus')
 
 		return None
-
-	def gatt_payload_for_subscribe(self, message_type, should_subscribe):
-		# Return the bluetooth payload to be sent via GATT write to perform the selected subscription operation
-
-		# Port Input Format Setup (Single) message
-		# Sending this results in port_input_format_single response
-
-		payload = bytearray()
-		if message_type == 'controller_buttons':
-			mode = 1
-			payload.extend([
-				0x0A,		# length
-				0x00,
-				0x41,		# Port input format (single)
-				self.port,	# port
-				1,			# mode for controller_buttons
-			])
-
-			# delta interval (uint32)
-			# 5 is what was suggested by https://github.com/salendron/pyLegoMario
-			# 88010 Controller buttons for +/- DO NOT WORK without a delta of zero.
-			# Amusingly, this is strongly _not_ recommended by the LEGO docs
-			# Kind of makes sense, though, since they are discrete (and debounced, I assume)
-			delta_int = self.mode_subs[mode][0]
-			payload.extend(delta_int.to_bytes(4,byteorder='little',signed=False))
-
-			if should_subscribe:
-				payload.append(0x1)		# notification enable
-			else:
-				payload.append(0x0)		# notification disable
-			#print(" ".join(hex(n) for n in payload))
-
-		return payload

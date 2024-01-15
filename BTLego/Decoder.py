@@ -35,7 +35,7 @@ class LDev(IntEnum):
 	# 0x21:'Powered Up Hub battery current',
 	TILT = 0x22
 	MOTION = 0x23
-	# 0x25:'Vision Sensor',
+	VISION = 0x25
 	MOTOR_BOOST = 0x26
 	# 0x27:'Internal Motor with Tacho',
 	# 0x28:'Internal Tilt',

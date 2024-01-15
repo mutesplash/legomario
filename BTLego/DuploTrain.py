@@ -27,6 +27,8 @@ class DuploTrain(BLE_Device):
 
 		# "ONSEC"
 		# stalls it out
+		# Index: Port Type per Decoder.io_type_id_str index, value: attached hardware port identifier (int or tuple)
+		# These ancient scribblings in the array refer to the device type, the port it's on, the delta interval, and if you should subscribe
 		#await self._set_port_subscriptions([[self.device_ports[Decoder.io_type_id['DT MOTOR']], 1,1,0 ]])
 		# Lets it go (but not to the "current" speed)
 		#await self._set_port_subscriptions([[self.device_ports[Decoder.io_type_id['DT MOTOR']], 0,1,0 ]])
@@ -61,15 +63,15 @@ class DuploTrain(BLE_Device):
 					target_dev = dev
 
 		if target_dev:
-			await self.process_message_result(target_dev.send_message( ('play_sound', (0x3,)) ))
+			await target_dev.send_message( ('play_sound', (0x3,)), self.gatt_writer)
 			await asyncio.sleep(1.1)
-			await self.process_message_result(target_dev.send_message( ('play_sound', (0x7,)) ))
+			await target_dev.send_message( ('play_sound', (0x7,)), self.gatt_writer)
 			await asyncio.sleep(1.2)
-			await self.process_message_result(target_dev.send_message( ('play_sound', (0x7,)) ))
+			await target_dev.send_message( ('play_sound', (0x7,)), self.gatt_writer)
 			await asyncio.sleep(1.2)
-			await self.process_message_result(target_dev.send_message( ('play_sound', (0x7,)) ))
+			await target_dev.send_message( ('play_sound', (0x7,)), self.gatt_writer)
 			await asyncio.sleep(1.2)
-			await self.process_message_result(target_dev.send_message( ('play_sound', (0x7,)) ))
+			await target_dev.send_message( ('play_sound', (0x7,)), self.gatt_writer)
 
 	async def pretend_default_green_tile(self):
 		# Only sending this to ONE beeper dev.  SEEMS REASONABLE
@@ -81,9 +83,9 @@ class DuploTrain(BLE_Device):
 					target_dev = dev
 
 		if target_dev:
-			await self.process_message_result(target_dev.send_message( ('play_sound', (0x3,)) ))
+			await target_dev.send_message( ('play_sound', (0x3,)), self.gatt_writer)
 			await asyncio.sleep(1)
-			await self.process_message_result(target_dev.send_message( ('play_sound', (0xa,)) ))
+			await target_dev.send_message( ('play_sound', (0xa,)), self.gatt_writer)
 
 
 

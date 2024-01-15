@@ -7,34 +7,20 @@ from ..Decoder import Decoder
 class DT_Speed(LPF_Device):
 
 	def __init__(self, port=-1):
-		# Port number the device is attached to on the BLE Device
+		super().__init__(port)
 
 		self.devtype = Devtype.FIXED
-
-		self.port = port
 
 		self.port_id = 0x2c
 		self.name = Decoder.io_type_id_str[self.port_id]
 							# Identifier for the type of device attached
 							# Index into Decoder.io_type_id_str
-		self.status = 0x1	# Decoder.io_event_type_str[0x1]
-
-		self.generated_message_types = (
-			'duplotrain_speed',
-		)
-
-		# Probed count
-		self.mode_count = -1	# Default unprobed
 
 		self.mode_subs = {
-			# mode_number: ( delta_interval, subscribe_boolean ) or None
+			# mode_number: [ delta_interval, subscribe_boolean, Mode Information Name (Section 3.20.1), tuple of generated messages when subscribed to this mode ]
+			0: [ self.delta_interval, False, 'SPEED', ('duplotrain_speed',)],
+			1: [ self.delta_interval, False, 'COUNT', ()],
+			2: [ self.delta_interval, False, 'CALIB', ()]
 
 			# FIXME: Results (which port, past me?) are the same as mario gesture int size
-
-			0: ( 5, False),		# SPEED		FIXME: IDK what ANY of these do
-			1: ( 5, False),		# COUNT
-			2: ( 5, False)		# CALIB
 		}
-
-		# Don't need to index by self.device_ports[port_id] anymore?
-		# Index: Port Type per Decoder.io_type_id_str index, value: attached hardware port identifier (int or tuple)

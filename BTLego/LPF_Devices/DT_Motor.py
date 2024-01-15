@@ -7,44 +7,36 @@ from ..Decoder import Decoder
 class DT_Motor(LPF_Device):
 
 	def __init__(self, port=-1):
-		# Port number the device is attached to on the BLE Device
+		super().__init__(port)
 
 		self.devtype = Devtype.FIXED
-
-		self.port = port
 
 		self.port_id = 0x29
 		self.name = Decoder.io_type_id_str[self.port_id]
 							# Identifier for the type of device attached
 							# Index into Decoder.io_type_id_str
-		self.status = 0x1	# Decoder.io_event_type_str[0x1]
-
-		# Probed count
-		self.mode_count = -1	# Default unprobed
 
 		self.mode_subs = {
-			# mode_number: ( delta_interval, subscribe_boolean ) or None
-			0: ( 5, False),		# ONSEC
-			1: ( 5, False)		# T MOT		IDK what this mode does
+			# mode_number: [ delta_interval, subscribe_boolean, Mode Information Name (Section 3.20.1), tuple of generated messages when subscribed to this mode ]
+			0: [ self.delta_interval, False, 'ONSEC', ()],
+			1: [ self.delta_interval, False, 'T MOT', ()]
 		}
 
-		# Don't need to index by self.device_ports[port_id] anymore?
-		# Index: Port Type per Decoder.io_type_id_str index, value: attached hardware port identifier (int or tuple)
-
-	def send_message(self, message):
+	async def send_message(self, message, gatt_payload_writer):
 		# ( action, (parameters,) )
 		action = message[0]
 		parameters = message[1]
 
 		if action == 'set_speed':
-			# This seems like a "go until I detect resistance" mode
+			# This seems like a "go until I detect out-of-range resistance (zero or too much)" mode
 			speed = parameters[0]
 
 			payload = self.motor_speed_payload_for_gatt_write(speed)
 			if payload:
-				return { 'gatt_send': (payload,) }
+				await gatt_payload_writer(payload)
+				return True
 
-		return None
+		return False
 
 	def motor_speed_payload_for_gatt_write(self, speed):
 		# -100 to 100
