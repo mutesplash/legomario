@@ -987,8 +987,7 @@ class Mario(BLE_Device):
 					break
 
 			if device:
-				if device.name == 'Mario Pants Sensor' or device.name == 'Mario Tilt Sensor' or device.name == 'Mario RGB Scanner':
-					print(f'Decode PVS for {device.name} port '+str(bt_message['port']))
+				if device.name == 'Mario Pants Sensor' or device.name == 'Mario Tilt Sensor' or device.name == 'Mario RGB Scanner' or device.name == 'Mario Alt Events':
 					message = device.decode_pvs(bt_message['port'], bt_message['value'])
 					if message:
 						if len(message) == 3:
@@ -999,9 +998,6 @@ class Mario(BLE_Device):
 				elif device.name == 'LEGO Events':
 					# FIXME: Move to a decode_pvs() function in Mario_Events
 					self._decode_event_data(bt_message['value'])
-				elif device.name == 'Mario Alt Events':
-					# FIXME: Move to a decode_pvs() function in Mario_Alt_Events
-					self._decode_alt_event_data(bt_message['value'])
 				else:
 					# FIXME: Once the above are moved to decode_pvs(), move this debugging thing out to somewhere
 					# AND THEN delete this entire override
@@ -1261,35 +1257,48 @@ class Mario(BLE_Device):
 # Partner powers off and the player starts searching for them?
 # peach Data on Mario Alt Events port:0x8 0x0 0x45 0x4 0x2 0x0 0x2 0x0
 
+# Multiplayer connected
+# mario event data:0x93 0x38 0x0 0x0
+# peach event data:0x93 0x38 0x0 0x0
+# mario event data:0x8b 0x38 0x0 0x0
+# mario event data:0x94 0x39 0x0 0x0
+# peach event data:0x8b 0x38 0x0 0x0
+# peach event data:0x94 0x39 0x0 0x0
+# mario event data:0x7a 0x38 0x0 0x0
+# peach event data:0x7b 0x38 0x0 0x0
+# mario event data:0x7b 0x38 0x0 0x0
+# peach event data:0x8c 0x38 0x0 0x0
+# mario event data:0x8c 0x38 0x0 0x0
+# peach event data:0x8d 0x38 0x0 0x0
+# mario event data:0x8d 0x38 0x0 0x0
+# peach event data:0x7a 0x38 0x0 0x0
+
+# Peach presses button last
+# peach event data:0x93 0x38 0x0 0x0
+# mario event data:0x93 0x38 0x0 0x0
+# peach event data:0x8b 0x38 0x0 0x0
+# mario event data:0x8b 0x38 0x0 0x0
+# peach event data:0x94 0x39 0x0 0x0
+# mario event data:0x94 0x39 0x0 0x0
+# peach event data:0x7a 0x38 0x0 0x0
+# mario event data:0x7b 0x38 0x0 0x0
+# peach event data:0x7b 0x38 0x0 0x0
+# mario event data:0x8c 0x38 0x0 0x0
+# peach event data:0x8c 0x38 0x0 0x0
+# mario event data:0x8d 0x38 0x0 0x0
+# peach event data:0x8d 0x38 0x0 0x0
+# mario event data:0x7a 0x38 0x0 0x0
+
 			if not decoded_something:
 				Mario.dp(self.system_type+" event data:"+" ".join(hex(n) for n in data),2)
 		else:
 			Mario.dp(self.system_type+" non-mode-2-style event data:"+" ".join(hex(n) for n in data),2)
+			# During mario/peach multiplayer connection
+			#mario non-mode-2-style event data:0xd6 0x0 0x1 0x80 0xd6 0x0 0x1 0x80 0xd6 0x0 0x1 0x80 0x2d 0x0 0x2d 0x0
 
+			# Peach last to push button
+			#peach non-mode-2-style event data:0xc 0x0 0x1 0x80 0xc 0x0 0x1 0x80 0xc 0x0 0x1 0x80 0x2d 0x0 0x2d 0x0
 		pass
-
-	def _decode_alt_event_data(self, data):
-		if len(data) == 4:
-			# Peach goodbye mario
-			# 0x2 0x0 0x1 0x0
-
-			# Luigi goodbye peach
-			# 0x2 0x0 0x3 0x0
-			action = Mario.mario_bytes_to_int(data[:2])
-			if action == 2:
-				player = Mario.mario_bytes_to_int(data[2:])
-				if player == 1:
-					self.message_queue.put(('event','multiplayer', ('goodbye', 'mario')))
-				elif player == 2:
-					self.message_queue.put(('event','multiplayer', ('goodbye', 'luigi')))
-				elif player == 3:
-					self.message_queue.put(('event','multiplayer', ('goodbye', 'peach')))
-				else:
-					Mario.dp(self.system_type+" unknown goodbye event for player:"+" ".join(hex(n) for n in data[2:]),2)
-			else:
-				Mario.dp(self.system_type+" alternate event data:"+" ".join(hex(n) for n in data),2)
-		else:
-			Mario.dp(self.system_type+" non-mode-0-style alternate event data:"+" ".join(hex(n) for n in data),2)
 
 	# Override
 	def _decode_advertising_name(self, bt_message):

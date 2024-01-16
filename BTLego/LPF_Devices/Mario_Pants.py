@@ -34,7 +34,7 @@ class Mario_Pants(LPF_Device):
 #		0x16:'22?',			# 010 110
 							# 010 111
 		0x18:'dress',		# 011 000
-							# 011 001
+#		0x19				# 011 001	What the heck is this?  Mario likes to put these "on" after getting disconnected from multiplayer.  Sometimes it's the cat pants too! (which seems like a bit-flip error)
 #		0x1a:'26?',			# 011 010
 							# 011 011
 #		0x1c:'28?',			# 011 100
