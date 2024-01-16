@@ -535,8 +535,8 @@ class BLE_Device():
 					BLE_Device.dp(msg_prefix+"Unknown property "+bt_message['readable'])
 				else:
 					prop_id = bt_message['property']
-					message = ('property', prop_id, bt_message['value'])
-					self.message_queue.put(message)
+					self._decode_property(prop_id, bt_message['value'])
+					self.message_queue.put( ('property', prop_id, bt_message['value']) )
 
 		elif Decoder.message_type_str[bt_message['type']] == 'port_output_command_feedback':
 			# Don't really care about these messages?  Just a bunch of queue status reporting
@@ -566,6 +566,10 @@ class BLE_Device():
 			return False
 
 		return True
+
+	# Override if you wanna decode a property to send _additional_ messages
+	def _decode_property(self, prop_id, value):
+		pass
 
 	# ---- Make data useful for the processing ----
 	# port_info_req response

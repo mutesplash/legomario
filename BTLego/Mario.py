@@ -52,22 +52,6 @@ class Mario(BLE_Device):
 	gr_codespace = {}
 	br_codespace = {}
 	tr_codespace = {}
-	# Color scanner is a bit buggy.  Blue works better in latest firmware, but sometimes the scanner doesn't return color messages
-	solid_colors = {
-		19:'white',		# Official Lego color ID for white is 1 and 19 for Light Brown (probably too close to Medium Nougat)
-		21:'red',		# Bright Red
-		23:'blue',		# Bright Blue
-		24:'yellow',	# Bright Yellow
-		26:'black',		# Black
-		37:'green',		# Bright Green
-		106:'orange',	# Bright Orange (listed as 'brown' elsewhere)
-		119:'lime',		# Bright Yellowish Green
-		221:'pink',		# Bright Purple
-		268:'purple',	# Medium Lilac
-		312:'nougat',	# Medium Nougat
-		322:'cyan',		# Medium Azur
-		324:'lavender'	# Medium Lavender
-	}
 
 	# I don't know why pants codes are transmitted over the events port,
 	# or why they are different numbers, but here we are
@@ -1305,40 +1289,44 @@ class Mario(BLE_Device):
 		pass
 
 	# Override
-	def _decode_advertising_name(self, bt_message):
-		#LEGO Mario_j_r
-		name = bt_message['value']
+	def _decode_property(self, prop_id, prop_value):
 
-		if name.startswith("LEGO Mario_") == False or len(name) != 14:
-			# print(name.encode("utf-8").hex())
-			# Four spaces after the name
-			if name == "LEGO Peach    ":
-				Mario.dp("Peach has no icon or color set")
-			elif name == "LEGO Mario    ":
-				Mario.dp("Mario has no icon or color set")
-			elif name == "LEGO Luigi    ":
-				Mario.dp("Luigi has no icon or color set")
-			else:
-				Mario.dp("Unusual advertising name set:"+name)
-			return
+		if Decoder.hub_property_str[prop_id] == 'Advertising Name':
+			name = prop_value
+			#LEGO Mario_j_r
 
-		icon = ord(name[11])
-		color = ord(name[13])
+			if name.startswith("LEGO Mario_") == False or len(name) != 14:
+				# print(name.encode("utf-8").hex())
+				# Four spaces after the name
+				if name == "LEGO Peach    ":
+					self.message_queue.put( ('info', 'peach', 'no_icon_or_color') )
+					Mario.dp("Peach has no icon or color set")
+				elif name == "LEGO Mario    ":
+					self.message_queue.put( ('info', 'mario', 'no_icon_or_color') )
+				elif name == "LEGO Luigi    ":
+					self.message_queue.put( ('info', 'luigi', 'no_icon_or_color') )
+				else:
+					self.message_queue.put( ('info', 'unknown', f'Unusual advertising name set:\"{name}\"') )
+				return
 
-		if not icon in Mario.app_icon_names:
-			Mario.dp("Unknown icon:"+str(hex(icon)))
-			return
+			icon = ord(name[11])
+			color = ord(name[13])
 
-		if not color in Mario.app_icon_color_names:
-			Mario.dp("Unknown icon color:"+str(hex(color)))
-			return
+			if not icon in Mario.app_icon_names:
+				Mario.dp("Unknown icon:"+str(hex(icon)))
+				self.message_queue.put( ('info', 'unknown', f'Icon {hex(icon)} not found:{name[11]}') )
+				return
 
-		if Mario.DEBUG >= 2:
-			color_str =  Mario.app_icon_color_names[color]
-			icon_str =  Mario.app_icon_names[icon]
-			Mario.dp(self.system_type+" icon is set to "+color_str+" "+icon_str,2)
+			if not color in Mario.app_icon_color_names:
+				self.message_queue.put( ('info', 'unknown', f'Icon {hex(color)} color not found:{name[13]}') )
+				return
 
-		self.message_queue.put(('info','icon',(icon,color)))
+			if Mario.DEBUG >= 1:
+				color_str = Mario.app_icon_color_names[color]
+				icon_str = Mario.app_icon_names[icon]
+				self.message_queue.put( ('info', 'debug_icon', (color_str, icon_str )) )
+
+			self.message_queue.put(('info','icon',(icon,color)))
 
 	# ---- Random stuff ----
 
@@ -1378,6 +1366,9 @@ class Mario(BLE_Device):
 		set_name_bytes[0] = len(set_name_bytes)
 		set_name_bytes[16] = Mario.app_icon_ints[icon]
 		set_name_bytes[18] = Mario.app_icon_color_ints[color]
+
+		# FIXME: How about use this instead?
+		#self.send_property_message(Decoder.hub_property_int['Advertising Name'], name_only_but_bytearray):
 
 		await self.client.write_gatt_char(BLE_Device.characteristic_uuid, set_name_bytes)
 		await asyncio.sleep(0.1)
