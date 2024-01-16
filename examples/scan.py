@@ -20,9 +20,12 @@ async def mariocallbacks(message):
 
 	if message_type == 'scanner':
 		if message_key == 'code':
-			if message_value[1] == 2:
-				print("Stomped a goomba")
+			code_info = MarioScanspace.get_code_info(message_value[1])
+			print("Scanned "+code_info['label'])
 
+	if message_type == 'event' and message_key == 'coincount':
+		coincount, coinsource = message_value
+		print(f'Now have {coincount} coins total from {MarioScanspace.event_scanner_coinsource[coinsource]}')
 
 async def detect_device_callback(device, advertisement_data):
 	global mario_devices

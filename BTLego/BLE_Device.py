@@ -358,11 +358,15 @@ class BLE_Device():
 		async with self.drain_lock:
 			while not self.message_queue.empty():
 				message = self.message_queue.get()
+				served = False
 				for callback_uuid, callback_settings in self.callbacks.items():
 					# message_type in subscriptions
 					if message[0] in callback_settings[1]:
 						# callback( ( dev_addr, type, key, value ) )
 						await callback_settings[0]((callback_uuid,) + message)
+						served = True
+				if not served:
+					BLE_Device.dp(f'{self.system_type} had no subscribers for message:{message}')
 
 			# Process any registrations that occurred during the above dispatch
 			await self.__process_drainlock_queue()
@@ -440,7 +444,7 @@ class BLE_Device():
 				# debug for messages we've never seen before
 				BLE_Device.dp(msg_prefix+"-?- "+bt_message['readable'],1)
 
-		BLE_Device.dp("Draining for: "+bt_message['readable'],3)
+		BLE_Device.dp(f'{self.system_type} Draining for: '+bt_message['readable'],3)
 		await self._drain_messages()
 
 	# Returns false if unprocessed
@@ -518,9 +522,10 @@ class BLE_Device():
 					elif len(message) == 2:
 						# FIXME
 						# Ha ha, pushing out the need to use the logging feature to sometime in the future
-						BLE_Device.dp(f'{msg_prefix}{message[0]} on {device.name} port processing PVS:{message[1]}',2)
+						BLE_Device.dp(f'{msg_prefix}{message[0]} on {device.name} port while processing PVS:{message[1]}',1)
 					else:
-						# SHOULD be a No-op
+						# SHOULD be a No-op aka ( None, )
+						BLE_Device.dp(f'{msg_prefix} {device.name} declared NO-OP for PVS:'+bt_message['readable'],2)
 						pass
 				else:
 					BLE_Device.dp(f"{msg_prefix} {device.name} FAILED TO DECODE PVS DATA:"+" ".join(hex(n) for n in bt_message['value']))

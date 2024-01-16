@@ -23,6 +23,7 @@ class Mario_Alt_Events(LPF_Device):
 
 	def decode_pvs(self, port, data):
 		if port != self.port:
+			print(f'ERROR: Object port {self.port} does not match bluetooth message port {port}: Refusing to process')
 			return None
 
 		if len(data) == 4:

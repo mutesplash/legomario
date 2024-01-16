@@ -506,10 +506,6 @@ class MarioScanspace():
 
 	# ---- Random stuff ----
 
-	# Probably useful instead of having to remember to do this when working with bluetooth
-	def mario_bytes_to_int(mario_byte_array):
-		return
-
 	# Not useful anywhere but here, IMO
 	# what is this, uint16?  put this in the base
 	def int_to_mario_bytes(mario_int):

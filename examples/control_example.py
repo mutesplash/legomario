@@ -253,7 +253,7 @@ async def drain_callback_calls(sys_data):
 					thisloop = asyncio.get_running_loop()
 					if thisloop:
 						if thisloop.is_running():
-							print(f'DRAINING OFF-CALLBAKS {fpair}')
+							print(f'DRAINING OFF-CALLBACKS {fpair}')
 							await asyncio.create_task(fpair)
 			await asyncio.sleep(0.1)
 	except KeyboardInterrupt:
