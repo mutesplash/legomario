@@ -158,4 +158,5 @@ class LPF_Device():
 	# This does the "negative subscribe" to select the device's mode
 	async def select_mode_if_not_selected(self, mode, gatt_payload_writer):
 		if mode != self._selected_mode:
+			self._selected_mode = mode
 			await self.PIF_single_setup(mode, False, gatt_payload_writer)

@@ -992,6 +992,10 @@ class Mario(BLE_Device):
 					if message:
 						if len(message) == 3:
 							self.message_queue.put(message)
+						elif len(message) == 2:
+							# FIXME
+							# Ha ha, pushing out the need to use the logging feature to sometime in the future
+							Mario.dp(f'{msg_prefix}{message[0]} on {device.name} port processing PVS:{message[1]}',2)
 						else:
 							# SHOULD be a No-op
 							pass

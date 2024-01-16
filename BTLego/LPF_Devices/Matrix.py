@@ -18,8 +18,6 @@ class Matrix(LPF_Device):
 		# Why, again?
 		self.delta_interval = 1
 
-		self.current_matrix_mode = -1
-
 		self.mode_subs = {
 			# mode_number: [ delta_interval, subscribe_boolean, Mode Information Name (Section 3.20.1), tuple of generated messages when subscribed to this mode ]
 			0: [ 1, False, 'LEV O', ()],	# Level
@@ -59,34 +57,13 @@ class Matrix(LPF_Device):
 					return False
 		return True
 
-	# Switch the mode by unsubscribing to the mode you want
-	# If a change occurs (and a unsubscribe needs to be sent), return True
-	def switch_matrix_mode(self, action):
-		if action == 'set_level':
-			if self.current_matrix_mode != 0:
-				self.current_matrix_mode = 0
-				return True
-		elif action == 'set_color':
-			if self.current_matrix_mode != 1:
-				self.current_matrix_mode = 1
-				return True
-		elif action == 'set_pixels':
-			if self.current_matrix_mode != 2:
-				self.current_matrix_mode = 2
-				return True
-		elif action == 'set_transition':
-			if self.current_matrix_mode != 3:
-				self.current_matrix_mode = 3
-				return True
-
-		return False
-
 	async def send_message(self, message, gatt_payload_writer):
 		# ( action, (parameters,) )
 
 		action = message[0]
 		parameters = message[1]
 		payload = None
+		mode = -1
 
 		if action == 'set_level':
 			mode = 0
@@ -215,12 +192,9 @@ class Matrix(LPF_Device):
 					payload.append((self.current_matrix[x][y][1] << 4) | self.current_matrix[x][y][0])
 
 			payload[0] = len(payload)
-			# FIXME: Total hackjob
-			action = 'set_pixels'
 
 		if payload:
-			if self.switch_matrix_mode(action):
-				await self.PIF_single_setup(mode, False, gatt_payload_writer)
+			await self.select_mode_if_not_selected(mode, gatt_payload_writer)
 			await gatt_payload_writer(payload)
 			return True
 

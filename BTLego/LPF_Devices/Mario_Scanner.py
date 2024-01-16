@@ -43,8 +43,7 @@ class Mario_Scanner(LPF_Device):
 					scantype = 'color'
 
 			if not scantype:
-				print ("(Mario_Scanner) UNKNOWN SCANNER DATA:"+" ".join(hex(n) for n in data))
-				return ( None, )
+				return ('unknown', "UNKNOWN SCANNER DATA:"+" ".join(hex(n) for n in data))
 
 			if scantype == 'barcode':
 				barcode_int = int.from_bytes(data[0:2], byteorder="little")
@@ -52,24 +51,20 @@ class Mario_Scanner(LPF_Device):
 				if barcode_int != 32767:
 					# Happens when Black is used as a color
 					code_info = MarioScanspace.get_code_info(barcode_int)
-	#				print("(Mario_Scanner) scanned "+code_info['label']+" (" + code_info['barcode']+ " "+str(barcode_int)+")")
 					return ('scanner','code',(code_info['barcode'], barcode_int))
 				else:
 					# FIXME: Scanner, error, instead?
 					return ('error','message','Scanned malformed code')
 			elif scantype == 'color':
 				color = MarioScanspace.mario_bytes_to_solid_color(data[2:4])
-	#			print("(Mario_Scanner) scanned color "+color)
 				return ('scanner','color',color)
 			else:
 				#scantype == 'nothing':
-	#			print("(Mario_Scanner) scanned nothing")
-				return ( None, )
+				return ('notice', 'scanned nothing')
 
 		elif len(data) == 3:
 			# This is probably R, G, B based on some basic tests.  Data is not very good, though!
 			# Port mode info for RAW, PCT, and SI also seems wrong
 			return ('rgb','rgb', (int(data[0]), int(data[1]), int(data[2]) ) )
 		else:
-			print(f'(Mario_Scanner) UNKNOWN SCANNER DATA, WEIRD LENGTH OF {len(data)}:'+" ".join(hex(n) for n in data))
-			return ( None, )
+			return ('unknown', f'UNKNOWN SCANNER DATA, WEIRD LENGTH OF {len(data)}:'+" ".join(hex(n) for n in data))

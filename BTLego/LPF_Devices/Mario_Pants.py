@@ -94,12 +94,9 @@ class Mario_Pants(LPF_Device):
 			return None
 
 		if len(data) == 1:
-			# FIXME
-			# Really could use that logging framework right now
-			print("(legomario) put on "+Mario_Pants.mario_pants_to_string(data[0])+" pants")
 			if data[0] in self.pants_codes:
 				return ('pants','pants',data[0])
 			else:
 				return ('pants','unknown', data[0])
 		else:
-			print(self.system_type+" UNKNOWN PANTS DATA, WEIRD LENGTH OF "+len(data)+":"+" ".join(hex(n) for n in data))
+			return ('unknown', " UNKNOWN PANTS DATA, WEIRD LENGTH OF "+len(data)+":"+" ".join(hex(n) for n in data))

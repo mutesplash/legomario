@@ -16,8 +16,6 @@ class DT_ColorSensor(LPF_Device):
 							# Identifier for the type of device attached
 							# Index into Decoder.io_type_id_str
 
-		self.current_sensor_mode = -1
-
 		self.mode_subs = {
 			# mode_number: [ delta_interval, subscribe_boolean, Mode Information Name (Section 3.20.1), tuple of generated messages when subscribed to this mode ]
 			0: [ self.delta_interval, False, 'COLOR', ('duplotrain_color',)],

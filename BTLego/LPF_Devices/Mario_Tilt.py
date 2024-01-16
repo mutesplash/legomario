@@ -26,10 +26,6 @@ class Mario_Tilt(LPF_Device):
 		if port != self.port:
 			return None
 
-		# FIXME: Doesn't really verify if you subscribed to the data before sending it
-
-#	# IMU Mode 0,1
-#	def _decode_accel_data(self, data):
 		# The "default" value is around 32, which seems like g at 32 ft/s^2
 		# But when you flip a sensor 180, it's -15
 		# "Waggle" is probably detected by rapid accelerometer events that don't meaningfully change the values
@@ -60,12 +56,12 @@ class Mario_Tilt(LPF_Device):
 
 			little_32b_int = int.from_bytes(data, byteorder="little", signed=False)
 			if not little_32b_int == 0x0:
-				#print("full: "+'{:032b}'.format(little_32b_int))
+				#return ('unknown', "full: "+'{:032b}'.format(little_32b_int))
 
 				first_16b_int = int.from_bytes(data[:2], byteorder="little", signed=False)
 				last_16b_int = int.from_bytes(data[2:], byteorder="little", signed=False)
 				if (first_16b_int != last_16b_int):
-					print("split ints: "+'{:016b}'.format(first_16b_int)+'_'+'{:016b}'.format(last_16b_int))
+					return ('unknown', "split ints: "+'{:016b}'.format(first_16b_int)+'_'+'{:016b}'.format(last_16b_int))
 				else:
 					# https://github.com/djipko/legomario.py/blob/master/legomario.py
 					# https://github.com/benthomasson/legomario/commit/16670878fb0be28481733fefee7754adc8820e1a
@@ -190,24 +186,21 @@ class Mario_Tilt(LPF_Device):
 						return ('gesture','roll',None)
 
 					elif bool (first_16b_int & PLAYER_DUNNO_4 ):
-						print("BIT: dunno4?")
-						pass
+						return ('unknown', "BIT: dunno4?")
 
 					elif bool (first_16b_int & PLAYER_DUNNO_2 ):
-						print("BIT: dunno2?")
-						pass
+						return ('unknown', "BIT: dunno2?")
 
 					elif bool (first_16b_int & (0x1 | 0x40 | 0x80) ):
-						print("WHAT DID YOU DO?!  matched ints: "+'{:08b}'.format(data[1])+'_'+'{:08b}'.format(data[0]))
+						return ('unknown', "WHAT DID YOU DO?!  matched ints: "+'{:08b}'.format(data[1])+'_'+'{:08b}'.format(data[0]))
 
 					else:
 						detect_bit = False
-						print("matched ints: "+'{:08b}'.format(data[1])+'_'+'{:08b}'.format(data[0]))
+						return ('unknown', "matched ints: "+'{:08b}'.format(data[1])+'_'+'{:08b}'.format(data[0]))
 
 			else:
 				# Maybe this is "done?", as sometimes you'll see a bunch of gestures and then this
-				#print("ignoring empty gesture")
-				return ( None, )
+				return ('notice', 'ignoring empty gesture'+" ".join(hex(n) for n in data))
 
 			notes= ""
 			if data[0] != data[2]:
@@ -220,4 +213,4 @@ class Mario_Tilt(LPF_Device):
 				pass
 
 			if notes:
-				print(self.system_type+" gesture data:"+notes+" ".join(hex(n) for n in data),2)
+				return ('unknown', " gesture data:"+notes+" ".join(hex(n) for n in data))

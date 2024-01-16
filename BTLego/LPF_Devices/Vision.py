@@ -162,16 +162,6 @@ class Vision(LPF_Device):
 				return False
 			return await self.PIF_single_setup(self._selected_mode, False, gatt_payload_writer)
 
-		# DEBUG: REMOVE THIS
-		elif action == 'direct_ir_int':
-			# ( int, int )
-			int1, int2 = parameters
-			payload = self.payload_for_ir_bytes(int1, int2)
-			if payload:
-				await self.select_mode_if_not_selected(7, gatt_payload_writer)
-				await gatt_payload_writer(payload)
-				return True
-
 		return False
 
 	def ir_payload_sop(self, channel, port, mode_action):
@@ -366,7 +356,7 @@ class Vision(LPF_Device):
 		nibble2 = (self._ir_address << 3) | ir_mode
 
 		if mode_action < 0x0 or mode_action == 0x3 or mode_action == 0x5 or mode_action > 0x7:
-			print(f'WONK {mode_action}')
+			# f'Bad IR Extended mode {mode_action}'
 			return False
 
 		return self._pack_ir_nibbles(nibble1, nibble2, mode_action)
@@ -417,7 +407,7 @@ class Vision(LPF_Device):
 
 		return self._pack_ir_nibbles(nibble1, nibble2, nibble3)
 
-	# Debugging
+	# Debugging (incomplete... and will probably stay that way)
 	def decode_ir_nibbles(nibble1, nibble2, nibble3):
 		channel = (nibble1 & 0x3) + 1
 		escape = (nibble1 & 0x4) >> 2
@@ -592,9 +582,7 @@ class Vision(LPF_Device):
 		# LRC calculation makes no difference: Upper bits are ignored
 		data[1] = nibble1
 
-		# DEBUG
-		Vision.decode_ir_nibbles(nibble1, nibble2, nibble3)
-
+		#Vision.decode_ir_nibbles(nibble1, nibble2, nibble3)
 		# print(" ".join('{:04b}'.format(nibble1)))
 		# print(" ".join('{:04b}'.format(nibble2)))
 		# print(" ".join('{:04b}'.format(nibble3)))
@@ -612,31 +600,6 @@ class Vision(LPF_Device):
 			mode,	# Appendix 6.1 specifies that the desired mode goes here and
 					# the rest of the payload is mode specific, in this case, the
 					# PF RC IR Protocol bytes
-		])
-		payload.extend(data)
-		payload[0] = len(payload)
-
-		return payload
-
-	# DEBUG: REMOVE THIS
-	def payload_for_ir_bytes(self, int1, int2):
-
-		mode = 7
-
-		data = bytearray(2)
-		data[0] = int1
-		data[1] = int2
-
-		payload = bytearray([
-			0x7,	# len
-			0x0,	# padding
-			0x81,	# Command: port_output_command
-			# end header
-			self.port,
-			0x0,	# Startup and completion information (Buffer if necessary (upper 0x0), No Action (lower 0x0))
-					# Node poweredup and legoino use 0x11 here always
-			0x51,	# Subcommand: WriteDirectModeData
-			mode,	# Just YOLO sending where I think the mode goes based on how Matrix works...
 		])
 		payload.extend(data)
 		payload[0] = len(payload)

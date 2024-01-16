@@ -42,8 +42,7 @@ class Mario_Alt_Events(LPF_Device):
 				elif player == 3:
 					return ('alt_event','multiplayer', ('hello', 'peach'))
 				else:
-					# FIXME: Need to use logging framework intensifies
-					print("Unknown hello event for player:"+" ".join(hex(n) for n in data[2:]))
+					return ('unknown', "Unknown hello event for player:"+" ".join(hex(n) for n in data[2:]))
 
 			elif action == 2:
 				player = int.from_bytes(data[2:], byteorder="little")
@@ -54,8 +53,7 @@ class Mario_Alt_Events(LPF_Device):
 				elif player == 3:
 					return ('alt_event','multiplayer', ('goodbye', 'peach'))
 				else:
-					# FIXME: Need to use logging framework intensifies
-					print("Unknown goodbye event for player:"+" ".join(hex(n) for n in data[2:]))
+					return ('unknown', "Unknown goodbye event for player:"+" ".join(hex(n) for n in data[2:]))
 			else:
 				# Mario/Peach connect
 				#UNKNOWN action 1. Alternate event data:0x1 0x0 0x3 0x0
@@ -85,6 +83,6 @@ class Mario_Alt_Events(LPF_Device):
 				#UNKNOWN action 11. Alternate event data:0xb 0x0 0x3 0x8c
 
 
-				print(f'UNKNOWN action {action}. Alternate event data:'+" ".join(hex(n) for n in data))
+				return ('unknown', f'UNKNOWN action {action}. Alternate event data:'+" ".join(hex(n) for n in data))
 		else:
-			print("UNKNOWN non-mode-0-style alternate event data:"+" ".join(hex(n) for n in data))
+			return ('unknown', "UNKNOWN non-mode-0-style alternate event data:"+" ".join(hex(n) for n in data))

@@ -509,17 +509,21 @@ class BLE_Device():
 						quit()
 
 			if not device:
-				BLE_Device.dp(msg_prefix+"WARN: Received data for unconfigured port "+str(bt_message['port'])+':'+bt_message['readable'])
+				BLE_Device.dp(f"{msg_prefix} WARN: Received data for unconfigured port "+str(bt_message['port'])+':'+bt_message['readable'])
 			else:
 				message = device.decode_pvs(bt_message['port'], bt_message['value'])
 				if message:
 					if len(message) == 3:
 						self.message_queue.put(message)
+					elif len(message) == 2:
+						# FIXME
+						# Ha ha, pushing out the need to use the logging feature to sometime in the future
+						BLE_Device.dp(f'{msg_prefix}{message[0]} on {device.name} port processing PVS:{message[1]}',2)
 					else:
 						# SHOULD be a No-op
 						pass
 				else:
-					BLE_Device.dp(msg_prefix+f" {device.name} FAILED TO DECODE PVS DATA:"+" ".join(hex(n) for n in bt_message['value']))
+					BLE_Device.dp(f"{msg_prefix} {device.name} FAILED TO DECODE PVS DATA:"+" ".join(hex(n) for n in bt_message['value']))
 
 		elif Decoder.message_type_str[bt_message['type']] == 'hub_properties':
 			if not Decoder.hub_property_op_str[bt_message['operation']] == 'Update':

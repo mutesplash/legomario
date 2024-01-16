@@ -52,10 +52,6 @@ class DT_Beeper(LPF_Device):
 		# Hmm, why, again?
 		self.delta_interval = 1
 
-		self.current_beeper_mode = -1
-
-		# FIXME: Don't use the state integer, use this! (yeah, but it's easier than searching...)
-		# These are "negative subscribe to set" modes.  See: RGB (similar).
 		self.mode_subs = {
 			# mode_number: [ delta_interval, subscribe_boolean, Mode Information Name (Section 3.20.1), tuple of generated messages when subscribed to this mode ]
 			0: [ self.delta_interval, False, 'TONE', ()],		# Tones (high/med/low)
@@ -63,46 +59,28 @@ class DT_Beeper(LPF_Device):
 			2: [ self.delta_interval, False, 'UI SND', ()]	# Beeps the UI typically makes
 		}
 
-	# Switch the mode by unsubscribing to the mode you want
-	# If action is valid, return True
-	async def switch_beeper_mode(self, action, gatt_payload_writer):
-		if action == 'play_tone':
-			if self.current_beeper_mode != 0:
-				self.current_beeper_mode = 0
-				await self.PIF_single_setup(self.current_beeper_mode, False, gatt_payload_writer)
-			return True
-		elif action == 'play_sound':
-			if self.current_beeper_mode != 1:
-				self.current_beeper_mode = 1
-				await self.PIF_single_setup(self.current_beeper_mode, False, gatt_payload_writer)
-			return True
-		elif action == 'play_beep':
-			if self.current_beeper_mode != 2:
-				self.current_beeper_mode = 2
-				await self.PIF_single_setup(self.current_beeper_mode, False, gatt_payload_writer)
-			return True
-		return False
-
 	async def send_message(self, message, gatt_payload_writer):
 		# ( action, (parameters,) )
 		action = message[0]
 		parameters = message[1]
 
+		mode = -1
 		noise_id = -1
-		if not await self.switch_beeper_mode(action, gatt_payload_writer):
-			return False
 
 		if action == 'play_tone':
+			mode = 0
 			noise_id = int(parameters[0])
 			if noise_id not in self.tone_numbers:
 				return False
 
 		if action == 'play_sound':
+			mode = 1
 			noise_id = int(parameters[0])
 			if noise_id not in self.sound_numbers:
 				return False
 
 		if action == 'play_beep':
+			mode = 2
 			noise_id = int(parameters[0])
 			if noise_id not in self.ui_beep_numbers:
 				return False
@@ -117,11 +95,11 @@ class DT_Beeper(LPF_Device):
 				0x0,	# Startup and completion information (Buffer if necessary (upper 0x0), No Action (lower 0x0))
 						# Node poweredup and legoino use 0x11 here always
 				0x51,	# Subcommand: WriteDirectModeData
-				self.current_beeper_mode,
+				mode,
 				noise_id
 			])
 			payload[0] = len(payload)
-
+			await self.select_mode_if_not_selected(mode, gatt_payload_writer)
 			await gatt_payload_writer(payload)
 			return True
 
