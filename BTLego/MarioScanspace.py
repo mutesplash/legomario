@@ -171,31 +171,6 @@ class MarioScanspace():
 		255:'gold grow turns item into coins' # 5 (turnip, mushroom, 1-up, goldbone)
 	}
 
-# Hey, past me, why did you copy this from Mario.py and put it here?
-# Was your plan to consolidate information in an effort to make coinsource less terrible?
-# Well, guess what, you left event_scanner_coinsource in Mario.py! so that's a FIXME
-# 	def _decode_event_data(self, data):
-# 		# Mode 2
-# 		if len(data) == 4:
-# 			event_type = data[0]
-# 			event_key = data[1]
-# 			value = int.from_bytes((data[2:]), byteorder="little")
-# 			dispatch_key = (event_key, event_type, value)
-# 			elif event_key == 0x20:
-# 				# hat tip to https://github.com/bhawkes/lego-mario-web-bluetooth/blob/master/pages/index.vue
-# 				#Mario.dp(self.system_type+" now has "+str(value)+" coins (obtained via "+str(hex(event_type))+")",2)
-# 				if not event_type in self.event_scanner_coinsource:
-# 					Mario.dp(self.system_type+" unknown coin source "+str(event_type),2)
-# 				self.message_queue.put(('event','coincount',(value, event_type)))
-# 				decoded_something = True
-
-			# Last code scan count
-#			elif event_key == 0x37:
-#				if event_type == 0x12:
-#					self.message_queue.put(('event','last_scan_count',value))
-#					decoded_something = True
-
-
 	def import_codefile(codefile="../mariocodes.json"):
 		check_file = Path(os.path.expanduser(codefile))
 		json_code_dict = None

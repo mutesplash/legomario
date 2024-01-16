@@ -6,7 +6,7 @@
 	* LEGO Mario (Luigi & Peach)
 	* LEGO Powered Up Remote Control (88010)
 	* DUPLO Train Hub No. 5
-	* Technic Hub No. 2 (88012) and (some) attached LEGO Powered Up (LPF2) Devices (not motors, yet...)
+	* Technic Hub No. 2 (88012) and (some) attached LEGO Powered Up (LPF2) Devices
 * Does not have great documentation yet
 
 ## Requires
