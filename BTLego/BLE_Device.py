@@ -584,7 +584,10 @@ class BLE_Device():
 		port = bt_message['port']
 		device = self.ports[port]
 		if not 'num_modes' in bt_message:
-			BLE_Device.dp(f'Mode combinations NOT DECODED: {bt_message["readable"]}')
+			if 'mode_combinations' in bt_message:
+				self.port_mode_info[port]['combinations'] = bt_message['mode_combinations']
+			else:
+				print(f'ERROR: Mode combinations NOT DECODED: {bt_message["readable"]}')
 			return
 		else:
 			BLE_Device.dp('Interrogating mode info for '+str(bt_message['num_modes'])+' modes on port '+device.name+' ('+str(port)+')')
@@ -601,8 +604,17 @@ class BLE_Device():
 		self.port_mode_info[port]['name'] = device.name
 		self.port_mode_info[port]['mode_info_requests_outstanding'] = { }
 
-		# FIXME: Does not note bt_message['port_mode_capabilities']
+		# Does not note the entire bt_message['port_mode_capabilities']
+		# Mostly because i/o is redundant
 		# IE: {'output': True, 'input': True, 'logic_combineable': True, 'logic_synchronizeable': False}
+
+		if bt_message['port_mode_capabilities']['logic_synchronizeable']:
+			self.port_mode_info[port]['virtual_port_capable'] = True
+
+		if bt_message['port_mode_capabilities']['logic_combineable']:
+			# This is a signal to check for combinations (3.15.2)
+			await self._write_port_info_request(port, 0x2)
+			await asyncio.sleep(0.2)
 
 		async def scan_mode(direction, port, mode):
 			if not mode in self.port_mode_info[port]:
@@ -627,7 +639,7 @@ class BLE_Device():
 			frozen_requests = list(self.port_mode_info[port][mode]['requests_outstanding'].items())
 			for hexkey, requested in frozen_requests:
 				if requested:
-					BLE_Device.dp(f'\tRequest {direction} port {port} info for mode {mode} key {hexkey}')
+#					BLE_Device.dp(f'\tRequest {direction} port {port} info for mode {mode} key {hexkey}')
 
 					await asyncio.sleep(self.mode_probe_rate_limit)
 					await self._write_port_mode_info_request(port,mode,hexkey)
@@ -761,11 +773,29 @@ class BLE_Device():
 		elif bt_message['mode_info_type'] == 0x4:
 			#readable += bt_message['symbol']
 			self.port_mode_info[port][mode]['symbol'] = bt_message['symbol']
+
+		# Mapping
 		elif bt_message['mode_info_type'] == 0x5:
-			# Mapping
-			# FIXME
-			#readable += bt_message['readable']
-			self.port_mode_info[port][mode]['mapping_readable'] = bt_message['readable']
+			#self.port_mode_info[port][mode]['mapping_readable'] = bt_message['readable']
+
+			if bt_message['IN_mapping']:
+				self.port_mode_info[port][mode]['input_mappable'] = bt_message['IN_maptype']
+			else:
+				if bt_message['IN_maptype']:
+					self.port_mode_info[port][mode]['not_input_mappable'] = bt_message['IN_maptype']
+
+			if bt_message['OUT_mapping']:
+				self.port_mode_info[port][mode]['output_mappable'] = bt_message['OUT_maptype']
+			else:
+				if bt_message['OUT_maptype']:
+					self.port_mode_info[port][mode]['not_output_mappable'] = bt_message['OUT_maptype']
+
+
+			if bt_message['IN_nullable']:
+				self.port_mode_info[port][mode]['input_nullable'] = True
+			if bt_message['OUT_nullable']:
+				self.port_mode_info[port][mode]['output_nullable'] = True
+
 		elif bt_message['mode_info_type'] == 0x7:
 			#readable += ' Motor bias: '+bt_message['motor_bias']
 			self.port_mode_info[port][mode]['motor_bias'] = bt_message['motor_bias']
@@ -850,7 +880,7 @@ class BLE_Device():
 			# This should be done as some kind of batch, blocking operation
 			self.port_mode_info['requests_until_complete'] += 1
 
-			await self._write_port_info_request(port, True)
+			await self._write_port_info_request(port, 0x1)
 			await asyncio.sleep(0.2)
 
 	async def turn_off(self):
@@ -953,12 +983,14 @@ class BLE_Device():
 # AttributeError: 'NoneType' object has no attribute 'write_gatt_char'
 		await self._gatt_send(payload)
 
-	async def _write_port_info_request(self, port, mode_info=False):
+	async def _write_port_info_request(self, port, mode_info):
+		# 3.15.2
 		# 0: Request port_value_single value
 		# 1: Request port_info for port modes
-		mode_int = 0x0
-		if mode_info:
-			mode_int = 1
+		# 2: Request port_info for mode combinations
+		mode_int = int(mode_info)
+		if mode_int > 2 or mode_int < 0:
+			return
 		payload = bytearray([
 			0x7,	# len
 			0x0,	# padding

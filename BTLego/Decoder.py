@@ -741,8 +741,34 @@ class Decoder():
 
 		# Mode combinations
 		elif payload[1] == 0x2:
-			bt_message['readable'] += " mode combinations: "+" ".join(hex(n) for n in payload[2:])
-			# FIXME: not parsed out
+			combi_modes = payload[2:]
+			combi_count = len(combi_modes) / 2
+			combi_index = 0
+			if combi_count >= 1:
+				bt_message['readable'] += " mode combinations: "
+				while combi_index < combi_count:
+					combi_value = Decoder.uint16_bytes_to_int(combi_modes[combi_index:2])
+
+					modes_in_combi = []
+					bit_value = 1
+					mode_number = 0
+					while mode_number < 16:
+						if combi_value & bit_value:
+							modes_in_combi.append(mode_number)
+						bit_value <<=1
+						mode_number += 1
+
+					if not 'mode_combinations' in bt_message:
+						bt_message['mode_combinations'] = {}
+					bt_message['mode_combinations'][combi_index] = tuple(modes_in_combi)
+
+					bt_message['readable'] += f'Combination {combi_index}: {combi_value:016b}'
+					combi_index += 1
+			else:
+				if len(combi_modes) > 0:
+					bt_message['readable'] += " Undecipherable combi mode information:"+" ".join(hex(n) for n in combi_modes)
+				else:
+					bt_message['readable'] += " Mode has no combos"
 
 	def decode_port_mode_info_request(bt_message):
 		#0x8 0x0 0x44 [ 0x0 0x0 0x5 0x84 0x0 ]
@@ -806,8 +832,43 @@ class Decoder():
 
 		elif mode_info_type == 0x5:
 			# Mapping, 16 bits
-			# FIXME
-			bt_message['readable'] += ' Mapping:'+' '.join(hex(n) for n in payload[3:])
+			# IN as in to read-IN, OUT as in to write-OUT
+			def readable_mapping_bits(eightbits, direction, bt_message):
+				#retval = f'{direction} {eightbits:08b}: '
+				retval = f'{direction}: '
+				maptype = ''
+				if (eightbits & 0x80) >> 7:
+					retval += 'NULLable '
+					bt_message[direction+'_nullable'] = True
+				else:
+					bt_message[direction+'_nullable'] = False
+
+				if (eightbits & 0x40) >> 6:
+					retval += 'FunctionalMapping2 '
+					bt_message[direction+'_mapping'] = True
+				else:
+					bt_message[direction+'_mapping'] = False
+				if (eightbits & 0x20) >> 5:
+					retval += 'whatisbitfive '
+
+				if (eightbits & 0x10) >> 4:
+					maptype += 'ABS '
+				if (eightbits & 0x8) >> 3:
+					maptype += 'REL '
+				if (eightbits & 0x4) >> 2:
+					maptype += 'DIS '
+
+				if (eightbits & 0x2) >> 1:
+					retval += 'whatisbittwo '
+				if (eightbits & 0x1):
+					retval += 'whatisbitone '
+
+				bt_message[direction+'_maptype'] = maptype.strip()
+
+				return retval
+			bt_message['readable'] += readable_mapping_bits(payload[3], 'IN', bt_message)
+			bt_message['readable'] += readable_mapping_bits(payload[4], 'OUT', bt_message)
+
 		elif mode_info_type == 0x7:
 			# Motor Bias, 8 bits, 0-100%
 			bt_message['motor_bias'] = int(payload[3:4])
