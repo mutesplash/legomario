@@ -374,6 +374,7 @@ class Vision(LPF_Device):
 		0x3: Toggle
 
 		Note: The unlabeled IR receiver (vs the one labeled V2) has a "firmware bug in Single Pin mode"
+		"The V1.1 blinks the green led on startup. The 1.0 just turns on."
 		https://www.philohome.com/pfrec/pfrec.htm
 
 		:param port: 'A' or 'B'

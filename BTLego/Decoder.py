@@ -874,7 +874,8 @@ class Decoder():
 			bt_message['motor_bias'] = int(payload[3:4])
 		elif mode_info_type == 0x8:
 			# Capability bits 8[6]
-			# FIXME
+			# FIXME: Well, good luck, the documents state something to the
+			# effect of "your documentation is in another castle" in section 3.20.1
 			bt_message['readable'] += ' Capabilities:'+' '.join(hex(n) for n in payload[3:9])
 
 		elif mode_info_type == 0x80:

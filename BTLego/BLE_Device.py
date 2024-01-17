@@ -613,8 +613,8 @@ class BLE_Device():
 
 		if bt_message['port_mode_capabilities']['logic_combineable']:
 			# This is a signal to check for combinations (3.15.2)
+			await asyncio.sleep(self.mode_probe_rate_limit)
 			await self._write_port_info_request(port, 0x2)
-			await asyncio.sleep(0.2)
 
 		async def scan_mode(direction, port, mode):
 			if not mode in self.port_mode_info[port]:

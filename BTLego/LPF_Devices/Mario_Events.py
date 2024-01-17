@@ -51,9 +51,6 @@ class Mario_Events(LPF_Device):
 		}
 		self.__init_data_dispatch()
 
-
-	# FIXME: Implement decode_pvs from _process_bt_message() in Mario
-
 	def __init_data_dispatch(self):
 
 		# ( key, type, value)
@@ -469,8 +466,6 @@ class Mario_Events(LPF_Device):
 		self.event_data_dispatch[(0x40,0x6,0x5)] = lambda dispatch_key: ('event','nabbit','10 coins')
 
 
-
-#	def _decode_event_data(self, data):
 	def decode_pvs(self, port, data):
 		# Mode 2
 		if len(data) == 4:

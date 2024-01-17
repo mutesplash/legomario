@@ -1,5 +1,3 @@
-#FIXME: Ugh, why can't I just from . import *
-
 from .LPF_Device import LPF_Device
 from . import *
 from ..Decoder import LDev
