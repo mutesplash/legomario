@@ -105,14 +105,15 @@ class LPF_Device():
 		return None
 
 	async def subscribe_to_messages(self, message_type, should_subscribe, gatt_payload_writer):
-		if message_type in self.generated_message_types:
-			subbed_anything = False
-			for mode_int in self.mode_subs:
-				if message_type in self.mode_subs[mode_int][3]:
-					sub_result = await self.PIF_single_setup(mode_int, should_subscribe, gatt_payload_writer)
-					if not subbed_anything:
-						subbed_anything = sub_result
-			return subbed_anything
+		if self.generated_message_types:
+			if message_type in self.generated_message_types:
+				subbed_anything = False
+				for mode_int in self.mode_subs:
+					if message_type in self.mode_subs[mode_int][3]:
+						sub_result = await self.PIF_single_setup(mode_int, should_subscribe, gatt_payload_writer)
+						if not subbed_anything:
+							subbed_anything = sub_result
+				return subbed_anything
 		return False
 
 	# Section 3.23.1

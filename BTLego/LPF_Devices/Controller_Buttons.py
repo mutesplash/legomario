@@ -28,6 +28,9 @@ class Controller_Buttons(LPF_Device):
 		# Kind of makes sense, though, since they are discrete (and debounced, I assume)
 		self.delta_interval = 0
 
+		# FIXME: Try using this to decipher the other modes
+		# https://github.com/JorgePe/BOOSTreveng/blob/master/PoweredUp.md
+
 		self.mode_subs = {
 			# mode_number: [ delta_interval, subscribe_boolean, Mode Information Name (Section 3.20.1), tuple of generated messages when subscribed to this mode ]
 			0: [ self.delta_interval, False, 'RCKEY', ()],

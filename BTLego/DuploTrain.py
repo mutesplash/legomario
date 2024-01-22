@@ -21,29 +21,16 @@ class DuploTrain(BLE_Device):
 
 		self.mode_probe_ignored_info_types = ( 0x7, 0x8 )	# Doesn't support motor bias or capability bits
 
-	async def _demo_range_test(self):
-
-		print("Testing...")
-
-		# "ONSEC"
-		# stalls it out
-		# Index: Port Type per Decoder.io_type_id_str index, value: attached hardware port identifier (int or tuple)
-		# These ancient scribblings in the array refer to the device type, the port it's on, the delta interval, and if you should subscribe
-		#await self._set_port_subscriptions([[self.device_ports[Decoder.io_type_id['DT MOTOR']], 1,1,0 ]])
-		# Lets it go (but not to the "current" speed)
-		#await self._set_port_subscriptions([[self.device_ports[Decoder.io_type_id['DT MOTOR']], 0,1,0 ]])
-
-#		await self.write_mode_motor_speed(-50)
-#		await asyncio.sleep(2)
+	# "ONSEC"
+	# stalls it out
+	# Index: Port Type per Decoder.io_type_id_str index, value: attached hardware port identifier (int or tuple)
+	# These ancient scribblings in the array refer to the device type, the port it's on, the delta interval, and if you should subscribe
+	#await self._set_port_subscriptions([[self.device_ports[Decoder.io_type_id['DT MOTOR']], 1,1,0 ]])
+	# Lets it go (but not to the "current" speed)
+	#await self._set_port_subscriptions([[self.device_ports[Decoder.io_type_id['DT MOTOR']], 0,1,0 ]])
 
 #		await asyncio.sleep(0.42)	# Maximum wait if the thing only accepts motor speeds in pulses or whatever is happening there
 #		await self.write_mode_motor_speed(50)
-
-		pass
-
-	# ---- Make data useful ----
-
-	# ---- Random stuff ----
 
 	def dp(pstr, level=1):
 		if DuploTrain.DEBUG:

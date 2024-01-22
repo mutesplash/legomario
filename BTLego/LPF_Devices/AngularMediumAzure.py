@@ -16,3 +16,4 @@ class AngularMediumAzure(LPF_TachoMotor):
 
 		# Hey, look it _IS_ different from the Grey one!
 		self.mode_subs[4] = [ self.delta_interval, False, 'LOAD', ('motor_load',)]
+		self.mode_subs[5] = [ self.delta_interval, False, 'CALIB', ()]	# NO IO

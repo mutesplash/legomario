@@ -13,3 +13,5 @@ class AngularMediumGray(LPF_TachoMotor):
 		self.name = Decoder.io_type_id_str[self.port_id]
 							# Identifier for the type of device attached
 							# Index into Decoder.io_type_id_str
+		self.mode_subs[4] = [ self.delta_interval, False, 'CALIB', ()]	# NO IO
+		self.mode_subs[5] = [ self.delta_interval, False, 'STATS', ()]	# NO IO

@@ -416,7 +416,7 @@ class BLE_Device():
 	async def _set_hardware_subscription(self, message_type, should_subscribe=True):
 
 		if not message_type in self.BLE_event_subscriptions:
-			print(f'Couldn\'t find {message_type}')
+			print(f'No known devices generate {message_type}')
 			return False
 
 		for port in self.ports:
@@ -874,14 +874,17 @@ class BLE_Device():
 
 	# ---- Bluetooth port writes for mortals ----
 	async def interrogate_ports(self):
-		BLE_Device.dp("Starting port interrogation...")
-		self._reset_port_mode_info()
-		for port in self.ports:
-			# This should be done as some kind of batch, blocking operation
-			self.port_mode_info['requests_until_complete'] += 1
+		if self.port_mode_info['requests_until_complete'] == 0:
+			BLE_Device.dp("Starting port interrogation...")
+			self._reset_port_mode_info()
+			for port in self.ports:
+				# This should be done as some kind of batch, blocking operation
+				self.port_mode_info['requests_until_complete'] += 1
 
-			await self._write_port_info_request(port, 0x1)
-			await asyncio.sleep(0.2)
+				await self._write_port_info_request(port, 0x1)
+				await asyncio.sleep(0.2)
+		else:
+			print(f"ERROR: Refusing to start a second port interrogation until the first one is complete. Currently waiting for {self.port_mode_info['requests_until_complete']} requests to complete")
 
 	async def turn_off(self):
 		name_update_bytes = bytearray([
@@ -905,7 +908,7 @@ class BLE_Device():
 				print("Attempted message {message} to disconnected device on port {port}")
 
 		for dev in target_devs:
-			if port:
+			if port is not None:
 				if dev.port == port:
 					BLE_Device.dp(f'SENDING {message} TO SPECIFIC PORT {port}',2)
 					await dev.send_message(message, self.gatt_writer )

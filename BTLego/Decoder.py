@@ -37,12 +37,13 @@ class LDev(IntEnum):
 	MOTION = 0x23
 	VISION = 0x25
 	MOTOR_BOOST = 0x26
-	# 0x27:'Internal Motor with Tacho',
+	MOTOR_BOOST_INTERNAL = 0x27
 	# 0x28:'Internal Tilt',
 	DUPLO_MOTOR = 0x29
 	DUPLO_BEEPER = 0x2a
 	DUPLO_COLOR = 0x2b
 	DUPLO_SPEED = 0x2c
+	CONTROLPLUS_LARGE = 0x2e
 	MOTOR_M_B = 0x30
 	#0x36:'Powered Up hub IMU gesture',
 	CONTROL_BUTTON = 0x37
@@ -52,7 +53,7 @@ class LDev(IntEnum):
 	# 0x3b:'Powered Up hub IMU position',
 	# 0x3c:'Powered Up hub IMU temperature',
 	COLOR = 0x3d
-	UTLRA = 0x3e
+	ULTRA = 0x3e
 	FORCE = 0x3f
 	MATRIX = 0x40
 	MOTOR_S = 0x41
@@ -61,7 +62,7 @@ class LDev(IntEnum):
 	MARIO_SCANNER = 0x49
 	MARIO_PANTS = 0x4a
 	MOTOR_M_G = 0x4b
-	MOROR_L_G = 0x4c
+	MOTOR_L_G = 0x4c
 	#	0x55:'Mario Alt Events',
 
 # FIXME: Completely confused on upstream/downstream, fix the nomenclature in the comments
@@ -70,6 +71,7 @@ class Decoder():
 
 	advertised_system_type = {
 		0x20:'duplotrain',	# "Hub No. 5"
+		0x40:'boostmove',	# "JAJUR1"
 		0x42:'handset',		# Lego 88010 Remote Control for Powered Up
 		0x43:'mario',
 		0x44:'luigi',
@@ -79,6 +81,7 @@ class Decoder():
 
 	ble_dev_classes = {
 		0x20:'DuploTrain',
+		0x40:'Jajur1',
 		0x42:'Controller',
 		0x43:'Mario',
 		0x44:'Mario',		# Luigi
@@ -155,6 +158,7 @@ class Decoder():
 		0x2a:'DUPLO Train hub built-in beeper',
 		0x2b:'DUPLO Train hub built-in color sensor',
 		0x2c:'DUPLO Train hub built-in speed',
+		0x2e:'Technic Control+ Large Motor',
 
 		# Pybricks
 		0x30:'SPIKE Prime Medium Motor',		# Medium Azure color
@@ -170,6 +174,7 @@ class Decoder():
 		0x3f:'Technic Force Sensor',
 		0x40:'Matrix',	# FIXME: Not coordinated with pybricks...
 		0x41:'Technic Small Angular Motor',
+		0x42:'Boost Turtle MAYBE',	# FIXME: Not sure, all modes are NO IO
 		0x4b:'Technic Medium Angular Motor',	# Gray color
 		0x4c:'Technic Large Angular motor',		# Gray color
 

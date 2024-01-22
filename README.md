@@ -7,6 +7,7 @@
 	* LEGO Powered Up Remote Control (88010)
 	* DUPLO Train Hub No. 5
 	* Technic Hub No. 2 (88012) and (some) attached LEGO Powered Up (LPF2) Devices
+	* Boost Hub No. 1 (88006) aka Move Hub aka JAJUR1
 * Does not have great documentation yet
 
 ## Requires
