@@ -24,7 +24,7 @@ class UltraDist(LPF_Device):
 			4: [ self.delta_interval, False, 'TRAW', ()],
 			5: [ self.delta_interval, False, 'LIGHT', ()],
 			6: [ self.delta_interval, False, 'PING', ()],
-			7: [ self.delta_interval, False, 'ADRAW', ()]
+			7: [ self.delta_interval, False, 'ADRAW', ()],
 			8: [ -1, False, 'CALIB', ()]	# NO IO
 		}
 
