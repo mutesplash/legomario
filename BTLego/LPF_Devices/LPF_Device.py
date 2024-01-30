@@ -1,5 +1,7 @@
 import asyncio
 from enum import IntEnum
+from queue import SimpleQueue
+
 from ..Decoder import Decoder
 
 import importlib
@@ -70,6 +72,8 @@ class LPF_Device():
 		# disabling notifications on the mode
 		self._selected_mode = -1
 
+		self.outstanding_requests = SimpleQueue()
+
 		# Probed count
 		self.mode_count = -1	# Default unprobed
 
@@ -102,7 +106,30 @@ class LPF_Device():
 
 	# Decode Port Value - Single
 	def decode_pvs(self, port, data):
+		print(f'{self.name} LPF_DATA: '+' '.join(hex(n) for n in data))
 		return None
+
+	async def get_port_info(self, mode, gatt_payload_writer):
+		await self.select_mode_if_not_selected(mode, gatt_payload_writer)
+
+		# 3.15.2
+		# 0: Request port_value_single value
+		mode_int = 0
+		payload = bytearray([
+			0x5,	# len
+			0x0,	# padding
+			0x21,	# Command: port_info_req
+			# end header
+			self.port,
+			mode_int
+		])
+		payload[0] = len(payload)
+
+		results = await gatt_payload_writer(payload)
+
+		# Yeah, even doing this, seems very race condition-y
+		self.outstanding_requests.put(mode)
+		return results
 
 	async def subscribe_to_messages(self, message_type, should_subscribe, gatt_payload_writer):
 		if self.generated_message_types:
@@ -154,10 +181,12 @@ class LPF_Device():
 		#print(" ".join(hex(n) for n in payload))
 
 		payload[0] = len(payload)
+
+		self._selected_mode = mode
+
 		return await gatt_payload_writer(payload)
 
 	# This does the "negative subscribe" to select the device's mode
 	async def select_mode_if_not_selected(self, mode, gatt_payload_writer):
 		if mode != self._selected_mode:
-			self._selected_mode = mode
 			await self.PIF_single_setup(mode, False, gatt_payload_writer)
