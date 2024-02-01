@@ -238,6 +238,17 @@
       ]
     },
     {
+      "code": "BRLYG",
+      "label": "DORRIE2",
+      "blpns": [
+        {
+          "blpn": "3068bpb2341",
+          "name": "Dorrie the Dolphin"
+        }
+      ],
+      "note": "Water world ride"
+    },
+    {
       "code": "BRPTY",
       "label": "DOLPHIN",
       "blpns": [
@@ -339,6 +350,17 @@
           "name": "Blue Yoshi egg"
         }
       ]
+    },
+    {
+      "code": "BRLTG",
+      "label": "YOSHIEGG",
+      "blpns": [
+        {
+          "blpn": "3068bpb2335",
+          "name": "Hatching Yoshi Egg"
+        }
+      ],
+      "note": "Blue, purple, red, green, yellow.  Hatches after jumping/rocking a bunch."
     },
     {
       "code": "GRYPV",
@@ -1925,6 +1947,17 @@
       "note": "Water, ! and gasp"
     },
     {
+      "code": "BRLVG",
+      "label": "CHECHOMP",
+      "blpns": [
+        {
+          "blpn": "3068bpb2340",
+          "name": "Cheep Chomp"
+        }
+      ],
+      "note": "!, Gloopy sounds, wave Mario around and then escape for coins.  Star to defeat."
+    },
+    {
       "code": "GRLYV",
       "label": "EXERCISE",
       "blpns": [
@@ -2222,20 +2255,8 @@
   "undeciphered": [],
   "unidentified": [
     {
-      "code": "BRLVG",
-      "note": "! Gloopy sounds"
-    },
-    {
-      "code": "BRLYG",
-      "note": "Water world"
-    },
-    {
-      "code": "BRLTG",
-      "note": "Yoshi egg: Blue, purple, red, green, yellow.  Hatches after jumping a bunch. Probably item 6474128, 71428"
-    },
-    {
       "code": "BRLTV",
-      "note": "Baby yoshi. Probably 71428"
+      "note": "Pink Baby yoshi"
     }
   ]
 }

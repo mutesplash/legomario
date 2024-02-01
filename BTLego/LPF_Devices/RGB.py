@@ -29,7 +29,11 @@ class RGB(LPF_Device):
 		}
 
 	async def send_message(self, message, gatt_payload_writer):
+		processed = await super().send_message(message, gatt_payload_writer)
+		if processed:
+			return processed
 		# ( action, (parameters,) )
+
 		action = message[0]
 		parameters = message[1]
 		payload = None

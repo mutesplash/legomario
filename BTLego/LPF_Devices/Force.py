@@ -68,13 +68,16 @@ class Force(LPF_Device):
 		return None
 
 	async def send_message(self, message, gatt_payload_writer):
+		processed = await super().send_message(message, gatt_payload_writer)
+		if processed:
+			return processed
 		# ( action, (parameters,) )
 
 		action = message[0]
 		parameters = message[1]
 
-		if action == 'get_tap':
-			mode = 2
+		if action == 'get_force':
+			mode = 0
 			return await self.get_port_info(mode, gatt_payload_writer)
 
 		elif action == 'get_peak':

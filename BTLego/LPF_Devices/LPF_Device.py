@@ -101,6 +101,14 @@ class LPF_Device():
 		return lpf_classobj.generated_message_types
 
 	async def send_message(self, message, gatt_payload_writer):
+
+		action = message[0]
+		parameters = message[1]
+
+		if action == 'delta_set':
+			mode, delta_interval = parameters
+			return await self.set_mode_delta(mode, delta_interval)
+
 		# ( action, (parameters,) )
 		return False
 
@@ -143,8 +151,20 @@ class LPF_Device():
 				return subbed_anything
 		return False
 
+	# Sometimes changing this from the defaults breaks the device.  Check the notes!
+	# FIXME: WHAT NOTES!?
+	async def set_mode_delta(self, mode, delta_interval):
+		if not mode in self.mode_subs:
+			return False
+
+		self.mode_subs[mode][0] = delta_interval
+
+		if mode == self._selected_mode:
+			return await self.PIF_single_setup(mode, self.mode_subs[mode][1], gatt_payload_writer)
+		return True
+
 	# Section 3.23.1
-	# FIXME: Can't change the deltas from defaults
+	# Have to change the delta interval prior to selecting the mode
 	# Mostly used to set/unset subscription options for modes (notification disable/enable)
 
 	# Several devices can be subscribed, but do not return any useful data (RGB, DT_Beeper).
