@@ -7,6 +7,7 @@ from ..Decoder import LDev
 def LPF_class_for_type_id(type_id):
 	# io_type_id_str indicies
 	dev_classes = {
+		0x2:'TrainMotor',
 		0x8:'LED',
 		0x14:'Voltage',
 		0x15:'Current',

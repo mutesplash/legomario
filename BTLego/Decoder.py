@@ -25,7 +25,7 @@ class HProp(IntEnum):
 # LPF2-compatible devices (io_type_id_str indicies)
 class LDev(IntEnum):
 	# 0x1:'Motor',
-	# 0x2:'System Train Motor',
+	TRAIN = 0x2
 	# 0x5:'Button',
 	LED = 0x8
 	VOLTS = 0x14
@@ -70,8 +70,8 @@ class LDev(IntEnum):
 class Decoder():
 
 	advertised_system_type = {
-		0x20:'duplotrain',	# "Hub No. 5"
-		0x40:'boostmove',	# "JAJUR1"
+		0x20:'duplotrain',	# "Hub No. 5" "Train Base"
+		0x40:'boostmove',	# "JAJUR1" "LEGO Move Hub"
 		0x42:'handset',		# Lego 88010 Remote Control for Powered Up
 		0x43:'mario',
 		0x44:'luigi',
