@@ -2741,7 +2741,7 @@ function colorized_html_for_code(code) {
 	if ( !test_code_rules(code) ) {
 		rh = rh + "INVALID CODE<BR>";
 	} else {
-		rh = rh + "<input type='checkbox' style='block' value='"+code+"'>";
+		rh = rh + "<input type='checkbox' style='block' value='"+code+"'><input type='text' size=2 length=2 style='block' id='q_"+code+"' value=1>";
 	}
 
 	rh = rh + codearray.reduce( (total, currentValue) => {
@@ -2865,14 +2865,21 @@ function create_codelist_from_checkboxes() {
 	var retval = [];
 	for ( let thischeck of document.querySelectorAll("input[type=checkbox]") ) {
 		if ( thischeck.checked ) {
-			retval.push(thischeck.value);
+			let thisq = document.querySelectorAll("#q_"+thischeck.value);
+			if ( thisq ) {
+				thisq = thisq[0];
+				for (let i = 0; i < thisq.value; i++) {
+					retval.push(thischeck.value);
+				}
+			} else {
+				retval.push(thischeck.value);
+			}
 		}
 	}
 	return retval;
 }
 
 function pop_print_window(codelist) {
-	create_codelist_from_checkboxes()
 	var svgwin = window.open("", "PrintSVGCodes", "width=520, height=320, location=no, menubar=no, toolbar=no, status=no");
 	if ( svgwin ) {
 		for ( code in codelist ) {
