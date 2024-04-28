@@ -45,6 +45,7 @@ class LDev(IntEnum):
 	DUPLO_SPEED = 0x2c
 	CONTROLPLUS_LARGE = 0x2e
 	MOTOR_M_B = 0x30
+	MOTOR_L_B = 0x31
 	#0x36:'Powered Up hub IMU gesture',
 	CONTROL_BUTTON = 0x37
 	# 0x38:'Powered Up hub Bluetooth RSSI',	# 88010 also has this
@@ -162,6 +163,7 @@ class Decoder():
 
 		# Pybricks
 		0x30:'SPIKE Prime Medium Motor',		# Medium Azure color
+		0x31:'SPIKE Prime Large Motor',			# Medium Azure color
 		0x36:'Powered Up hub IMU gesture',
 		0x37:'Powered Up Handset Buttons',
 		0x38:'Powered Up hub Bluetooth RSSI',	# 88010 also has this

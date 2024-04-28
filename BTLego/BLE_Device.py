@@ -65,6 +65,14 @@ class BLE_Device():
 	characteristic_uuid = '00001624-1212-efde-1623-785feabcd123'
 	hub_service_uuid = '00001623-1212-efde-1623-785feabcd123'
 
+	# ok, but what is service ID F000FFC0-0451-4000-B000-000000000000 with the
+	# following characteristic IDs for LEGO Mario?
+	# FOTA?  OAD Service? Texas Instruments OTA firmware download?
+	# https://software-dl.ti.com/lprf/simplelink_cc2640r2_latest/docs/blestack/ble_user_guide/html/oad-ble-stack-3.x/oad_profile.html
+	# F000FFC1-0451-4000-B000-000000000000
+	# F000FFC2-0451-4000-B000-000000000000
+	# F000FFC5-0451-4000-B000-000000000000
+
 	# ---- Initializations, obviously ----
 
 	def __init__(self, advertisement_data=None):
