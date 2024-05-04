@@ -60,7 +60,7 @@ class Mario_Scanner(LPF_Device):
 				return ('scanner','color',color)
 			else:
 				#scantype == 'nothing':
-				return ('notice', 'scanned nothing')
+				return ('notice', 'scanned', 'nothing')
 
 		elif len(data) == 3:
 			# This is probably R, G, B based on some basic tests.  Data is not very good, though!

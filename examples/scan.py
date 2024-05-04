@@ -1,22 +1,17 @@
+import logging
 import asyncio
-import time
-from bleak import BleakScanner, BleakClient
 
 import BTLego
 from BTLego.MarioScanspace import MarioScanspace
 
-mario_devices = {}
-callbacks_to_device_addresses = {}
-code_data = None
-
-json_code_file = "../mariocodes.json"
-run_seconds = 60
+#BTLego.setLoggingLevel(logging.DEBUG)
 
 async def mariocallbacks(message):
 	( cb_uuid, message_type, message_key, message_value ) = message
 
-	print("CALLBACK:"+str(message))
-	mario_device = mario_devices[callbacks_to_device_addresses[cb_uuid]]
+	logger = logging.getLogger(BTLego.__name__)
+	logger.debug("CALLBACK:"+str(message))
+	mario_device = BTLego.device_for_callback_id(cb_uuid)
 
 	if message_type == 'scanner':
 		if message_key == 'code':
@@ -27,67 +22,39 @@ async def mariocallbacks(message):
 		coincount, coinsource = message_value
 		print(f'Now have {coincount} coins total from {MarioScanspace.event_scanner_coinsource[coinsource]}')
 
-async def detect_device_callback(device, advertisement_data):
-	global mario_devices
-	global callbacks_to_device_addresses
+# You only need one of these for this example, but here's how to use three
+# different types of matching to register the callback to the device you want to use
+callback_matcher = [
+	{
+		# 'AnyMario' matches whatever it can find.
+		# This may not be what you want to happen if you have more than one!
+		'device_match': [ 'AnyMario' ],
+		'event_callback': mariocallbacks,
+		'requested_events': [ 'event', 'scanner' ]
+	}
+#	,{
+		# Match a specific type of device by the name given in BTLego.Decoder.advertised_system_type
+#		'device_match': [ 'Mario', 'Peach', 'Luigi' ],
+#		'event_callback': mariocallbacks,
+#		'requested_events': [ 'event', 'scanner' ]
+#	},
 
-	if device:
-		mario_device = BTLego.Decoder.determine_device_shortname(advertisement_data)
-		if mario_device:
-			if not device.address in mario_devices:
-				mario_devices[device.address] = BTLego.Mario(advertisement_data)
-				callback_uuid = await mario_devices[device.address].register_callback(mariocallbacks)
-				callbacks_to_device_addresses[callback_uuid] = device.address
-				await mario_devices[device.address].subscribe_to_messages_on_callback(callback_uuid, 'device_ready')
-				await mario_devices[device.address].subscribe_to_messages_on_callback(callback_uuid, 'event')
-#				await mario_devices[device.address].subscribe_to_messages_on_callback(callback_uuid, 'pants')
-				await mario_devices[device.address].subscribe_to_messages_on_callback(callback_uuid, 'info')
-				# You don't have to subscribe to "error" type messages...
+#	,{
+		# Match the advertised name
+#		'device_match': [ 'LEGO Mario_a_r' ],
+#		'event_callback': mariocallbacks,
+#		'requested_events': [ 'event', 'scanner' ]
+#	}
 
-				await mario_devices[device.address].connect(device, advertisement_data)
+]
+BTLego.set_callbacks(callback_matcher)
 
-				await mario_devices[device.address].subscribe_to_messages_on_callback(callback_uuid, 'scanner', True)
-
-			else:
-				if not await mario_devices[device.address].is_connected():
-					await mario_devices[device.address].connect(device, advertisement_data)
-				else:
-					print("Refusing to reconnect to "+mario_devices[device.address].system_type)
-		else:
-			# "LEGO Mario_x_y"
-			# Spike prime hub starts with "LEGO Hub" but you have to pair with that, not BTLE
-			if device.name and device.name.startswith("LEGO Mario"):
-				if advertisement_data and advertisement_data.manufacturer_data:
-					print("UNKNOWN LEGO MARIO",mario_device, device.address, "RSSI:", device.rssi, advertisement_data)
-				else:
-					#print("Found some useless Mario broadcast without the manufacturer or service UUIDs")
-					pass
-
-async def callbackscan(duration=10):
-	scanner = BleakScanner(detect_device_callback)
-	print("Ready to find LEGO Mario!")
-	print("Scanning...")
-	await scanner.start()
-	await asyncio.sleep(duration)
-	await scanner.stop()
-
-	#print("Scan results...")
-	#for d in scanner.discovered_devices:
-	#	print(d)
-
+json_code_file = "../mariocodes.json"
 if not MarioScanspace.import_codefile(json_code_file):
 	print(f'Known code database ({json_code_file}) NOT loaded!')
 
-start_time = time.perf_counter()
-try:
-	asyncio.run(callbackscan(run_seconds))
-except KeyboardInterrupt:
-	print("Recieved keyboard interrupt, stopping.")
-except asyncio.InvalidStateError:
-	print("ERROR: Invalid state in Bluetooth stack, we're done here...")
-stop_time = time.perf_counter()
-
-if len(mario_devices):
-	print(f'Done with LEGO Mario session after {int(stop_time - start_time)} seconds...')
-else:
-	print("Didn't connect to a LEGO Mario.  Quitting.")
+# If you want more control, just copy & modify the detection callback system out
+# of BTLego/__init__.py that instantiates the BLE_Device, registers the callback,
+# subscribes to messages, and connect()s it
+run_seconds = 60
+BTLego.async_run(run_seconds)

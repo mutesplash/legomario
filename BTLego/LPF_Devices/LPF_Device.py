@@ -113,8 +113,9 @@ class LPF_Device():
 		return False
 
 	# Decode Port Value - Single
+	# Return (type, key, value)
 	def decode_pvs(self, port, data):
-		print(f'{self.name} LPF_DATA: '+' '.join(hex(n) for n in data))
+		print(f'{self.name} PORT {port} LPF_DATA: '+' '.join(hex(n) for n in data))
 		return None
 
 	async def get_port_info(self, mode, gatt_payload_writer):

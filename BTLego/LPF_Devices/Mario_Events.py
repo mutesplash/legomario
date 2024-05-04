@@ -59,7 +59,7 @@ class Mario_Events(LPF_Device):
 		# 0x0
 
 		# When powered on and BT connected (reconnects do not seem to generate)
-		self.event_data_dispatch[(0x0,0x0,0x0)] = lambda dispatch_key: ('debug', "Events ready!")
+		self.event_data_dispatch[(0x0,0x0,0x0)] = lambda dispatch_key: ('debug', 'Events...','ready... !')
 
 		# 0x18: General statuses?
 
@@ -168,7 +168,7 @@ class Mario_Events(LPF_Device):
 		# Basically, unreliable
 		self.event_data_dispatch[(0x38,0x61,0x8)] = lambda dispatch_key: ('event','prone','maybe_sleep')
 		# kind of like noise, so maybe this is "done" doing stuff
-		self.event_data_dispatch[(0x38,0x62,0x0)] = lambda dispatch_key: ('debug', '... idle ... events ...')
+		self.event_data_dispatch[(0x38,0x62,0x0)] = lambda dispatch_key: ('debug', 'idle ...','events ...')
 
 # Received during connection in conjunction with the first battery low warning, 12%, maybe related
 #peach event data:0x62 0x38 0x2 0x0
@@ -510,7 +510,7 @@ class Mario_Events(LPF_Device):
 					# Fortunately, the values here match the values of the scanner codes
 					# message consumer should do this work if they care about it
 					#scanner_code = MarioScanspace.get_code_info(value)
-					#Mario.dp(self.system_type+" scans "+scanner_code['label'])
+					#print(self.system_type+" scans "+scanner_code['label'])
 
 				# Pants port status (numbers here are _completely_ different from the pants port)
 				elif event_type == 0x15:
@@ -526,7 +526,7 @@ class Mario_Events(LPF_Device):
 
 			elif event_key == 0x20:
 				# hat tip to https://github.com/bhawkes/lego-mario-web-bluetooth/blob/master/pages/index.vue
-				#Mario.dp(self.system_type+" now has "+str(value)+" coins (obtained via "+str(hex(event_type))+")",2)
+				#print(self.system_type+" now has "+str(value)+" coins (obtained via "+str(hex(event_type))+")",2)
 				if not event_type in MarioScanspace.event_scanner_coinsource:
 					return ('unknown', f'Unknown coin source {event_type}')
 				else:

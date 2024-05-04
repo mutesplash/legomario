@@ -1,4 +1,5 @@
 import asyncio
+import logging
 from queue import SimpleQueue
 from collections.abc import Iterable
 
@@ -11,12 +12,6 @@ from .Decoder import Decoder
 from .MarioScanspace import MarioScanspace
 
 class Mario(BLE_Device):
-	# 0:	Don't debug
-	# 1:	Print weird stuff
-	# 2:	Print most of the information flow
-	# 3:	Print stuff even you the debugger probably don't need
-	# 4:	Debug the code table generation too (mostly useless)
-	DEBUG = 0
 
 	# MESSAGE TYPES ( type, key, value )
 	# event:
@@ -95,7 +90,7 @@ class Mario(BLE_Device):
 				# Four spaces after the name
 				if name == "LEGO Peach    ":
 					self.message_queue.put( ('info', 'peach', 'no_icon_or_color') )
-					Mario.dp("Peach has no icon or color set")
+					self.logger.info("Peach has no icon or color set")
 				elif name == "LEGO Mario    ":
 					self.message_queue.put( ('info', 'mario', 'no_icon_or_color') )
 				elif name == "LEGO Luigi    ":
@@ -108,7 +103,7 @@ class Mario(BLE_Device):
 			color = ord(name[13])
 
 			if not icon in Mario.app_icon_names:
-				Mario.dp("Unknown icon:"+str(hex(icon)))
+				self.logger.info("Unknown icon:"+str(hex(icon)))
 				self.message_queue.put( ('info', 'unknown', f'Icon {hex(icon)} not found:{name[11]}') )
 				return
 
@@ -116,7 +111,7 @@ class Mario(BLE_Device):
 				self.message_queue.put( ('info', 'unknown', f'Icon {hex(color)} color not found:{name[13]}') )
 				return
 
-			if Mario.DEBUG >= 1:
+			if self.logger.isEnabledFor(logging.DEBUG):
 				color_str = Mario.app_icon_color_names[color]
 				icon_str = Mario.app_icon_names[icon]
 				self.message_queue.put( ('info', 'debug_icon', (color_str, icon_str )) )
@@ -128,21 +123,14 @@ class Mario(BLE_Device):
 			self.message_queue.put(('info','volume',prop_value))
 			self.volume = prop_value
 
-	# ---- Random stuff ----
-
-	def dp(pstr, level=1):
-		if Mario.DEBUG:
-			if Mario.DEBUG >= level:
-				print(pstr)
-
 	# ---- Bluetooth port writes ----
 
 	async def set_icon(self, icon, color):
 		if icon not in Mario.app_icon_ints:
-			Mario.dp("ERROR: Attempted to set invalid icon:"+icon)
+			self.logger.error("ERROR: Attempted to set invalid icon:"+icon)
 			return
 		if color not in Mario.app_icon_color_ints:
-			Mario.dp("ERROR: Attempted to set invalid color for icon:"+color)
+			self.logger.error("ERROR: Attempted to set invalid color for icon:"+color)
 
 		set_name_bytes = bytearray([
 			0x00,	# len placeholder
@@ -166,7 +154,8 @@ class Mario(BLE_Device):
 
 	async def erase_icon(self):
 		if self.system_type != 'peach':
-			Mario.dp("ERROR: Don't know how to erase any player except peach")
+			# FIXME: Ok, well, how about you erase somebody else and figure this out
+			self.logger.error("ERROR: Don't know how to erase any player except peach")
 			return
 
 		set_name_bytes = bytearray([

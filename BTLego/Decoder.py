@@ -26,7 +26,7 @@ class HProp(IntEnum):
 class LDev(IntEnum):
 	# 0x1:'Motor',
 	TRAIN = 0x2
-	# 0x5:'Button',
+	# 0x5:'Button',	# Where did you get this from??
 	LED = 0x8
 	VOLTS = 0x14
 	CURRENT = 0x15
@@ -38,12 +38,13 @@ class LDev(IntEnum):
 	VISION = 0x25
 	MOTOR_BOOST = 0x26
 	MOTOR_BOOST_INTERNAL = 0x27
-	# 0x28:'Internal Tilt',
+	# 0x28:'Internal Tilt',		# Check on jajur
 	DUPLO_MOTOR = 0x29
 	DUPLO_BEEPER = 0x2a
 	DUPLO_COLOR = 0x2b
 	DUPLO_SPEED = 0x2c
 	CONTROLPLUS_LARGE = 0x2e
+	#0x2f	'Control+ XL'
 	MOTOR_M_B = 0x30
 	MOTOR_L_B = 0x31
 	#0x36:'Powered Up hub IMU gesture',
@@ -58,7 +59,7 @@ class LDev(IntEnum):
 	FORCE = 0x3f
 	MATRIX = 0x40
 	MOTOR_S = 0x41
-	EVENTS = 0x46
+	EVENTS = 0x46		# Mario and Controller
 	MARIO_TILT = 0x47
 	MARIO_SCANNER = 0x49
 	MARIO_PANTS = 0x4a
@@ -160,6 +161,7 @@ class Decoder():
 		0x2b:'DUPLO Train hub built-in color sensor',
 		0x2c:'DUPLO Train hub built-in speed',
 		0x2e:'Technic Control+ Large Motor',
+		0x2f:'Technic Control+ XL Motor',
 
 		# Pybricks
 		0x30:'SPIKE Prime Medium Motor',		# Medium Azure color
@@ -326,6 +328,14 @@ class Decoder():
 		return None
 
 	def determine_device_shortname(advertisement_data):
+		systype = Decoder.determine_device_systemtype(advertisement_data)
+		if systype in Decoder.advertised_system_type:
+			# print("Dumping LEGO Manuf. ID advertisement data:"+" ".join(hex(n) for n in advertisement_data.manufacturer_data[919]))
+			return Decoder.advertised_system_type[systype]
+		else:
+			return 'UNKNOWN_LEGO_'+hex(systype)
+
+	def determine_device_systemtype(advertisement_data):
 		# https://lego.github.io/lego-ble-wireless-protocol-docs/index.html#document-2-Advertising
 		# kCBAdvDataManufacturerData = 0x9703004403ffff00
 		# 97 03 is backwards because it's supposed to be a 16 bit int
@@ -351,16 +361,13 @@ class Decoder():
 			#	0000 0010
 			#          10	Peripheral role
 
-			if advertisement_data.manufacturer_data[919][1] in Decoder.advertised_system_type:
-				# print("Dumping LEGO Manuf. ID advertisement data:"+" ".join(hex(n) for n in advertisement_data.manufacturer_data[919]))
-				return Decoder.advertised_system_type[advertisement_data.manufacturer_data[919][1]]
-			else:
-				return 'UNKNOWN_LEGO_'+hex(advertisement_data.manufacturer_data[919][1])
+			return advertisement_data.manufacturer_data[919][1]
+
 		else:
 			# Fun for finding everything else
 			#print(advertisement_data)
 			pass
-		return None
+		return 0x0
 
 	def decode_payload(message_bytes):
 		bt_message = {
@@ -701,7 +708,10 @@ class Decoder():
 				bt_message['readable'] += ": INVALID BUTTON STATE "+hex(payload[1])
 		# Family Request
 		elif command_token == 0x3:
-			return
+			# This doesn't have a payload
+			# It also only sends after button_up AND if it has been less than _about_ 2.5 seconds
+			# So, only sent on relatively quick tap of the pairing button
+			bt_message['command'] = "family_request"
 		else:
 			bt_message['readable'] += " hw command payload: "+" ".join(hex(n) for n in payload)
 
@@ -895,7 +905,7 @@ class Decoder():
 			elif payload[4] == 0x2:
 				bt_message['dataset_type'] = '32bit'
 			elif payload[4] == 0x3:
-				bt_message['dataset_type'] = 'FLOAT'
+				bt_message['dataset_type'] = 'FLOAT'	# 32 bit IEEE 754
 			else:
 				bt_message['dataset_type'] = 'UNKNOWN'
 			bt_message['total_figures'] = payload[5]

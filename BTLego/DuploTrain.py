@@ -6,11 +6,6 @@ from .BLE_Device import BLE_Device
 from .Decoder import Decoder
 
 class DuploTrain(BLE_Device):
-	# 0:	Don't debug
-	# 1:	Print weird stuff
-	# 2:	Print most of the information flow
-	# 3:	Print stuff even you the debugger probably don't need
-	DEBUG = 0
 
 	def __init__(self, advertisement_data=None):
 		super().__init__(advertisement_data)
@@ -31,11 +26,6 @@ class DuploTrain(BLE_Device):
 
 #		await asyncio.sleep(0.42)	# Maximum wait if the thing only accepts motor speeds in pulses or whatever is happening there
 #		await self.write_mode_motor_speed(50)
-
-	def dp(pstr, level=1):
-		if DuploTrain.DEBUG:
-			if DuploTrain.DEBUG >= level:
-				print(pstr)
 
 	# ---- Bluetooth port writes ----
 
