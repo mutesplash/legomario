@@ -57,6 +57,9 @@ def __match_up_device(bluetooth_name, dev_systype, dev_shortname):
 				if normalized_supplied_devmatch == dev_shortname.lower():
 					logger.debug(f'Will connect to device matched by device type {dev_shortname}')
 					retval.append(callback)
+					# Hey, so if you leave the handset default name, guess what happens if you didn't
+					# continue and fall through instead? Duplicate messages!  FIXME: may need to rethink this
+					continue
 				if normalized_supplied_devmatch == 'anymario' and Decoder.ble_dev_classes[dev_systype] == 'Mario':
 					logger.debug(f'Will connect to {dev_shortname} as it is AnyMario')
 					retval.append(callback)

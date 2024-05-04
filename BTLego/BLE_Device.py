@@ -205,6 +205,10 @@ class BLE_Device():
 			self.logger.info(f'\tProperty {propobj.name} ({propobj.reference_number}) Subscribed: {propobj.subscribed}')
 		self.logger.info("CALLBACKS\n"+json.dumps(self.callbacks, indent=4, default=lambda function: '<function callback>'))
 		self.logger.info("PORT MODE INFO\n"+json.dumps(self.port_mode_info, indent=4))
+		if self.message_queue.qsize():
+			self.logger.info(f'ALERT: {self.message_queue.qsize()} MESSAGE(S) AWAITING DEQUEUE')
+		if self.drainlock_changes_queue.qsize():
+			self.logger.info(f'ALERT: {self.drainlock_changes_queue.qsize()} MESSAGES NEEDING TO BE PROCESSED OFF DRAINLOCK')
 
 	async def connect(self, device, advertisement_data):
 		async with self.lock:
@@ -231,9 +235,14 @@ class BLE_Device():
 
 				await self._inital_connect_updates()
 
+				# Signal connect finished
+				self.message_queue.put(('info','player',self.system_type))
+
 			except Exception as e:
 				self.logger.error("Unable to connect to "+str(device.address) + ": "+str(e))
-		self.message_queue.put(('info','player',self.system_type))
+
+		# Won't drain that info,player message without this
+		await self._drain_messages()
 
 	async def disconnect(self):
 		async with self.lock:

@@ -10,29 +10,17 @@
 # * Use the left +/- button to change the train's LED color
 # * Use the left center red button to play a sound associated with the color
 
-import sys
-import platform
+import logging
 import asyncio
-import time
 from bleak import BleakScanner, BleakClient
-import io
-import os
-from pathlib import Path
 
 import BTLego
 from BTLego import Decoder
 from BTLego.Decoder import LDev
 
-lego_devices = {}
-callbacks_to_device_addresses = {}
-code_data = None
-
 run_seconds = 240
 
-temp_message_lastscan = None
-
 train_device = None
-train_device_index = -1
 
 color_to_sounds = {
 	0x9: 0x3,	# red to brake
@@ -48,24 +36,18 @@ selected_color = -1
 
 train_speed = 0
 
+#BTLego.setLoggingLevel(logging.INFO)
+
 async def train_callback(message):
-	global lego_devices
-	global callbacks_to_device_addresses
-
-	global color_to_sounds
-	global selected_color
-	global color_index
-
-	global train_speed
-
 	global train_device
-	global train_device_index
 
 	( cb_uuid, message_type, message_key, message_value ) = message
 
 	print("TRAINBACK:"+str(message))
-	current_device = lego_devices[callbacks_to_device_addresses[cb_uuid]]
-
+	current_device = BTLego.device_for_callback_id(cb_uuid)
+	if not train_device:
+		# Should get set by getting the info message from connect
+		train_device = current_device
 
 async def controller_callback(message):
 
@@ -76,15 +58,11 @@ async def controller_callback(message):
 	global train_speed
 
 	global train_device
-	global train_device_index
-
-	global lego_devices
-	global callbacks_to_device_addresses
 
 	( cb_uuid, message_type, message_key, message_value ) = message
 
 	print("CALLBACK:"+str(message))
-	current_device = lego_devices[callbacks_to_device_addresses[cb_uuid]]
+	current_device = BTLego.device_for_callback_id(cb_uuid)
 
 	if message_type == 'controller_buttons':
 		# Beep
@@ -116,7 +94,7 @@ async def controller_callback(message):
 			if train_device:
 				await train_device.send_device_message(LDev.DUPLO_MOTOR, ('set_speed',(train_speed,)))
 
-		# Cycle LED
+		# Cycle LED up
 		if message_key == 'left' and message_value == 'plus':
 			selected_color += 1
 			if selected_color >= len(color_index):
@@ -126,7 +104,7 @@ async def controller_callback(message):
 				print(f'TRAIN COLOR')
 				await train_device.send_device_message(LDev.RGB, ('set_color',(color_index[selected_color],)))
 
-		# Cycle LED
+		# Cycle LED down
 		if message_key == 'left' and message_value == 'minus':
 			selected_color -= 1
 			if selected_color < 0:
@@ -138,69 +116,31 @@ async def controller_callback(message):
 
 
 	elif message_type == 'connection_request':
+		# Turn everything off if everything is connected
 		if message_key == 'button' and message_value == 'down':
-			# Change player the the right buttons control
 			if train_device:
 				await train_device.turn_off()
 				await current_device.turn_off()
 
-async def detect_device_callback(bleak_device, advertisement_data):
-	global lego_devices
-	global callbacks_to_device_addresses
-	global code_data
-	global train_device
+callback_matcher = [
+	{
+		'device_match': [ 'handset' ],
+		'event_callback': controller_callback,
+		'requested_events': [ 'event', 'connection_request', 'controller_buttons', 'info' ]
+	},
+	{
+		'device_match': [ 'duplotrain' ],
+		'event_callback': train_callback,
+		'requested_events': [ 'event', 'info']
+	}
 
-	if bleak_device:
-		system_type = Decoder.determine_device_shortname(advertisement_data)
-		if system_type:
-			if not bleak_device.address in lego_devices:
+]
 
-				if system_type == 'handset':
-					lego_devices[bleak_device.address] = BTLego.Controller(advertisement_data)
-					callback_uuid = await lego_devices[bleak_device.address].register_callback(controller_callback)
-					callbacks_to_device_addresses[callback_uuid] = bleak_device.address
+BTLego.set_callbacks(callback_matcher)
 
-					await lego_devices[bleak_device.address].subscribe_to_messages_on_callback(callback_uuid, 'event')
-					await lego_devices[bleak_device.address].subscribe_to_messages_on_callback(callback_uuid, 'connection_request')
-					await lego_devices[bleak_device.address].subscribe_to_messages_on_callback(callback_uuid, 'controller_buttons')
-					await lego_devices[bleak_device.address].subscribe_to_messages_on_callback(callback_uuid, 'info')
-				elif system_type == 'duplotrain':
-					lego_devices[bleak_device.address] = BTLego.DuploTrain(advertisement_data)
-					train_device = lego_devices[bleak_device.address]
-					callback_uuid = await lego_devices[bleak_device.address].register_callback(train_callback)
-					callbacks_to_device_addresses[callback_uuid] = bleak_device.address
+# If you want more control, just copy & modify the detection callback system out
+# of BTLego/__init__.py that instantiates the BLE_Device, registers the callback,
+# subscribes to messages, and connect()s it
+run_seconds = 60
+BTLego.async_run(run_seconds)
 
-					await lego_devices[bleak_device.address].subscribe_to_messages_on_callback(callback_uuid, 'event')
-					await lego_devices[bleak_device.address].subscribe_to_messages_on_callback(callback_uuid, 'info')
-				else:
-					print("UNHANDLED LEGO DEVICE",system_type, bleak_device.address, advertisement_data)
-
-				if bleak_device.address in lego_devices:
-					await lego_devices[bleak_device.address].connect(bleak_device, advertisement_data)
-			else:
-				if not await lego_devices[bleak_device.address].is_connected():
-					await lego_devices[bleak_device.address].connect(bleak_device, advertisement_data)
-				else:
-					print("Refusing to reconnect to "+lego_devices[bleak_device.address].system_type)
-
-async def callbackscan(duration=10):
-	scanner = BleakScanner(detect_device_callback)
-	print("Ready to find LEGO BTLE devices!")
-	print("Scanning...")
-	await scanner.start()
-	await asyncio.sleep(duration)
-	await scanner.stop()
-
-start_time = time.perf_counter()
-try:
-	asyncio.run(callbackscan(run_seconds))
-except KeyboardInterrupt:
-	print("Recieved keyboard interrupt, stopping.")
-except asyncio.InvalidStateError:
-	print("ERROR: Invalid state in Bluetooth stack, we're done here...")
-stop_time = time.perf_counter()
-
-if len(lego_devices):
-	print(f'Done with LEGO bluetooth session after {int(stop_time - start_time)} seconds...')
-else:
-	print("Didn't connect to a LEGO device.  Quitting.")
