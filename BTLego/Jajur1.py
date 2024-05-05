@@ -31,6 +31,7 @@ class Jajur1(BLE_Device):
 					or devid == LDev.MOTOR_M_G
 					or devid == LDev.MOTOR_M_B
 					or devid == LDev.MOTOR_L_G
+					or devid == LDev.MOTOR_L_B
 					):
 
 					print(f"WARNING: This hub will NOT power {Decoder.io_type_id_str[devid]}")

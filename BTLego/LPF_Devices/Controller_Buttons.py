@@ -28,40 +28,68 @@ class Controller_Buttons(LPF_Device):
 		# Kind of makes sense, though, since they are discrete (and debounced, I assume)
 		self.delta_interval = 0
 
-		# FIXME: Try using this to decipher the other modes
-		# https://github.com/JorgePe/BOOSTreveng/blob/master/PoweredUp.md
-
 		self.mode_subs = {
 			# mode_number: [ delta_interval, subscribe_boolean, Mode Information Name (Section 3.20.1), tuple of generated messages when subscribed to this mode ]
-			0: [ self.delta_interval, False, 'RCKEY', ()],
+			0: [ self.delta_interval, False, 'RCKEY', ( )],	# Does the same thing as below?
 			1: [ self.delta_interval, False, 'KEYA', ('controller_buttons',)],
-			2: [ self.delta_interval, False, 'KEYR', ()],
-			3: [ self.delta_interval, False, 'KEYD', ()],
-			2: [ self.delta_interval, False, 'KEYSD', ()]
+			2: [ self.delta_interval, False, 'KEYR', ( )],	# Does the same thing as above?
+			3: [ self.delta_interval, False, 'KEYD', ('controller_keysdown',)],	# Constant stream of what's down
+			4: [ self.delta_interval, False, 'KEYSD', ( )]	# Similar to above, but no bit checking, three bytes for the buttons
 		}
 
-	# After getting the Value Format out of the controller, that allowed me to find this page
+	# https://github.com/JorgePe/BOOSTreveng/blob/master/PoweredUp.md
 	# https://virantha.github.io/bricknil/lego_api/lego.html#remote-buttons
+
 	def decode_pvs(self, port, data):
 		if port != self.port:
 			return None
 
-		if len(data) != 1:
-			# PORT 1: handset UNKNOWN BUTTON DATA, WEIRD LENGTH OF 3:0x0 0x0 0x0
+		if len(data) == 0:
 			return None
 
 		side = 'left'		# A side
 		if port == 1:
 			side = 'right'	# B side
 
-		button_id = data[0]
-		if button_id == 0x0:
-			return ('controller_buttons',side,'zero')
-		elif button_id == 0x1:
-			return ('controller_buttons',side,'plus')
-		elif button_id == 0x7f:
-			return ('controller_buttons',side,'center')
-		elif button_id == 0xff:
-			return ('controller_buttons',side,'minus')
+		if self.mode_subs[0][1] or self.mode_subs[1][1] or self.mode_subs[2][1]:
+			button_id = data[0]
+			if button_id == 0x0:
+				return ('controller_buttons',side,'zero')
+			elif button_id == 0x1:
+				return ('controller_buttons',side,'plus')
+			elif button_id == 0x7f:
+				return ('controller_buttons',side,'center')
+			elif button_id == 0xff:
+				return ('controller_buttons',side,'minus')
+
+		if self.mode_subs[3][1]:
+			button_bitmask = data[0]
+
+			keylist = []
+			if button_bitmask == 0x0:
+				pass
+			if button_bitmask & 0x1:
+				keylist.append('plus')
+			if button_bitmask & 0x2:
+				keylist.append('center')
+			if button_bitmask & 0x4:
+				keylist.append('minus')
+
+			return ('controller_keysdown', side, keylist)
+
+		if self.mode_subs[4][1]:
+			if len(data) != 3:
+				print(f'IDK DATA LEN FOR MODE 4: {len(data)}')
+				return None
+
+			keylist = []
+			if data[0]:
+				keylist.append('plus')
+			if data[1]:
+				keylist.append('center')
+			if data[2]:
+				keylist.append('minus')
+
+			return ('controller_keysdown', side, keylist)
 
 		return None
