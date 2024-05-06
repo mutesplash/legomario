@@ -59,6 +59,7 @@ class LDev(IntEnum):
 	FORCE = 0x3f
 	MATRIX = 0x40
 	MOTOR_S = 0x41
+	# 0x42: Useless turtle, do not enable unless it becomes not-useless
 	EVENTS = 0x46		# Mario and Controller
 	MARIO_TILT = 0x47
 	MARIO_SCANNER = 0x49
@@ -178,7 +179,7 @@ class Decoder():
 		0x3f:'Technic Force Sensor',
 		0x40:'Matrix',	# FIXME: Not coordinated with pybricks...
 		0x41:'Technic Small Angular Motor',
-		0x42:'Boost Turtle MAYBE',	# FIXME: Not sure, all modes are NO IO
+		0x42:'Useless BOOST Turtle',			# Device is not useful and is labeled NO IO
 		0x4b:'Technic Medium Angular Motor',	# Gray color
 		0x4c:'Technic Large Angular motor',		# Gray color
 

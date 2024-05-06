@@ -36,6 +36,7 @@ def LPF_class_for_type_id(type_id):
 		0x3f:'Force',
 		0x40:'Matrix',
 		0x41:'AngularSmall',
+		0x42:'BoostUselessTurtle',
 		0x46:'Mario_Events',
 		0x47:'Mario_Tilt',
 		0x49:'Mario_Scanner',
