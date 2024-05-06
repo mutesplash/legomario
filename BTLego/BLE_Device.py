@@ -151,6 +151,10 @@ class BLE_Device():
 					await self.ports[port].subscribe_to_messages(message_type, True, self.gatt_writer)
 					# On init, don't have to unsub
 
+			if port_classname == 'LPF_Device':
+				devname = Decoder.io_type_id_str[port_id]
+				self.logger.warning(f'Class {self.__class__.__name__} contains device type id {port_id} ({devname}) on port {port} that has no class handler')
+
 			self.message_queue.put(('device_ready', port_id, port))
 			return True
 		else:
@@ -531,7 +535,8 @@ class BLE_Device():
 
 					message = device.decode_pvs(bt_message['port'], bt_message['value'])
 					if message is None:
-						self.logger.debug(f'{msg_prefix} {device.name} declared NO-OP for PVS:'+bt_message['readable'])
+						if self.TRACE:
+							self.logger.debug(f'{msg_prefix} {device.name} ({device.__class__.__name__}) declared NO-OP for PVS:'+bt_message['readable'])
 					else:
 						if len(message) == 3:
 							self.message_queue.put(message)

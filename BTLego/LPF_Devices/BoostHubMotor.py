@@ -25,3 +25,8 @@ class BoostHubMotor(LPF_EncoderMotor):
 		# negative speed
 		# Clockwise on motor B / port 1 is "move hub forward" and activated with
 		# positive speed, same for every other motor.
+
+		# FIXME: After decoding the tilt sensor, it's clear that you "lead with the LED"
+		# and that direction is forwards.  Internet confirms this so fix above
+		# text
+

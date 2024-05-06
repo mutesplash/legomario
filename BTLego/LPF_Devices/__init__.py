@@ -17,6 +17,7 @@ def LPF_class_for_type_id(type_id):
 		0x25:'Vision',
 		0x27:'BoostHubMotor',
 		0x26:'BoostMotor',
+		0x28:'BoostTilt',
 		0x29:'DT_Motor',
 		0x2a:'DT_Beeper',
 		0x2b:'DT_ColorSensor',

@@ -38,7 +38,7 @@ class LDev(IntEnum):
 	VISION = 0x25
 	MOTOR_BOOST = 0x26
 	MOTOR_BOOST_INTERNAL = 0x27
-	# 0x28:'Internal Tilt',		# Check on jajur
+	BOOST_TILT = 0x28
 	DUPLO_MOTOR = 0x29
 	DUPLO_BEEPER = 0x2a
 	DUPLO_COLOR = 0x2b
@@ -73,12 +73,12 @@ class Decoder():
 
 	advertised_system_type = {
 		0x20:'duplotrain',	# "Hub No. 5" "Train Base"
-		0x40:'boostmove',	# "JAJUR1" "LEGO Move Hub"
+		0x40:'boostmove',	# "JAJUR1" "LEGO Move Hub" "LEGO® Powered Up 88006 Move Hub" The set this hub comes in (17101) is called "Boost"
 		0x42:'handset',		# Lego 88010 Remote Control for Powered Up
 		0x43:'mario',
 		0x44:'luigi',
 		0x45:'peach',
-		0x80:'hub_2'		# "Hub No. 2" Lego 88012 Default name of "Technic Hub"
+		0x80:'hub_2'		# "Hub No. 2" Lego 88012, Default name of "Technic Hub", "LEGO Powered Up Technic Hub"
 	}
 
 	ble_dev_classes = {
