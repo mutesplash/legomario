@@ -24,5 +24,6 @@ class Voltage(LPF_Device):
 
 	def decode_pvs(self, port, data):
 		# FIXME: L or S and what do they mean?
+		# '3362' on VLT L when the multimeter volts are 7.90
 		volts16 = int.from_bytes(data, byteorder="little", signed=False)
 		return ('voltage', 'millivolts', volts16 )

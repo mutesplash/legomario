@@ -23,6 +23,21 @@ class PUH_IMU_Gyro(LPF_Device):
 			0: [ self.delta_interval, False, 'ROT', ('puh_rotational_acc',)],
 		}
 
+		self.zero_values = None
+		self.next_value_zero = False
+
+	def _relative_to_zero_values(self, one, two, three):
+		(r1, r2, r3) = (one, two, three)
+		if self.zero_values:
+			if self.zero_values[0] != 0:
+				r1 = one - self.zero_values[0]
+			if self.zero_values[1] != 0:
+				r2 = two - self.zero_values[1]
+			if self.zero_values[2] != 0:
+				r3 = three - self.zero_values[2]
+
+		return ( r1, r2, r3 )
+
 	# Decode Port Value - Single
 	# Return (type, key, value)
 	def decode_pvs(self, port, data):
@@ -35,20 +50,35 @@ class PUH_IMU_Gyro(LPF_Device):
 			two = int.from_bytes(data[2:4], byteorder="little", signed=True)
 			three = int.from_bytes(data[4:], byteorder="little", signed=True)
 
+			if self.next_value_zero:
+				self.next_value_zero = False
+				self.zero_values = ( one, two, three )
+
 			# One is roll (LED forward, roll clockwise is positive
 			# Two is pitch (positive is LED forward, clockwise)
 			# Three is yaw (spin flat on table, negative is clockwise spin)
 
-			# Does not zero, you'll have to figure that out yourself
-			# FIXME: Or I could do a zero-ing function
+			# Raw values are not zeroed
 
 			# The measurement is in "DPS" which is degrees per second but these
 			# numbers are so twitchy they might be some fraction of a degree
 
-			return ('imu', 'rotational', (one, two, three) )
+			return ('imu', 'rotational', self._relative_to_zero_values(one, two, three) )
 		else:
 			print('UNKNOWN IMU ROTATIONAL GYRO DATA '+' '.join(hex(n) for n in data))
 			return None
 
+	async def send_message(self, message, gatt_payload_writer):
+		processed = await super().send_message(message, gatt_payload_writer)
+		if processed:
+			return processed
+		# ( action, (parameters,) )
 
+		action = message[0]
+		parameters = message[1]
 
+		# Hub should be VERY STILL when it gets this command
+		if action == 'set_zero':
+			mode = 0x0
+			self.next_value_zero = True
+			return await self.get_port_info(mode, gatt_payload_writer)

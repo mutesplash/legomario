@@ -35,7 +35,7 @@ class PUH_IMU_Accel(LPF_Device):
 			# milli... 9.8m/s^2? 32ft/s^2? Galileo?
 			# Either way, can't really figure out what the numbers actually mean
 
-			# one: The axis that is left over from the other two :-)  Front+ to back-? Too hard to define plane...
+			# one: Axis is the line perpendicular to the plane that entirely contains two and three
 			#	~4180 when tipped to LED pointing up (-4100 pointed down)
 			# two: Axis is the line perpendicular to the plane splitting the LED and Button
 			#	~4080 when ports D & B pointing up (-4140 with A & C pointing up)
