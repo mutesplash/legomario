@@ -539,7 +539,8 @@ class BLE_Device():
 							self.logger.debug(f'{msg_prefix} {device.name} ({device.__class__.__name__}) declared NO-OP for PVS:'+bt_message['readable'])
 					else:
 						if len(message) == 3:
-							self.message_queue.put(message)
+							if message[0] != 'noop':
+								self.message_queue.put(message)
 						elif len(message) == 2 or len(message) > 3:
 							self.logger.error(f'{msg_prefix}{message[0]} on {device.name} port '+str(bt_message['port'])+f' missing key & value while processing PVS:{message[1]}')
 						else:
@@ -622,6 +623,13 @@ class BLE_Device():
 
 		self.port_mode_info[port]['mode_count'] = bt_message['num_modes']
 		self.port_mode_info[port]['name'] = device.name
+		self.port_mode_info[port]['attached_port'] = port
+		self.port_mode_info[port]['port_id'] = device.port_id
+		self.port_mode_info[port]['port_class'] = device.__class__.__name__
+		self.port_mode_info[port]['parent_hub_driver'] = self.__class__.__name__
+		self.port_mode_info[port]['parent_type'] = self.system_type
+		self.port_mode_info[port]['hw'] = self.ports[port].hw_ver_str
+		self.port_mode_info[port]['fw'] = self.ports[port].fw_ver_str
 		self.port_mode_info[port]['mode_info_requests_outstanding'] = { }
 
 		# Does not note the entire bt_message['port_mode_capabilities']
@@ -886,7 +894,14 @@ class BLE_Device():
 
 	# ---- Bluetooth port writes for mortals ----
 	async def interrogate_ports(self):
-		if self.port_mode_info['requests_until_complete'] == 0:
+		start = False
+		if 'requests_until_complete' in self.port_mode_info:
+			if self.port_mode_info['requests_until_complete'] == 0:
+				start = True
+		else:
+			start = True
+
+		if start:
 			self.logger.info("Starting port interrogation...")
 			self._reset_port_mode_info()
 			for port in self.ports:

@@ -78,8 +78,39 @@ class Vision(LPF_Device):
 		action = message[0]
 		parameters = message[1]
 
+		# You'd think "0-10, must be the RGB.0  colors"
+		# LOL NO.  This only toggles the individual LEDs on and off
+		# 0: None (or any other invalid number)
+		# 3: Blue
+		# 5: Green
+		# 9: Red
+		# 10: All
+		if action == 'set_color':
+			mode = 5
+			color = int(parameters[0])
+
+			if color not in Decoder.rgb_light_colors:
+				return
+
+			payload = bytearray([
+				0x7,	# len
+				0x0,	# padding
+				0x81,	# Command: port_output_command
+				# end header
+				self.port,
+				0x0,	# Startup and completion information (Buffer if necessary (upper 0x0), No Action (lower 0x0))
+				0x51,	# Subcommand: WriteDirectModeData
+				mode,	# Mode 5 "COL O"
+				color
+			])
+			payload[0] = len(payload)
+
+			await self.select_mode_if_not_selected(5, gatt_payload_writer)
+			await gatt_payload_writer(payload)
+			return True
+
 		# I don't know what the toggle is for, but, might as well expose it
-		if action == 'set_ir_toggle':
+		elif action == 'set_ir_toggle':
 			# ( int )
 			if parameters[0]:
 				self._ir_toggle = 0x1

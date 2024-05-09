@@ -150,7 +150,7 @@ class Mario_Events(LPF_Device):
 		self.event_data_dispatch[(0x38,0x5a,0x0)] = lambda dispatch_key: ('event','pow','hit')
 
 
-# Bored, maybe?
+# Bored, maybe?  Also hit this after scanning a 1,2,3 block
 #mario event data:0x61 0x38 0x4 0x0
 #mario event data:0x61 0x38 0x2 0x0
 
@@ -175,9 +175,13 @@ class Mario_Events(LPF_Device):
 
 		# But... WHY is this duplicated?  Don't bother sending...
 		# ('event','consciousness_2','asleep')
-		self.event_data_dispatch[(0x38,0x66,0x0)] = lambda dispatch_key: ( None, )
+		self.event_data_dispatch[(0x38,0x66,0x0)] = lambda dispatch_key: ( 'noop',None,None )
 		# ('event','consciousness_2','awake')
-		self.event_data_dispatch[(0x38,0x66,0x1)] = lambda dispatch_key: ( None, )
+		self.event_data_dispatch[(0x38,0x66,0x1)] = lambda dispatch_key: ( 'noop',None,None )
+# Returning None does this now that you've enforced message sanity
+#peach  LEGO Events FAILED TO DECODE PVS DATA ON PORT 3:0x66 0x38 0x0 0x0
+# So now no-op must be a tuple
+
 		# Red coin 1 scanned
 		self.event_data_dispatch[(0x38,0x69,0x0)] = lambda dispatch_key: ('event','red_coin',1)
 		# FIXME: The message number matches the number on the code label+1, NOT THE VALUE HERE
@@ -188,12 +192,12 @@ class Mario_Events(LPF_Device):
 #luigi event data:0x69 0x38 0x4 0x0
 
 		# ? Block reward (duplicate of 0x4 0x40)
-		self.event_data_dispatch[(0x38,0x6a,0x0)] = lambda dispatch_key: ( None, )	# 1 coin
-		self.event_data_dispatch[(0x38,0x6a,0x1)] = lambda dispatch_key: ( None, )	# star
-		self.event_data_dispatch[(0x38,0x6a,0x2)] = lambda dispatch_key: ( None, )	# mushroom
+		self.event_data_dispatch[(0x38,0x6a,0x0)] = lambda dispatch_key: ( 'noop',None,None )	# 1 coin
+		self.event_data_dispatch[(0x38,0x6a,0x1)] = lambda dispatch_key: ( 'noop',None,None )	# star
+		self.event_data_dispatch[(0x38,0x6a,0x2)] = lambda dispatch_key: ( 'noop',None,None )	# mushroom
 		# 0x3 NOT SEEN
-		self.event_data_dispatch[(0x38,0x6a,0x4)] = lambda dispatch_key: ( None, )	# 5 coins
-		self.event_data_dispatch[(0x38,0x6a,0x5)] = lambda dispatch_key: ( None, )	# 10 coins
+		self.event_data_dispatch[(0x38,0x6a,0x4)] = lambda dispatch_key: ( 'noop',None,None )	# 5 coins
+		self.event_data_dispatch[(0x38,0x6a,0x5)] = lambda dispatch_key: ( 'noop',None,None )	# 10 coins
 
 		# ? Block
 		self.event_data_dispatch[(0x38,0x6d,0x0)] = lambda dispatch_key: ('event','q_block','start')
@@ -305,12 +309,12 @@ class Mario_Events(LPF_Device):
 
 
 		# Redundant code, prefer the one in the "random" section
-		self.event_data_dispatch[(0x38,0x81,0x0)] = lambda dispatch_key: ( None, ) # 1 coin
-		self.event_data_dispatch[(0x38,0x81,0x1)] = lambda dispatch_key: ( None, ) # star
-		self.event_data_dispatch[(0x38,0x81,0x2)] = lambda dispatch_key: ( None, ) # mushroom
+		self.event_data_dispatch[(0x38,0x81,0x0)] = lambda dispatch_key: ( 'noop',None,None ) # 1 coin
+		self.event_data_dispatch[(0x38,0x81,0x1)] = lambda dispatch_key: ( 'noop',None,None ) # star
+		self.event_data_dispatch[(0x38,0x81,0x2)] = lambda dispatch_key: ( 'noop',None,None ) # mushroom
 		# 0x3 Not seen
-		self.event_data_dispatch[(0x38,0x81,0x4)] = lambda dispatch_key: ( None, ) # 5 coins
-		self.event_data_dispatch[(0x38,0x81,0x5)] = lambda dispatch_key: ( None, ) # 10 coins
+		self.event_data_dispatch[(0x38,0x81,0x4)] = lambda dispatch_key: ( 'noop',None,None ) # 5 coins
+		self.event_data_dispatch[(0x38,0x81,0x5)] = lambda dispatch_key: ( 'noop',None,None ) # 10 coins
 
 		self.event_data_dispatch[(0x38,0x82,0x0)] = lambda dispatch_key: ('event','nabbit','start')
 
@@ -710,9 +714,9 @@ class Mario_Events(LPF_Device):
 # mario event data:0x7a 0x38 0x0 0x0
 
 			if not decoded_something:
-				return ('unknown', 'Event data:'+" ".join(hex(n) for n in data) )
+				return ('info', 'unknown', 'Event data:'+" ".join(hex(n) for n in data) )
 		else:
-			return ('unknown', 'Event data: non-mode-2-style:'+" ".join(hex(n) for n in data) )
+			return ('info', 'unknown', 'Event data: non-mode-2-style:'+" ".join(hex(n) for n in data) )
 			# During mario/peach multiplayer connection
 			#mario non-mode-2-style event data:0xd6 0x0 0x1 0x80 0xd6 0x0 0x1 0x80 0xd6 0x0 0x1 0x80 0x2d 0x0 0x2d 0x0
 

@@ -192,15 +192,15 @@ class Mario_Tilt(LPF_Device):
 						return ('unknown', "BIT: dunno2?")
 
 					elif bool (first_16b_int & (0x1 | 0x40 | 0x80) ):
-						return ('unknown', "WHAT DID YOU DO?!  matched ints: "+'{:08b}'.format(data[1])+'_'+'{:08b}'.format(data[0]))
+						return ('unknown', "WHAT DID YOU DO?!", "matched ints: "+'{:08b}'.format(data[1])+'_'+'{:08b}'.format(data[0]))
 
 					else:
 						detect_bit = False
-						return ('unknown', "matched ints: "+'{:08b}'.format(data[1])+'_'+'{:08b}'.format(data[0]))
+						return ('unknown', "matched", "ints: "+'{:08b}'.format(data[1])+'_'+'{:08b}'.format(data[0]))
 
 			else:
 				# Maybe this is "done?", as sometimes you'll see a bunch of gestures and then this
-				return ('notice', 'ignoring empty gesture'+" ".join(hex(n) for n in data))
+				return ('notice', 'ignoring empty gesture', " ".join(hex(n) for n in data))
 
 			notes= ""
 			if data[0] != data[2]:
@@ -213,4 +213,4 @@ class Mario_Tilt(LPF_Device):
 				pass
 
 			if notes:
-				return ('unknown', " gesture data:"+notes+" ".join(hex(n) for n in data))
+				return ('unknown', "gesture", "data:"+notes+" ".join(hex(n) for n in data))

@@ -30,6 +30,9 @@ class UltraDist(LPF_Device):
 			8: [ -1, False, 'CALIB', ()]	# NO IO
 		}
 
+	# When disconnected from the sensor with a T6 torx, the black housing does not register on the hub
+	# I guess you can talk directly to the LPF2 port over the 8-pin connector
+
 	def decode_pvs(self, port, data):
 		if port != self.port:
 			return None
