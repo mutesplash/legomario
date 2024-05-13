@@ -24,7 +24,7 @@ class HProp(IntEnum):
 
 # LPF2-compatible devices (io_type_id_str indicies)
 class LDev(IntEnum):
-	# 0x1:'Motor',
+	MOTOR = 0x1
 	TRAIN = 0x2
 	# 0x5:'Button',	# Where did you get this from??
 	LED = 0x8
@@ -75,6 +75,7 @@ class Decoder():
 	advertised_system_type = {
 		0x20:'duplotrain',	# "Hub No. 5" "Train Base"
 		0x40:'boostmove',	# "JAJUR1" "LEGO Move Hub" "LEGO® Powered Up 88006 Move Hub" The set this hub comes in (17101) is called "Boost"
+		0x41:'hub_4',		# Lego 88009 Powered Up "Hub", "HUB NO.4"
 		0x42:'handset',		# Lego 88010 Remote Control for Powered Up
 		0x43:'mario',
 		0x44:'luigi',
@@ -85,6 +86,7 @@ class Decoder():
 	ble_dev_classes = {
 		0x20:'DuploTrain',
 		0x40:'Jajur1',
+		0x41:'Hub4',
 		0x42:'Controller',
 		0x43:'Mario',
 		0x44:'Mario',		# Luigi
@@ -155,7 +157,7 @@ class Decoder():
 		0x23:'Motion Sensor',
 		0x25:'Vision Sensor',
 		0x26:'External Motor with Tacho',	# BOOST Interactive Motor
-		0x27:'Internal Motor with Tacho',
+		0x27:'Internal Motor with Tacho',	# BOOST Motor Built-in to Move hub
 		0x28:'Internal Tilt',
 		0x29:'DUPLO Train hub built-in motor',
 		0x2a:'DUPLO Train hub built-in beeper',
@@ -224,11 +226,15 @@ class Decoder():
 		0xf:'Hardware Network Family',
 
 		# My name
-		0x12:'Mario Volume'		# Can't enable updates on this property, which is annoying.
+		0x12:'Mario Volume',	# Can't enable updates on this property, which is annoying.
 								# Also won't send an Update when you Set it
 								# Valid Set values: 0 - 100
 								# The levels in the app are 100, 90, 75, 50, 0
 								# Which is weird, but whatever
+
+		# Fuzzed hub2, hub4, controller, boostmove, peach, and duplotrain from 16 to 255 all to find only this
+		0x13:'Mario_UNKNOWN'	# Payload of 0x0 0x0 0x0 0x22
+
 	}
 
 	hub_properties_that_update = [
@@ -263,6 +269,7 @@ class Decoder():
 		0x32:'Hub Will Go Into Boot Mode'
 	}
 
+	# LWP 3.9
 	generic_errors = {
 		0x1:'ACK',
 		0x2:'Multiple ACK',
@@ -485,7 +492,9 @@ class Decoder():
 			#0xe:'Secondary MAC Address',
 			#0xf:'Hardware Network Family'
 
-		property_value = "IDK_WAT"
+		property_value = f'IDK_WAT {property_involved_str}'
+		bt_message['value'] = property_value
+
 		# 'Advertising Name'
 		if property_involved == 0x1:
 			property_value = bytearray(payload[2:]).decode()
@@ -889,7 +898,7 @@ class Decoder():
 
 		elif mode_info_type == 0x7:
 			# Motor Bias, 8 bits, 0-100%
-			bt_message['motor_bias'] = int(payload[3:4])
+			bt_message['motor_bias'] = int.from_bytes(payload[3:4], byteorder="little", signed=False)
 		elif mode_info_type == 0x8:
 			# Capability bits 8[6]
 			# FIXME: Well, good luck, the documents state something to the

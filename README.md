@@ -3,12 +3,15 @@
 * Generates printable SVG scanner codes for LEGO Mario as well as Luigi & Peach.
     [View the HTML live from the repository](https://raw.githack.com/mutesplash/legomario/main/mariocodes.html)
 * Provides a Python library for interacting with LEGO Bluetooth LE devices including:
-	* LEGO Mario (Luigi & Peach)
+	* LEGO Mario (and Luigi & Peach)
 	* LEGO Powered Up Remote Control (88010)
 	* DUPLO Train Hub No. 5
-	* Technic Hub No. 2 (88012) and (some) attached LEGO Powered Up (LPF2) Devices
-	* Boost Hub No. 1 (88006) aka Move Hub aka JAJUR1
-* Does not have great documentation yet
+	* LEGO Powered Up Hub No. 4 (88009)
+	* LEGO Technic Hub No. 2 (88012)
+	* LEGO Boost Hub No. 1 (88006) aka Move Hub aka JAJUR1
+* Has some idea about how to communicate with all but one Lego Power Functions v2 (LPF2) devices that can be attached to the hubs
+* Does not have great documentation yet, but things like "python -m pydoc BTLego.LPF_Devices.RGB" are intended to be helpful, and may even be the basis of acceptable documentation... eventually
+
 
 ## Requires
 

@@ -3,7 +3,6 @@ import asyncio
 from .LPF_Device import LPF_Device, Devtype
 from ..Decoder import Decoder
 
-# Not actually SURE about the built-in devices fitting into the LPF2 model but whatever
 class PUH_IMU_Accel(LPF_Device):
 
 	def __init__(self, port=-1):

@@ -3,7 +3,6 @@ import asyncio
 from .LPF_Device import LPF_Device, Devtype
 from ..Decoder import Decoder
 
-# Not actually SURE about the built-in devices fitting into the LPF2 model but whatever
 class Mario_Pants(LPF_Device):
 
 	# Read the pins facing you with MSB on the left (Mario's right)

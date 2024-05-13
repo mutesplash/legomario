@@ -10,6 +10,8 @@ class DuploTrain(BLE_Device):
 	def __init__(self, advertisement_data=None):
 		super().__init__(advertisement_data)
 
+		self.part_identifier = "28743c01"
+
 		# This thing is cranky and slow.  It takes 50 seconds to fully probe the thing
 		self.gatt_send_rate_limit = 0.2
 		self.mode_probe_rate_limit = 1.1

@@ -1,15 +1,15 @@
 from .BLE_Device import BLE_Device
 from .Decoder import Decoder, LDev
 
-# Boost Hub, Bricklink calls this No 1 but I don't see that anywhere else
-class Jajur1(BLE_Device):
+class Hub4(BLE_Device):
 
 	def __init__(self,advertisement_data=None, json_code_dict=None):
 		super().__init__(advertisement_data)
 
-		self.part_identifier = 88006
+		self.part_identifier = 88009
 
-		self.mode_probe_ignored_info_types = ( 0x7, 0x8 )	# Doesn't support motor bias or capability bits
+		self.mode_probe_ignored_info_types = ( 0x8, )	# Doesn't support capability bits
+		# Seemingly the only hub to support motor bias
 
 	# Override
 	async def _process_bt_message(self, bt_message):
@@ -22,6 +22,7 @@ class Jajur1(BLE_Device):
 				if (
 					# BUT, it will read selected mode data from it like speed, pos, apos
 					devid == LDev.CONTROLPLUS_LARGE
+					or devid == LDev.MOTOR_BOOST
 					or devid == LDev.MOTOR_S
 					or devid == LDev.MOTOR_M_G
 					or devid == LDev.MOTOR_M_B
@@ -29,9 +30,10 @@ class Jajur1(BLE_Device):
 					or devid == LDev.MOTOR_L_B
 					):
 
-					print(f"WARNING: This hub will NOT power {Decoder.io_type_id_str[devid]}")
-
-					# Will drive MOTOR_BOOST unlike Hub4 (I mean, it better...)
+					# Alright, FIXME
+					# If you connect the handset to this hub, it WILL drive any motor
+					# But if you set the power, nothing seems to work
+					print(f"WARNING: This hub will NOT power {Decoder.io_type_id_str[devid]}... yet")
 
 				elif devid == LDev.MATRIX:
 					# It constantly reconnects to it.  Similar to how BuildHAT
@@ -43,8 +45,12 @@ class Jajur1(BLE_Device):
 					# that works fine
 					print(f"ERROR: This hub will NOT operate {Decoder.io_type_id_str[devid]} properly!")
 
-				elif devid == LDev.COLOR:
-					# Ignores commands to power the light
+				elif (
+					devid == LDev.COLOR
+					or devid == LDev.ULTRA
+					):
+					# Ignores commands to power the lights on the devices
 					print(f"ERROR: This hub will NOT operate {Decoder.io_type_id_str[devid]} properly!")
+
 
 		return await super()._process_bt_message(bt_message)

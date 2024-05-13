@@ -4,7 +4,6 @@ from .LPF_Device import LPF_Device, Devtype
 from ..Decoder import Decoder
 from ..MarioScanspace import MarioScanspace
 
-# Not actually SURE about the built-in devices fitting into the LPF2 model but whatever
 class Mario_Events(LPF_Device):
 
 	# I don't know why pants codes are transmitted over the events port,
@@ -150,7 +149,7 @@ class Mario_Events(LPF_Device):
 		self.event_data_dispatch[(0x38,0x5a,0x0)] = lambda dispatch_key: ('event','pow','hit')
 
 
-# Bored, maybe?  Also hit this after scanning a 1,2,3 block
+# Bored, maybe?  Also hit this after scanning a 1,2,3 block.  Sitting around doing nothing, very odd
 #mario event data:0x61 0x38 0x4 0x0
 #mario event data:0x61 0x38 0x2 0x0
 

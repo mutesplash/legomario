@@ -73,6 +73,13 @@ class Mario(BLE_Device):
 	def __init__(self,advertisement_data=None):
 		super().__init__(advertisement_data)
 
+		if self.system_type == 'mario':
+			self.part_identifier = "mar0007"
+		elif self.system_type == 'luigi':
+			self.part_identifier = "mar0062"
+		elif self.system_type == 'peach':
+			self.part_identifier = "mar0112"
+
 		self.mode_probe_ignored_info_types = ( 0x7, 0x8 )	# Doesn't support motor bias or capability bits
 
 		# Mario defaults to this

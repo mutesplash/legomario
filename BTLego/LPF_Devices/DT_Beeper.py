@@ -3,7 +3,6 @@ import asyncio
 from .LPF_Device import LPF_Device, Devtype
 from ..Decoder import Decoder
 
-# Not actually SURE about the built-in devices fitting into the LPF2 model but whatever
 class DT_Beeper(LPF_Device):
 
 	# Beeper Mode 0

@@ -8,6 +8,8 @@ class Color(LPF_Device):
 	def __init__(self, port=-1):
 		super().__init__(port)
 
+		self.part_identifier = 45605
+
 		self.devtype = Devtype.LPF
 
 		self.port_id = 0x3d
@@ -96,8 +98,8 @@ class Color(LPF_Device):
 			if len(parameters) != 3:
 				return False
 
-			# With the LEGO logo on the back face up, rotate the sensor to face
-			# you.
+			# On a table with the LEGO logo on the back upright and facing you,
+			# spin the sensor flat on the table 180 degrees.
 			# One: Upper left LED
 			# Two: Lower LED
 			# Three: Upper right LED

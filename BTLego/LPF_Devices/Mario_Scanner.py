@@ -4,7 +4,6 @@ from .LPF_Device import LPF_Device, Devtype
 from ..Decoder import Decoder
 from ..MarioScanspace import MarioScanspace
 
-# Not actually SURE about the built-in devices fitting into the LPF2 model but whatever
 class Mario_Scanner(LPF_Device):
 
 	def __init__(self, port=-1):

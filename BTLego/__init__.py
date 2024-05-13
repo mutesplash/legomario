@@ -11,9 +11,13 @@ from .DuploTrain import DuploTrain
 from .Hub2 import Hub2
 from .Jajur1 import Jajur1
 
+from queue import SimpleQueue
+
 __lego_devices__ = {}
 __callbacks_to_device_addresses__ = {}
 __callback_matcher__ = []
+__off_bleak_callback_queue__ = SimpleQueue()
+__running__ = False
 
 def setLoggingLevel(level):
 	logger = logging.getLogger(__name__)
@@ -44,6 +48,18 @@ def set_callbacks(callback_matcher):
 def device_for_callback_id(cb_id):
 	return __lego_devices__[__callbacks_to_device_addresses__[cb_id]]
 
+def await_function_off_bleak_callback(async_function):
+	"""
+	If you try and await functions in the callback provided to set_callbacks(),
+	you'll end up blocking Bleak's messaging.  Instead, stuff them on this queue
+	to be processed concurrently with Bleak using asyncio.gather()
+
+	Now, you still can block YOURSELF during the processing of this queue...
+
+	To collapse both loops and quit async_run(), call this function with None
+	"""
+	__off_bleak_callback_queue__.put(async_function)
+
 def __match_up_device(bluetooth_name, dev_systype, dev_shortname):
 	logger = logging.getLogger(__name__)
 
@@ -63,6 +79,8 @@ def __match_up_device(bluetooth_name, dev_systype, dev_shortname):
 				if normalized_supplied_devmatch == 'anymario' and Decoder.ble_dev_classes[dev_systype] == 'Mario':
 					logger.debug(f'Will connect to {dev_shortname} as it is AnyMario')
 					retval.append(callback)
+					# I guess you could also name your thing anymario too... FIXME
+					continue
 				if bluetooth_name is not None and normalized_supplied_devmatch == bluetooth_name.lower():
 					logger.debug(f'Will connect to exact name {bluetooth_name}')
 					retval.append(callback)
@@ -100,7 +118,7 @@ async def bleak_device_dectection_callback(device, advertisement_data):
 
 									# You don't have to subscribe to "error" type messages...
 					logger.info(f'Starting BTLE connection on {dev_shortname}')
-					await __lego_devices__[device.address].connect(device, advertisement_data)
+					await __lego_devices__[device.address].connect(device)
 				else:
 					logger.debug(f'Device {dev_shortname} did not match any provided callbacks')
 
@@ -108,7 +126,7 @@ async def bleak_device_dectection_callback(device, advertisement_data):
 				# Reconnect if known and disconnected
 				if not await __lego_devices__[device.address].is_connected():
 					logger.info(f'Attempting to reconnect to {__lego_devices__[device.address].system_type}')
-					await __lego_devices__[device.address].connect(device, advertisement_data)
+					await __lego_devices__[device.address].connect(device)
 				else:
 					pass
 					# FIXME: need a TRACE level
@@ -126,24 +144,66 @@ async def bleak_device_dectection_callback(device, advertisement_data):
 
 async def __bleak_scan_runner(duration=10):
 	logger = logging.getLogger(__name__)
+	global __running__
 
-	scanner = BleakScanner(bleak_device_dectection_callback)
-	logger.info("Ready to find LEGO BLE Devices!")
-	logger.info("Scanning...")
-	await scanner.start()
-	await asyncio.sleep(duration)
-	await scanner.stop()
+	try:
+		scanner = BleakScanner(bleak_device_dectection_callback)
+		logger.info("Ready to find LEGO BLE Devices!")
+		logger.info("Scanning...")
+		start_time = time.perf_counter()
+		await scanner.start()
+		while True:
+			current_time = time.perf_counter()
+			if current_time - start_time > duration:
+				break
+			if __running__ == False:
+				break
+			await asyncio.sleep(1)
 
+		await scanner.stop()
+		await_function_off_bleak_callback(None)
+	except KeyboardInterrupt:
+		print("Recieved keyboard interrupt in Bleak runner, stopping scan.")
+
+	__running__ = False
 	#print("Scan results...")
 	#for d in scanner.discovered_devices:
 	#	print(d)
+
+async def __drain_off_bleak_callback_calls():
+	global __running__
+	try:
+		while __running__ == True:
+			while not __off_bleak_callback_queue__.empty():
+				fpair = __off_bleak_callback_queue__.get()
+				if not fpair:
+					__running__ = False
+				else:
+					thisloop = asyncio.get_running_loop()
+					if thisloop:
+						if thisloop.is_running():
+							print(f'DRAINING OFF-CALLBACKS {fpair}')
+							await asyncio.create_task(fpair)
+			await asyncio.sleep(0.1)
+	except KeyboardInterrupt:
+		print("Recieved keyboard interrupt, stopping callback function drain...")
+	__running__ = False
+
+async def __mainloop(run_second_duration):
+	global __running__
+	__running__ = True
+	await asyncio.gather(
+		__bleak_scan_runner(run_second_duration),
+		__drain_off_bleak_callback_calls()
+	)
+	__running__ = False
 
 def async_run(run_second_duration):
 	logger = logging.getLogger(__name__)
 
 	start_time = time.perf_counter()
 	try:
-		asyncio.run(__bleak_scan_runner(run_second_duration))
+		asyncio.run(__mainloop(run_second_duration))
 	except KeyboardInterrupt:
 		print("Recieved keyboard interrupt, stopping.")
 	except asyncio.InvalidStateError:
@@ -152,5 +212,7 @@ def async_run(run_second_duration):
 
 	if len(__lego_devices__):
 		logger.info(f'Done with LEGO BLE session after {int(stop_time - start_time)} seconds...')
+		for device_address in __lego_devices__:
+			asyncio.run(__lego_devices__[device_address].disconnect())
 	else:
 		logger.info("Didn't connect to a LEGO Device.  Quitting.")

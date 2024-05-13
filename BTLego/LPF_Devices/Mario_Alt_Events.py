@@ -3,7 +3,6 @@ import asyncio
 from .LPF_Device import LPF_Device, Devtype
 from ..Decoder import Decoder
 
-# Not actually SURE about the built-in devices fitting into the LPF2 model but whatever
 class Mario_Alt_Events(LPF_Device):
 
 	def __init__(self, port=-1):
@@ -29,6 +28,9 @@ class Mario_Alt_Events(LPF_Device):
 		if len(data) == 4:
 			# Peach goodbye mario
 			# 0x2 0x0 0x1 0x0
+
+			# Right after connect, sort of weird connect, though
+			# peach  No idea what kind of PVS:port_value_single - port 4: 0x2 0x0 0x1 0x0
 
 			# Luigi goodbye peach
 			# 0x2 0x0 0x3 0x0

@@ -9,6 +9,8 @@ class AngularMediumGray(LPF_TachoMotor):
 	def __init__(self, port=-1):
 		super().__init__(port)
 
+		self.part_identifier = 88018
+
 		self.port_id = 0x4b
 		self.name = Decoder.io_type_id_str[self.port_id]
 							# Identifier for the type of device attached

@@ -8,6 +8,8 @@ class LED(LPF_Device):
 	def __init__(self, port=-1):
 		super().__init__(port)
 
+		self.part_identifier = 88005
+
 		self.devtype = Devtype.LPF
 
 		self.port_id = 0x8

@@ -4,7 +4,10 @@ class HubProperty():
 
 	def __init__(self, ref):
 		self.reference_number = ref
-		self.name = Decoder.hub_property_str[ref]
+		if ref not in Decoder.hub_property_str:
+			self.name = f'UNKNOWN_PROPERTY_{ref}'
+		else:
+			self.name = Decoder.hub_property_str[ref]
 		self.subscribed = False
 
 	def gatt_payload_for_subscribe(self, should_subscribe):
@@ -24,6 +27,8 @@ class HubProperty():
 		return hub_property_update_subscription_bytes
 
 	# Technically this is "request update" that language makes no sense to anyone
+	# Invalid reference numbers will throw BTLego.Decoder.generic_error 0x5
+	# Unless you're LEGO Mario, in which case you just pretend nobody asked
 	def gatt_payload_for_property_value_fetch(self):
 		hub_property_value_fetch_bytes = bytearray([
 			0x05,	# len

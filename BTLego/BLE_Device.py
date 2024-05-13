@@ -78,7 +78,11 @@ class BLE_Device():
 
 		self.logger = logging.getLogger(__name__.split('.')[0])
 
-		self.system_type = None
+		# Integer for LEGO part number, string for Bricklink (usually because part of a larger set)
+		self.part_identifier = None
+
+		self.advertisement = advertisement_data
+		self.system_type = Decoder.determine_device_shortname(advertisement_data)
 		self.client = None
 		self.connected = False
 
@@ -155,6 +159,7 @@ class BLE_Device():
 				devname = Decoder.io_type_id_str[port_id]
 				self.logger.warning(f'Class {self.__class__.__name__} contains device type id {port_id} ({devname}) on port {port} that has no class handler')
 
+			# FIXME: Ah, this is fun:  On hub4, Voltage, RGB and Current are laggards so this returns too early
 			self.message_queue.put(('device_ready', port_id, port))
 			return True
 		else:
@@ -199,7 +204,7 @@ class BLE_Device():
 	# (Not really all of them, there are some direct bluetooth things below)
 
 	async def dump_status(self):
-		self.logger.info("EVENT SUBS\n"+json.dumps(self.BLE_event_subscriptions, indent=4))
+		self.logger.info("EVENT SUBS\n"+json.dumps(dict(sorted(self.BLE_event_subscriptions.items())), indent=4))
 		self.logger.info("PORT LIST\n")
 		for port in self.ports:
 			dev = self.ports[port]
@@ -214,12 +219,10 @@ class BLE_Device():
 		if self.drainlock_changes_queue.qsize():
 			self.logger.info(f'ALERT: {self.drainlock_changes_queue.qsize()} MESSAGES NEEDING TO BE PROCESSED OFF DRAINLOCK')
 
-	async def connect(self, device, advertisement_data):
+	async def connect(self, device):
 		async with self.lock:
-			self.system_type = Decoder.determine_device_shortname(advertisement_data)
 			self.logger.info("Connecting to "+str(self.system_type)+"...")
 			self.device = device
-			self.advertisement = advertisement_data
 			try:
 				self.client = BleakClient(device.address, self.disconnect_callback)
 				await self.client.connect()
@@ -241,6 +244,8 @@ class BLE_Device():
 
 				# Signal connect finished
 				self.message_queue.put(('info','player',self.system_type))
+				# Replace the above signal with something more accurate
+				self.message_queue.put(('info','connected',self.system_type))
 
 			except Exception as e:
 				self.logger.error("Unable to connect to "+str(device.address) + ": "+str(e))
@@ -663,6 +668,11 @@ class BLE_Device():
 
 				for mode_info_type_number in self.mode_probe_ignored_info_types:
 					del self.port_mode_info[port][mode]['requests_outstanding'][mode_info_type_number]
+
+				# If the BLE_Device supports motor bias, only enable on approved LPF devices
+				if 0x7 in self.port_mode_info[port][mode]['requests_outstanding']:
+					if not device.port_id in LPF_Device.motor_bias_device_allowlist:
+						del self.port_mode_info[port][mode]['requests_outstanding'][0x7]
 
 			frozen_requests = list(self.port_mode_info[port][mode]['requests_outstanding'].items())
 			for hexkey, requested in frozen_requests:
