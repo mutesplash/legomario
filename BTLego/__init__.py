@@ -172,6 +172,8 @@ async def __bleak_scan_runner(duration=10):
 
 async def __drain_off_bleak_callback_calls():
 	global __running__
+	logger = logging.getLogger(__name__)
+
 	try:
 		while __running__ == True:
 			while not __off_bleak_callback_queue__.empty():
@@ -182,7 +184,7 @@ async def __drain_off_bleak_callback_calls():
 					thisloop = asyncio.get_running_loop()
 					if thisloop:
 						if thisloop.is_running():
-							print(f'DRAINING OFF-CALLBACKS {fpair}')
+							# logger.debug(f'DRAINING OFF-CALLBACKS {fpair}')
 							await asyncio.create_task(fpair)
 			await asyncio.sleep(0.1)
 	except KeyboardInterrupt:

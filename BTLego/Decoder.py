@@ -32,7 +32,7 @@ class LDev(IntEnum):
 	CURRENT = 0x15
 	# 0x16:'Piezo Tone',
 	RGB = 0x17
-	# 0x21:'Powered Up Hub battery current',
+	# 0x21:'Powered Up Hub battery current'
 	TILT = 0x22
 	MOTION = 0x23
 	VISION = 0x25
@@ -47,13 +47,13 @@ class LDev(IntEnum):
 	#0x2f	'Control+ XL'
 	MOTOR_M_B = 0x30
 	MOTOR_L_B = 0x31
-	#0x36:'Powered Up hub IMU gesture',
+	IMU_GEST = 0x36		# Powered Up hub IMU gesture',
 	CONTROL_BUTTON = 0x37
-	# 0x38:'Powered Up hub Bluetooth RSSI',	# 88010 also has this
-	# 0x39:'Powered Up hub IMU accelerometer',
-	# 0x3a:'Powered Up hub IMU gyro',
-	# 0x3b:'Powered Up hub IMU position',
-	# 0x3c:'Powered Up hub IMU temperature',
+	BT_RSSI = 0x38		# 'Powered Up hub Bluetooth RSSI'	88010 also has this
+	IMU_ACCEL = 0x39	# 'Powered Up hub IMU accelerometer'
+	IMU_GYRO = 0x3a		# 'Powered Up hub IMU gyro'
+	IMU_POS	= 0x3b		# 'Powered Up hub IMU position'
+	TEMP = 0x3c			# 'Powered Up hub IMU temperature'
 	COLOR = 0x3d
 	ULTRA = 0x3e
 	FORCE = 0x3f
@@ -66,7 +66,7 @@ class LDev(IntEnum):
 	MARIO_PANTS = 0x4a
 	MOTOR_M_G = 0x4b
 	MOTOR_L_G = 0x4c
-	#	0x55:'Mario Alt Events',
+	MARIO_ALT = 0x55	# 'Mario Alt Events'
 
 # FIXME: Completely confused on upstream/downstream, fix the nomenclature in the comments
 
