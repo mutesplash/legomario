@@ -9,6 +9,7 @@
 	* LEGO Powered Up Hub No. 4 (88009)
 	* LEGO Technic Hub No. 2 (88012)
 	* LEGO Boost Hub No. 1 (88006) aka Move Hub aka JAJUR1
+	* Does **not** (currently) work with WeDo 2.0 Hub (45301) aka LPF2 Smart Hub 2.  This does not seem to speak standard LEGO Wireless Protocol 3.0
 * Has some idea about how to communicate with all but one Lego Power Functions v2 (LPF2) devices that can be attached to the hubs
 * Does not have great documentation yet, but things like "python -m pydoc BTLego.LPF_Devices.RGB" are intended to be helpful, and may even be the basis of acceptable documentation... eventually
 
