@@ -6,7 +6,7 @@ _Failed to update the notification status for characteristic 17: Error Domain=CB
 * Generates printable SVG scanner codes for LEGO Mario as well as Luigi & Peach.
     [View the HTML live from the repository](https://raw.githack.com/mutesplash/legomario/main/mariocodes.html)
 * Provides a Python library for interacting with LEGO Bluetooth LE devices including:
-	* LEGO Mario (and Luigi & Peach)
+	* ~~LEGO Mario (and Luigi & Peach)~~ BROKEN WITH FIRMWARE 6.1
 	* LEGO Powered Up Remote Control (88010)
 	* DUPLO Train Hub No. 5
 	* LEGO Powered Up Hub No. 4 (88009)
