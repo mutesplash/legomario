@@ -1,5 +1,8 @@
 # legomario
 
+**DOES NOT WORK IF YOU FIRMWARE UPDATE MARIO FIGURES TO APP VERSION 2.9**
+_Failed to update the notification status for characteristic 17: Error Domain=CBATTErrorDomain Code=5 "Authentication is insufficient."_
+
 * Generates printable SVG scanner codes for LEGO Mario as well as Luigi & Peach.
     [View the HTML live from the repository](https://raw.githack.com/mutesplash/legomario/main/mariocodes.html)
 * Provides a Python library for interacting with LEGO Bluetooth LE devices including:
