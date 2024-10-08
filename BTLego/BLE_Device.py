@@ -229,6 +229,9 @@ class BLE_Device():
 				if not self.client.is_connected:
 					self.logger.error("Failed to connect after client creation")
 					return
+				paired = await self.client.pair()	# Not necessary: protection_level=1
+				self.logger.info(f"Paired: {paired}")
+
 				self.logger.info("Connected to "+self.system_type+"! ("+str(device.name)+")")
 				self.connected = True
 				self.address = device.address
