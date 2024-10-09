@@ -2257,6 +2257,67 @@
     {
       "code": "BRLTV",
       "note": "Pink Baby yoshi"
-    }
+    },
+    {
+      "code": "BRLGP",
+      "note": "toad rando"
+    },
+    {
+      "code": "BRLPG",
+      "note": "steering wheel"
+    },
+    {
+      "code": "BRLPV",
+      "note": "super mario world"
+    },
+    {
+      "code": "BRLPY",
+      "note": "some kind of ride"
+    },
+    {
+      "code": "BRLVG",
+      "note": "sounds like purple junk"
+    },
+    {
+      "code": "BRLVP",
+      "note": "baby penguin"
+    },
+    {
+      "code": "BRLVY",
+      "note": "go go go (chugging sound)"
+    },
+    {
+      "code": "BRLYG",
+      "note": "underwater ride"
+    },
+    {
+      "code": "BRLYP",
+      "note": "6-hit"
+    },
+    {
+      "code": "BRLYV",
+      "note": "oh"
+    },
+    {
+      "code": "BRLTG",
+      "note": "random yoshi egg (can go in presents)"
+    },
+    {
+      "code": "BRLTP",
+      "note": "music notes"
+    },
+    {
+      "code": "BRLGY",
+      "note": "dog bark"
+    },
+    {
+      "code": "GRLYT",
+      "note": "music"
+    },
+    {
+      "code": "BRTPL",
+      "note": "music"
+    },
+
   ]
 }
