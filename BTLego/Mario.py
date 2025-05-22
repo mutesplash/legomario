@@ -90,9 +90,21 @@ class Mario(BLE_Device):
 
 		if Decoder.hub_property_str[prop_id] == 'Advertising Name':
 			name = prop_value
-			#LEGO Mario_j_r
 
-			if name.startswith("LEGO Mario_") == False or len(name) != 14:
+			if name.startswith("LEGO Mario_") and len(name) == 14:
+				# App 2.9 and below
+				#LEGO Mario_j_r
+				icon = ord(name[11])
+				color = ord(name[13])
+
+			if name.startswith("Mario ") and len(name) == 14:
+				# App 2.10 and above
+				#Mario XXXX_k_y
+				# Where XXXX is upper and lowercase alphanumeric
+				icon = ord(name[11])
+				color = ord(name[13])
+
+			else:
 				# print(name.encode("utf-8").hex())
 				# Four spaces after the name
 				if name == "LEGO Peach    ":
@@ -105,9 +117,6 @@ class Mario(BLE_Device):
 				else:
 					self.message_queue.put( ('info', 'unknown', f'Unusual advertising name set:\"{name}\"') )
 				return
-
-			icon = ord(name[11])
-			color = ord(name[13])
 
 			if not icon in Mario.app_icon_names:
 				self.logger.info("Unknown icon:"+str(hex(icon)))

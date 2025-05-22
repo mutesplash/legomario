@@ -229,8 +229,18 @@ class BLE_Device():
 				if not self.client.is_connected:
 					self.logger.error("Failed to connect after client creation")
 					return
-				paired = await self.client.pair()	# Not necessary: protection_level=1
-				self.logger.info(f"Paired: {paired}")
+				try:
+					paired = await self.client.pair()	# Not necessary: protection_level=1
+					self.logger.info(f"Paired: {paired}")
+				except NotImplementedError as e:
+					# The UI necessary to connect should be a window that reads:
+					#
+					# Connection Request from: Mario XXXX_x_x
+					# To connect to the device, click Connect to complete the connection process.
+					#
+					# To reject the connection with the device, click Cancel.
+					# [ ] Ignore this device     [Cancel] [Connect]
+					self.logger.info(f"MacOS pairing skipped, either already paired or hoping subsequent GATT writes will force UI to pop up...")
 
 				self.logger.info("Connected to "+self.system_type+"! ("+str(device.name)+")")
 				self.connected = True
@@ -613,7 +623,7 @@ class BLE_Device():
 		port = bt_message['port']
 		device = self.ports[port]
 		if not 'num_modes' in bt_message:
-			if 'mode_combinations' in bt_message:
+			if 'mode_combinations' in bt_message and port in self.port_mode_info:
 				self.port_mode_info[port]['combinations'] = bt_message['mode_combinations']
 			else:
 				self.logger.error(f'Mode combinations NOT DECODED: {bt_message["readable"]}')

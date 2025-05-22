@@ -617,13 +617,16 @@ class Decoder():
 		bt_message['operation'] = payload[1]
 
 		# Only "downstream" has boolean "alert payload"
-		status = "Status OK"
+		status = "OK"
 		bt_message['status'] = False
 		if payload[2] == 0xff:
 			status = "ALERT!"
 			bt_message['status'] = True
 			bt_message['alert_type_str'] = Decoder.int8_dict_to_str(Decoder.hub_alert_type_str, payload[0])
 			bt_message['operation_str'] = Decoder.int8_dict_to_str(Decoder.hub_alert_op_str, payload[1])
+			bt_message['readable'] += f"Alert Status: {status} : type {bt_message['alert_type_str']} operation {bt_message['operation_str']}"
+		else:
+			bt_message['readable'] += f"Alert Status: {status}"
 
 	def decode_port_input_format_single(bt_message):
 		payload = bt_message['raw'][3:]

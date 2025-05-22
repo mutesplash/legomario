@@ -517,8 +517,8 @@ class Mario_Events(LPF_Device):
 
 				# Pants port status (numbers here are _completely_ different from the pants port)
 				elif event_type == 0x15:
-					if value in Mario.event_pants_codes:
-						return ('event','pants',Mario.event_pants_codes[value])
+					if value in Mario_Events.event_pants_codes:
+						return ('event','pants',Mario_Events.event_pants_codes[value])
 					else:
 						return ('unknown', f'Event: put on unknown pants:{value}')
 
