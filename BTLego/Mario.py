@@ -97,7 +97,7 @@ class Mario(BLE_Device):
 				icon = ord(name[11])
 				color = ord(name[13])
 
-			if name.startswith("Mario ") and len(name) == 14:
+			elif name.startswith("Mario ") and len(name) == 14:
 				# App 2.10 and above
 				#Mario XXXX_k_y
 				# Where XXXX is upper and lowercase alphanumeric
