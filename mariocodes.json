@@ -2,7 +2,7 @@
   "notes": [
     "8 colors: GREEN, RED, BLUE, LIME, PINK, VIOLET, YELLOW, TEAL",
     "5 Positions",
-    "Start with GR or BR",
+    "Start with GR, BR, or TR",
     "GR Codespace is 512 with prefix (8^3) (not accounting for no-repeats or uniques,, narrows to 120 (6*5*4))",
     "Searched Bricklink on November 10, 2022 and found 196 parts matching 'scanner code'",
     "Sources:",
@@ -240,6 +240,10 @@
         {
           "blpn": "3068bpb2333",
           "name": "Penguin"
+        },
+        {
+          "blpn": "3068pb2333",
+          "name": "Penguin"
         }
       ],
       "note": "Penguin that wants a treat"
@@ -305,6 +309,10 @@
         {
           "blpn": "3068bpb2341",
           "name": "Dorrie the Dolphin"
+        },
+        {
+          "blpn": "3068pb2341",
+          "name": "Dorrie the Dolphin"
         }
       ],
       "note": "Water world ride"
@@ -319,6 +327,17 @@
         }
       ],
       "note": "Plays music.  Rideable"
+    },
+    {
+      "code": "BRLGY",
+      "label": "CHAIN CH",
+      "blpns": [
+        {
+          "blpn": "3068pb2481",
+          "name": "Chain Chomp... ride?"
+        }
+      ],
+      "note": "Rotate to walk the chomp"
     },
     {
       "code": "BRVPY",
@@ -348,6 +367,10 @@
         {
           "blpn": "3068bpb2334",
           "name": "Bowser's Car and Mario Kart music"
+        },
+        {
+          "blpn": "3068pb2334",
+          "name": "Bowser's Car and Mario Kart music"
         }
       ]
     },
@@ -358,6 +381,16 @@
         {
           "blpn": "3068bpb2064",
           "name": "Chubby Baby Yoshi, yellow"
+        }
+      ]
+    },
+    {
+      "code": "BRLTV",
+      "label": "BABYOSH2",
+      "blpns": [
+        {
+          "blpn": "3068pb2458",
+          "name": "Pink Baby yoshi"
         }
       ]
     },
@@ -422,6 +455,17 @@
         }
       ],
       "note": "Blue, purple, red, green, yellow.  Hatches after jumping/rocking a bunch."
+    },
+    {
+      "code": "BRLTG",
+      "label": "",
+      "blpns": [
+        {
+          "blpn": "3068pb2335",
+          "name": "Three Yoshi Eggs"
+        }
+      ],
+      "note": "random yoshi egg (normal, baby), can go in presents"
     },
     {
       "code": "GRYPV",
@@ -758,6 +802,10 @@
         {
           "blpn": "3068bpb2313",
           "name": "Picnic basket 2"
+        },
+        {
+          "blpn": "3068pb2313",
+          "name": "Picnic basket 2"
         }
       ],
       "note": "Yellow toad random item: Ice cream, cookies, FRUIT RE, FRUIT GR"
@@ -1089,7 +1137,11 @@
       "blpns": [
         {
           "blpn": "14769pb341",
-          "name": "Shy Guy"
+          "name": "Shy Guy (red)"
+        },
+        {
+          "blpn": "14769pb709",
+          "name": "Shy Guy (pink)"
         }
       ]
     },
@@ -1296,6 +1348,10 @@
         {
           "blpn": "3068bpb1397",
           "name": "Lava Bubble"
+        },
+        {
+          "blpn": "3068pb2471",
+          "name": "Dry Bones"
         }
       ]
     },
@@ -1403,6 +1459,10 @@
         {
           "blpn": "3068bpb2299",
           "name": "Bone Piranha Plant"
+        },
+        {
+          "blpn": "11203pb120",
+          "name": "Piranha Plant"
         }
       ]
     },
@@ -1528,6 +1588,10 @@
         {
           "blpn": "3068bpb1856",
           "name": "Lakitu"
+        },
+        {
+          "blpn": "14769pb699",
+          "name": "Lakitu (Round green)"
         }
       ],
       "note": "2-hit"
@@ -1864,6 +1928,10 @@
         {
           "blpn": "66792pb001",
           "name": "Cloud Platform"
+        },
+        {
+          "blpn": "3068pb2455",
+          "name": "Cloud Tile"
         }
       ],
       "use": "Have to wave mario around while he's on it for it to work"
@@ -1970,6 +2038,16 @@
       ]
     },
     {
+      "code": "BRLYV",
+      "label": "COUCH",
+      "blpns": [
+        {
+          "blpn": "3068pb2468",
+          "name": "Spooky Couch (fly up and down for coins)"
+        }
+      ]
+    },
+    {
       "code": "GRTPL",
       "label": "GEAR",
       "blpns": [
@@ -2001,6 +2079,17 @@
         }
       ],
       "note": "Ominous Music. Cooperates with Gear and Nut spinning"
+    },
+    {
+      "code": "BRTPL",
+      "label": "SEESAW2",
+      "blpns": [
+        {
+          "blpn": "3068pb2465",
+          "name": "Log seesaw"
+        }
+      ],
+      "note": "Tilt side to side for coins"
     },
     {
       "code": "BRYVG",
@@ -2056,6 +2145,10 @@
         {
           "blpn": "66792pb005",
           "name": "Raft"
+        },
+        {
+          "blpn": "68869pb013",
+          "name": "Raft rounded"
         }
       ],
       "note": "Comes in Poison Swamp"
@@ -2089,6 +2182,10 @@
         {
           "blpn": "3068bpb2340",
           "name": "Cheep Chomp"
+        },
+        {
+          "blpn": "3068pb2340",
+          "name": "Cheep Chomp"
         }
       ],
       "note": "!, Gloopy sounds, wave Mario around and then escape for coins.  Star to defeat."
@@ -2110,6 +2207,10 @@
       "blpns": [
         {
           "blpn": "3068bpb2066",
+          "name": "Peach throne"
+        },
+        {
+          "blpn": "66792pb013",
           "name": "Peach throne"
         }
       ],
@@ -2149,12 +2250,43 @@
       "note": "Sky Land 1 music."
     },
     {
+      "code": "GRLYT",
+      "label": "WIGGLER",
+      "blpns": [
+        {
+          "blpn": "3068pb2477",
+          "name": "Wiggler ride"
+        }
+      ],
+      "note": "Jump and rotate/whip"
+    },
+    {
       "code": "BRVGT",
       "label": "BALLOON",
       "blpns": [
         {
           "blpn": "3068bpb2150",
           "name": "Peach's Balloon Ride"
+        }
+      ]
+    },
+    {
+      "code": "BRLPY",
+      "label": "HANDCAR",
+      "blpns": [
+        {
+          "blpn": "66792pb012",
+          "name": "Handcar ride"
+        }
+      ]
+    },
+    {
+      "code": "BRLVY",
+      "label": "BOWTRAIN",
+      "blpns": [
+        {
+          "blpn": "3068pb2470",
+          "name": "Bowser's Train ride"
         }
       ]
     },
@@ -2212,6 +2344,28 @@
         }
       ],
       "note": "Music notes, 'go go go', different DK music. Switch between scanning Yellow and Orange to hit the bongos"
+    },
+    {
+      "code": "BRLPV",
+      "label": "MARIOWRL",
+      "blpns": [
+        {
+          "blpn": "3068pb2485",
+          "name": "Super Mario World"
+        }
+      ],
+      "note": "Move around to progress Mario through a little movie"
+    },
+    {
+      "code": "BRLTP",
+      "label": "PIANO",
+      "blpns": [
+        {
+          "blpn": "3068pb2482",
+          "name": "Piano"
+        }
+      ],
+      "note": "Rotate to play"
     },
     {
       "code": "BRVGL",
@@ -2324,11 +2478,26 @@
       "note": "6-hit"
     },
     {
+      "code": "BRLYP",
+      "label": "ROY",
+      "blpns": [
+        {
+          "blpn": "3068pb2480",
+          "name": "Roy"
+        }
+      ],
+      "note": "6-hit"
+    },
+    {
       "code": "GRVYB",
       "label": "KING BOO",
       "blpns": [
         {
           "blpn": "3068bpb1388",
+          "name": "King Boo"
+        },
+        {
+          "blpn": "3068pb2467",
           "name": "King Boo"
         }
       ],
@@ -2389,70 +2558,5 @@
     }
   ],
   "undeciphered": [],
-  "unidentified": [
-    {
-      "code": "BRLTV",
-      "note": "Pink Baby yoshi"
-    },
-    {
-      "code": "BRLGP",
-      "note": "toad rando"
-    },
-    {
-      "code": "BRLPG",
-      "note": "steering wheel"
-    },
-    {
-      "code": "BRLPV",
-      "note": "super mario world"
-    },
-    {
-      "code": "BRLPY",
-      "note": "some kind of ride"
-    },
-    {
-      "code": "BRLVG",
-      "note": "sounds like purple junk"
-    },
-    {
-      "code": "BRLVP",
-      "note": "baby penguin"
-    },
-    {
-      "code": "BRLVY",
-      "note": "go go go (chugging sound)"
-    },
-    {
-      "code": "BRLYG",
-      "note": "underwater ride"
-    },
-    {
-      "code": "BRLYP",
-      "note": "6-hit"
-    },
-    {
-      "code": "BRLYV",
-      "note": "oh"
-    },
-    {
-      "code": "BRLTG",
-      "note": "random yoshi egg (can go in presents)"
-    },
-    {
-      "code": "BRLTP",
-      "note": "music notes"
-    },
-    {
-      "code": "BRLGY",
-      "note": "dog bark"
-    },
-    {
-      "code": "GRLYT",
-      "note": "music"
-    },
-    {
-      "code": "BRTPL",
-      "note": "music"
-    }
-  ]
+  "unidentified": []
 }

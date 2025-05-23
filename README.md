@@ -1,12 +1,9 @@
 # legomario
 
-**DOES NOT WORK ON MACOS IF YOU FIRMWARE UPDATE MARIO FIGURES TO APP VERSION 2.9**
-_Failed to update the notification status for characteristic 17: Error Domain=CBATTErrorDomain Code=5 "Authentication is insufficient."_ Needs pairing in Bleak.
-
 * Generates printable SVG scanner codes for LEGO Mario as well as Luigi & Peach.
     [View the HTML live from the repository](https://raw.githack.com/mutesplash/legomario/main/mariocodes.html)
 * Provides a Python library for interacting with LEGO Bluetooth LE devices including:
-	* LEGO Mario (and Luigi & Peach) BROKEN ON MACOS WITH FIRMWARE 6.1
+	* LEGO Mario (and Luigi & Peach) (Requires Bluetooth system pairing with firmware 6.1 and above)
 	* LEGO Powered Up Remote Control (88010)
 	* DUPLO Train Hub No. 5
 	* LEGO Powered Up Hub No. 4 (88009)
@@ -19,6 +16,7 @@ _Failed to update the notification status for characteristic 17: Error Domain=CB
 
 ## Requires
 
+* MacOS pairing: On first use, a windows will pop up asking approve a "Connection Request."  Don't miss it!
 * [Bleak](https://github.com/hbldh/bleak)
 
 ## Try a Bluetooth example [^1]

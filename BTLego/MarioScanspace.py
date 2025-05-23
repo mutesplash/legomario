@@ -347,7 +347,9 @@ class MarioScanspace():
 		# Valid BR codes: 100 Invalid: 110 (90 contain black, 20 have mirrors)
 
 	# Thanks to Peach misscanning (DK BLOON) BRTGL as TRPBG, my initial guess of Pink had to be hedged and I only printed a page of _half_ bad codes
-	# TR support as far back App 2.6.4 firmwares (5.5, maybe earlier)
+	# With the App 2.10, codes haven't started with anything but TRP__ so maybe they are having discipline about filling up the space in-order
+	# As of App 2.10, PRL, PRY, and PRV non-codes still remain non-codes, so pretty confident about it being Teal, though
+	# TR support as far back App 2.6.4 firmwares (firmware 5.5, maybe earlier)
 	def generate_tr_codespace():
 		valid_codes = 0
 		forbidden_codes = 0
