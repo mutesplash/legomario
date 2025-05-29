@@ -452,20 +452,13 @@
         {
           "blpn": "3068bpb2335",
           "name": "Hatching Yoshi Egg"
-        }
-      ],
-      "note": "Blue, purple, red, green, yellow.  Hatches after jumping/rocking a bunch."
-    },
-    {
-      "code": "BRLTG",
-      "label": "",
-      "blpns": [
+        },
         {
           "blpn": "3068pb2335",
           "name": "Three Yoshi Eggs"
         }
       ],
-      "note": "random yoshi egg (normal, baby), can go in presents"
+      "note": "Blue, purple, red, green, yellow.  Hatches after jumping/rocking a bunch. Can go in presents"
     },
     {
       "code": "GRYPV",
