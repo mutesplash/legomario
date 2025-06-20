@@ -16,7 +16,7 @@
 
 ## Requires
 
-* MacOS pairing: On first use, a windows will pop up asking approve a "Connection Request."  Don't miss it!
+* MacOS pairing: On first use, a window will pop up asking to approve a "Connection Request."  Don't miss it!
 * [Bleak](https://github.com/hbldh/bleak)
 
 ## Try a Bluetooth example [^1]
