@@ -80,6 +80,7 @@ class Decoder():
 		0x43:'mario',
 		0x44:'luigi',
 		0x45:'peach',
+		0x60:'smartbrick',	# "SMART Brick" Uses WDX proto, not LWP. Check out this hero: https://github.com/nathankellenicki/node-smartplay/blob/main/notes/PROTOCOL.md
 		0x80:'hub_2'		# "Hub No. 2" Lego 88012, Default name of "Technic Hub", "LEGO Powered Up Technic Hub"
 	}
 

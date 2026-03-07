@@ -76,11 +76,17 @@ def __match_up_device(bluetooth_name, dev_systype, dev_shortname):
 					# Hey, so if you leave the handset default name, guess what happens if you didn't
 					# continue and fall through instead? Duplicate messages!  FIXME: may need to rethink this
 					continue
-				if normalized_supplied_devmatch == 'anymario' and Decoder.ble_dev_classes[dev_systype] == 'Mario':
-					logger.debug(f'Will connect to {dev_shortname} as it is AnyMario')
-					retval.append(callback)
-					# I guess you could also name your thing anymario too... FIXME
-					continue
+
+				if normalized_supplied_devmatch == 'anymario':
+					if dev_systype in Decoder.ble_dev_classes:
+						if Decoder.ble_dev_classes[dev_systype] == 'Mario':
+							logger.debug(f'Will connect to {dev_shortname} as it is AnyMario')
+							retval.append(callback)
+							# I guess you could also name your thing anymario too... FIXME
+							continue
+					else:
+						logger.error(f'Unknown device.  Bluetooth name {bluetooth_name}, systype {dev_systype} shortname {dev_shortname}')
+
 				if bluetooth_name is not None and normalized_supplied_devmatch == bluetooth_name.lower():
 					logger.debug(f'Will connect to exact name {bluetooth_name}')
 					retval.append(callback)
@@ -120,7 +126,7 @@ async def bleak_device_dectection_callback(device, advertisement_data):
 					logger.info(f'Starting BTLE connection on {dev_shortname}')
 					await __lego_devices__[device.address].connect(device)
 				else:
-					logger.debug(f'Device {dev_shortname} did not match any provided callbacks')
+					logger.debug(f'Device {dev_shortname} did not match any provided callbacks {advertisement_data}')
 
 			else:
 				# Reconnect if known and disconnected
@@ -139,7 +145,7 @@ async def bleak_device_dectection_callback(device, advertisement_data):
 				if advertisement_data and advertisement_data.manufacturer_data:
 					logger.warning("UNKNOWN LEGO DEVICE",dev_shortname, device.address, "RSSI:", device.rssi, advertisement_data)
 				else:
-					#logger.info("Found some useless Mario broadcast without the manufacturer or service UUIDs")
+					logger.info("Found some useless Mario broadcast without the manufacturer or service UUIDs")
 					pass
 
 async def __bleak_scan_runner(duration=10):
