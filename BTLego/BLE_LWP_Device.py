@@ -73,9 +73,9 @@ class BLE_LWP_Device(BLE_Device):
 
 	def __init__(self, advertisement_data=None):
 
-		super().__init__(advertisement_data)
+		self.lpf_message_types = generate_valid_lpf_message_types()
 
-		lpf_message_types = generate_valid_lpf_message_types()
+		super().__init__(advertisement_data)
 
 		self.mode_probe_rate_limit = 0.3
 

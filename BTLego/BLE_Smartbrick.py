@@ -49,7 +49,11 @@ class BLE_Smartbrick(BLE_Device):
 
 	async def interrogate_known_registers(self):
 		for x in Decoder.wdx_registers:
-			await self._write_wdx_read(x)
+			if 'R' in Decoder.wdx_registers[x][1]:
+				await self._write_wdx_read(x)
+			else:
+				pass
+				#self.logger.debug(f'Not interrogating un-readable register {Decoder.wdx_registers[x][0]}')
 
 	async def interrogate_all_registers(self):
 		for x in range(0,256):
