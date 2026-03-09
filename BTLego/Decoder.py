@@ -62,7 +62,7 @@ class LDev(IntEnum):
 	# 0x42: Useless turtle, do not enable unless it becomes not-useless
 	EVENTS = 0x46		# Mario and Controller
 	MARIO_TILT = 0x47
-	MARIO_SCANNER = 0x49
+	MARIO_SCANNER = 0x49	# Aka LEAFTag ?
 	MARIO_PANTS = 0x4a
 	MOTOR_M_G = 0x4b
 	MOTOR_L_G = 0x4c
@@ -72,7 +72,11 @@ class LDev(IntEnum):
 
 class Decoder():
 
+	# One of the few ways to identify this device
+	WEDO2_SERVICE_UUID = '00001523-1212-efde-1523-785feabcd123'
+
 	advertised_system_type = {
+		0x00:'wedo2',		# FIXME: Kind of a hack...
 		0x20:'duplotrain',	# "Hub No. 5" "Train Base"
 		0x40:'boostmove',	# "JAJUR1" "LEGO Move Hub" "LEGO® Powered Up 88006 Move Hub" The set this hub comes in (17101) is called "Boost"
 		0x41:'hub_4',		# Lego 88009 Powered Up "Hub", "HUB NO.4"
@@ -92,6 +96,7 @@ class Decoder():
 		0x43:'Mario',
 		0x44:'Mario',		# Luigi
 		0x45:'Mario',		# Peach
+		0x60:'BLE_Smartbrick',
 		0x80:'Hub2'
 	}
 
@@ -312,6 +317,52 @@ class Decoder():
 		0xa:'white'
 	}
 
+	# https://github.com/nathankellenicki/node-smartplay/blob/main/notes/PROTOCOL.md
+	wdx_registers = {
+		0x01:('ConnectionParameterUpdateReq','W'),
+		0x02:('CurrentConnectionParameters','R'),
+		0x03:('DisconnectReq','W'),
+		0x04:('ConnectionSecurityLevel','R'),
+		0x05:('SecurityReq','W'),
+		0x06:('ServiceChanged','R'),
+		0x07:('DeleteBonds','W'),
+		0x08:('CurrentAttMtu','R'),
+		0x09:('PhyUpdateReq','W'),
+		0x0a:('CurrentPhy','R'),
+
+		0x20:('BatteryLevel','R'),
+		0x21:('DeviceModel','R'),
+		0x22:('FirmwareRevision','R'),
+		0x23:('EnterDiagnosticMode','W'),
+		0x24:('DiagnosticModeComplete','R'),
+		0x25:('DisconnectAndReset','W'),
+		0x26:('DisconnectConfigureFotaAndReset','W'),
+
+		0x80:('HubLocalName','RW'),
+		0x81:('UserVolume','RW'),
+		0x82:('CurrentWriteOffset','R'),
+		0x83:('FIXME_UNKNOWN_1',''),
+		0x84:('PrimaryMacAddress','R'),
+		0x85:('UpgradeState','R'),
+		0x86:('SignedCommandNonce','R'),
+		0x87:('SignedCommand','W'),
+		0x88:('UpdateState','R'),
+		0x89:('PipelineStage','R'),
+		0x90:('UXSignal','W'),
+		0x91:('OwnershipProof','W'),
+		0x92:('FIXME_UNKNOWN_2',''),
+		0x93:('ChargingState','R'),
+		0x94:('FIXME_UNKNOWN_3',''),
+		0x95:('FactoryReset','W'),
+		0x96:('TravelMode','RW'),
+	}
+
+	wdx_message_types = {
+		1:'read',
+		2:'write',
+		3:'response'
+	}
+
 #	def __init__(self):
 		# reverse map some dicts so you can index them either way
 #		self.message_type_ints = dict(map(reversed, self.message_type_str.items()))
@@ -323,6 +374,7 @@ class Decoder():
 	io_type_id_ints = dict(map(reversed, io_type_id_str.items()))
 
 	def classname_from_ad_data(advertisement_data):
+		classname = None
 		if 919 in advertisement_data.manufacturer_data:
 			type_id = advertisement_data.manufacturer_data[919][1]
 			classname = 'BLE_Device'
@@ -330,6 +382,11 @@ class Decoder():
 			if type_id in Decoder.ble_dev_classes:
 				classname = Decoder.ble_dev_classes[type_id]
 
+		if advertisement_data.service_uuids:
+			if Decoder.WEDO2_SERVICE_UUID in advertisement_data.service_uuids:
+				classname = 'BLE_WeDo'
+
+		if classname:
 			class_module = importlib.import_module(f'BTLego.{classname}')
 			classobj = getattr(class_module, classname)
 			return classobj
@@ -348,7 +405,8 @@ class Decoder():
 		# https://lego.github.io/lego-ble-wireless-protocol-docs/index.html#document-2-Advertising
 		# kCBAdvDataManufacturerData = 0x9703004403ffff00
 		# 97 03 is backwards because it's supposed to be a 16 bit int
-		# 919 aka 0x397 or the lego manufacturer id
+		# 919 aka 0x397 or the lego manufacturer id (Bluetooth SIG "Assigned Numbers" document)
+
 		if 919 in advertisement_data.manufacturer_data:
 			# 004403ffff00
 			# 00 Button state
@@ -369,6 +427,8 @@ class Decoder():
 			# 02 Capabilities
 			#	0000 0010
 			#          10	Peripheral role
+
+			# SMART Brick only has System type set, zeroes out everything else (Does respect length of 6)
 
 			return advertisement_data.manufacturer_data[919][1]
 
@@ -934,6 +994,84 @@ class Decoder():
 		bt_message['value'] = payload[1:]
 		bt_message['readable'] += "port "+str(bt_message['port'] )+": "+" ".join(hex(n) for n in payload[1:])
 
+	def decode_wdx_packet(message_bytes):
+
+		bt_message = {
+			'error': False,
+			'raw':message_bytes,
+			'readable': ''
+		}
+
+		if len(bt_message['raw']) < 2:
+			bt_message['error'] = True
+			bt_message['readable'] += ": WDX Packet of insufficent length"
+			return bt_message
+
+		bt_message['wdx'] = {}
+		packet_type = bt_message['raw'][0]
+		if packet_type in Decoder.wdx_message_types:
+			bt_message['wdx']['type'] = Decoder.wdx_message_types[packet_type]
+			if packet_type != 3:
+				bt_message['error'] = True
+				bt_message['readable'] += ": WDX Packet decoder only fit to decode response packets"
+				return bt_message
+		else:
+			bt_message['error'] = True
+			bt_message['readable'] += f': Unknown WDX packet type {packet_type}'
+			return bt_message
+
+		register = bt_message['raw'][1]
+		if register in Decoder.wdx_registers:
+			bt_message['wdx']['register'] = Decoder.wdx_registers[register]
+		else:
+			bt_message['error'] = True
+			bt_message['readable'] += f': Unknown WDX register {register} / {hex(register)}'
+			return bt_message
+
+
+		if register in Decoder.wdx_registers:
+			bt_message['register'] = register
+
+			if register == 0x20:
+				bt_message['value'] = int.from_bytes(message_bytes[2:], byteorder="little", signed=False)
+				bt_message['readable'] = f"Battery SoC: {bt_message['value']}"
+
+			elif register == 0x21:
+				bt_message['value'] = Decoder.string_and_strip_trailing_null(message_bytes[2:])
+				bt_message['readable'] = f"Device Model: {bt_message['value']}"
+
+			elif register == 0x22:
+				bt_message['value'] = Decoder.string_and_strip_trailing_null(message_bytes[2:])
+				bt_message['readable'] = f"Firmware: {bt_message['value']}"
+
+			elif register == 0x80:
+				bt_message['value'] = Decoder.string_and_strip_trailing_null(message_bytes[2:])
+				bt_message['readable'] = f"Local Name: {bt_message['value']}"
+
+			elif register == 0x81:
+				bt_message['value'] = int.from_bytes(message_bytes[2:], byteorder="little", signed=False)
+				bt_message['readable'] = f"Sound Volume: {bt_message['value']}"
+
+			else:
+				bt_message['value'] = bt_message['raw'][2:]
+				bt_message['readable'] = f"{bt_message['wdx']['type']}:{bt_message['wdx']['register']} value {bt_message['value']}"
+
+		else:
+			bt_message['value'] = bt_message['raw'][2:]
+			bt_message['readable'] = f"{bt_message['wdx']['type']}:{bt_message['wdx']['register']} value {bt_message['value']}"
+
+		return bt_message
+
+	def decode_wedo2_packet(message_bytes):
+
+		bt_message = {
+			'error': False,
+			'raw':message_bytes,
+			'readable': ''
+		}
+
+		return bt_message
+
 	# --- Utilities
 
 	def int8_dict_to_str(int8_dict,int8_value):
@@ -966,3 +1104,13 @@ class Decoder():
 		build_digit_4 = int(int32[0] & 0xf)
 		build = (build_digit_1*1000)+(build_digit_2*100)+(build_digit_3*10)+build_digit_4
 		return "v"+str(major)+"."+str(minor)+"."+str(fix)+"."+str(build)
+
+	def string_and_strip_trailing_null(str_bytearray):
+		unicode_str = str_bytearray.decode()
+		while unicode_str[-1] == '\u0000' and len(unicode_str) > 1:
+			unicode_str = unicode_str[:-1]
+		if unicode_str == '\u0000':
+			return None
+		else:
+			return unicode_str
+

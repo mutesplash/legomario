@@ -7,11 +7,11 @@ import json
 
 from bleak import BleakClient
 
-from .BLE_Device import BLE_Device
+from .BLE_LWP_Device import BLE_LWP_Device
 from .Decoder import Decoder
 from .MarioScanspace import MarioScanspace
 
-class Mario(BLE_Device):
+class Mario(BLE_LWP_Device):
 
 	# MESSAGE TYPES ( type, key, value )
 	# event:

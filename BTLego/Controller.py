@@ -6,10 +6,10 @@ import json
 
 from bleak import BleakClient
 
-from .BLE_Device import BLE_Device
+from .BLE_LWP_Device import BLE_LWP_Device
 from .Decoder import Decoder
 
-class Controller(BLE_Device):
+class Controller(BLE_LWP_Device):
 
 	def __init__(self,advertisement_data=None, json_code_dict=None):
 		super().__init__(advertisement_data)

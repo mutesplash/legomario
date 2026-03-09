@@ -1,8 +1,8 @@
-from .BLE_Device import BLE_Device
+from .BLE_LWP_Device import BLE_LWP_Device
 from .Decoder import Decoder, LDev
 
 # Boost Hub, Bricklink calls this No 1 but I don't see that anywhere else
-class Jajur1(BLE_Device):
+class Jajur1(BLE_LWP_Device):
 
 	def __init__(self,advertisement_data=None, json_code_dict=None):
 		super().__init__(advertisement_data)

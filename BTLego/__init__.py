@@ -10,6 +10,7 @@ from .Decoder import Decoder
 from .DuploTrain import DuploTrain
 from .Hub2 import Hub2
 from .Jajur1 import Jajur1
+from .BLE_WeDo import BLE_WeDo
 
 from queue import SimpleQueue
 
@@ -126,7 +127,7 @@ async def bleak_device_dectection_callback(device, advertisement_data):
 					logger.info(f'Starting BTLE connection on {dev_shortname}')
 					await __lego_devices__[device.address].connect(device)
 				else:
-					logger.debug(f'Device {dev_shortname} did not match any provided callbacks {advertisement_data}')
+					logger.debug(f'Device {dev_shortname} / {dev_systype} / {devclass} did not match any provided callbacks {advertisement_data}')
 
 			else:
 				# Reconnect if known and disconnected

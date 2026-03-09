@@ -2,10 +2,10 @@ import asyncio
 
 from bleak import BleakClient
 
-from .BLE_Device import BLE_Device
+from .BLE_LWP_Device import BLE_LWP_Device
 from .Decoder import Decoder
 
-class DuploTrain(BLE_Device):
+class DuploTrain(BLE_LWP_Device):
 
 	def __init__(self, advertisement_data=None):
 		super().__init__(advertisement_data)
