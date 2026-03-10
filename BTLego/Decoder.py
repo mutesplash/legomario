@@ -888,9 +888,7 @@ class Decoder():
 		bt_message['readable'] += "port "+str(port)+" mode " + str(mode) + " infotype: " + Decoder.int8_dict_to_str(Decoder.mode_info_type_str,mode_info_type) + " "
 		if mode_info_type == 0x0:
 			# NAME
-			bt_message['name'] = bytearray(payload[3:]).decode()
-			while bt_message['name'][-1] == '\u0000':
-				bt_message['name'] = bt_message['name'][:-1]
+			bt_message['name'] = Decoder.string_and_strip_trailing_null(payload[3:])
 			bt_message['readable'] += bt_message['name']
 		# Assuming this is FP32 for FLOAT
 		elif mode_info_type == 0x1:
@@ -913,10 +911,8 @@ class Decoder():
 			bt_message['si']['max'] = struct.unpack('f', payload[7:11])[0]
 		elif mode_info_type == 0x4:
 			# SYMBOL
-			bt_message['symbol'] = bytearray(payload[3:]).decode()
-			while bt_message['symbol'][-1] == '\u0000' and len(bt_message['symbol']) > 1:
-				bt_message['symbol'] = bt_message['symbol'][:-1]
-			if bt_message['symbol'] == '\u0000':
+			bt_message['symbol'] = Decoder.string_and_strip_trailing_null(payload[3:])
+			if bt_message['symbol'] == None:
 				bt_message['symbol'] = 'ERR_NO_SYMBOL_FOR_PORT'
 
 			bt_message['readable'] += bt_message['symbol']

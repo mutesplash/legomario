@@ -50,16 +50,17 @@ class BLE_Smartbrick(BLE_Device):
 	async def interrogate_known_registers(self):
 		for x in Decoder.wdx_registers:
 			if 'R' in Decoder.wdx_registers[x][1]:
-				await self._write_wdx_read(x)
+				await self._gatt_send_wdx_read(x)
 			else:
 				pass
 				#self.logger.debug(f'Not interrogating un-readable register {Decoder.wdx_registers[x][0]}')
 
+	# Only worth doing after a firmware update I guess
 	async def interrogate_all_registers(self):
 		for x in range(0,256):
-			await self._write_wdx_read(x)
+			await self._gatt_send_wdx_read(x)
 
-	async def _write_wdx_read(self, register):
+	async def _gatt_send_wdx_read(self, register):
 		if register > 255 or register < 0:
 			return
 		payload = bytearray([

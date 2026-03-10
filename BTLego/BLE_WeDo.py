@@ -23,8 +23,16 @@ class BLE_WeDo(BLE_Device):
 		super().__init__(advertisement_data)
 
 		# WeDo2
-		self.characteristic_uuid = '00001560-1212-EFDE-1523-785FEABCD123'	# Sensor Value
-		self.characteristic_uuid = '00001561-1212-EFDE-1523-785FEABCD123'	# Value Format
+		#self.characteristic_uuid = '00001560-1212-EFDE-1523-785FEABCD123'	# Sensor Value, input
+		#self.characteristic_uuid = '00001561-1212-EFDE-1523-785FEABCD123'	# Value Format, input
+		#self.characteristic_uuid = '00001563-1212-EFDE-1523-785FEABCD123'	# Input command
+
+		# Other people report using handle 0x3d (61)
+		# But my hub didn't have 61, it had 60, which was identified by this UUID
+		# Moral of the story, don't use handles, always UUIDs?
+
+		self.characteristic_uuid = '00001565-1212-efde-1523-785feabcd123'	# Output command
+
 		self.packet_decoder = Decoder.decode_wedo2_packet
 
 	async def connect(self, device):
@@ -82,6 +90,20 @@ class BLE_WeDo(BLE_Device):
 		print(self.advertisement)
 		print("Status...")
 		await self.dump_status()
+
+# TODO: Alright, how to hook completely different payloads into existing device classes...
+#		payload = bytearray([	0x01,	# Port 1 or 2
+#								0x01,	# Command: motor speed (1)
+#								0x01,	# Length of following arguments (1)
+#								100])	# speed (1-100 negative for reverse 255-156 zero to stop)
+#		await self._gatt_send(payload)
+#		await asyncio.sleep(2)
+#		payload = bytearray([	0x01,	# Port 1 or 2
+#								0x01,	# Command: motor speed (1)
+#								0x01,	# Length of following arguments (1)
+#								0])	# speed (1-100 negative for reverse 255-156 zero to stop)
+#		await self._gatt_send(payload)
+
 
 	# Returns false if unprocessed
 	# Override in subclass, call super if you don't process the bluetooth message type

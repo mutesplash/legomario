@@ -19,6 +19,7 @@ __callbacks_to_device_addresses__ = {}
 __callback_matcher__ = []
 __off_bleak_callback_queue__ = SimpleQueue()
 __running__ = False
+__overly_chatty_bluetooth__ = True
 
 def setLoggingLevel(level):
 	logger = logging.getLogger(__name__)
@@ -62,6 +63,8 @@ def await_function_off_bleak_callback(async_function):
 	__off_bleak_callback_queue__.put(async_function)
 
 def __match_up_device(bluetooth_name, dev_systype, dev_shortname):
+	global __overly_chatty_bluetooth__
+
 	logger = logging.getLogger(__name__)
 
 	retval = []
@@ -86,7 +89,8 @@ def __match_up_device(bluetooth_name, dev_systype, dev_shortname):
 							# I guess you could also name your thing anymario too... FIXME
 							continue
 					else:
-						logger.error(f'Unknown device.  Bluetooth name {bluetooth_name}, systype {dev_systype} shortname {dev_shortname}')
+						if __overly_chatty_bluetooth__:
+							logger.debug(f'Unknown device.  Bluetooth name {bluetooth_name}, systype {dev_systype} shortname {dev_shortname}')
 
 				if bluetooth_name is not None and normalized_supplied_devmatch == bluetooth_name.lower():
 					logger.debug(f'Will connect to exact name {bluetooth_name}')
@@ -100,6 +104,7 @@ def __match_up_device(bluetooth_name, dev_systype, dev_shortname):
 async def bleak_device_dectection_callback(device, advertisement_data):
 	global __lego_devices__
 	global __callbacks_to_device_addresses__
+	global __overly_chatty_bluetooth__
 
 	logger = logging.getLogger(__name__)
 
@@ -127,7 +132,8 @@ async def bleak_device_dectection_callback(device, advertisement_data):
 					logger.info(f'Starting BTLE connection on {dev_shortname}')
 					await __lego_devices__[device.address].connect(device)
 				else:
-					logger.debug(f'Device {dev_shortname} / {dev_systype} / {devclass} did not match any provided callbacks {advertisement_data}')
+					if __overly_chatty_bluetooth__:
+						logger.debug(f'Device {dev_shortname} / {dev_systype} / {devclass} did not match any provided callbacks {advertisement_data}')
 
 			else:
 				# Reconnect if known and disconnected
