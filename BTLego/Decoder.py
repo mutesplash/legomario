@@ -85,7 +85,8 @@ class Decoder():
 		0x44:'luigi',
 		0x45:'peach',
 		0x60:'smartbrick',	# "SMART Brick" Uses WDX proto, not LWP. Check out this hero: https://github.com/nathankellenicki/node-smartplay/blob/main/notes/PROTOCOL.md
-		0x80:'hub_2'		# "Hub No. 2" Lego 88012, Default name of "Technic Hub", "LEGO Powered Up Technic Hub"
+		0x80:'hub_2',		# "Hub No. 2" Lego 88012, Default name of "Technic Hub", "LEGO Powered Up Technic Hub"
+		0x83:'spikesmall'
 	}
 
 	ble_dev_classes = {
@@ -97,7 +98,8 @@ class Decoder():
 		0x44:'Mario',		# Luigi
 		0x45:'Mario',		# Peach
 		0x60:'BLE_Smartbrick',
-		0x80:'Hub2'
+		0x80:'Hub2',
+		0x83:'SpikeEssential'
 	}
 
 	#https://lego.github.io/lego-ble-wireless-protocol-docs/index.html#message-typ
@@ -190,6 +192,8 @@ class Decoder():
 		0x42:'Useless BOOST Turtle',			# Device is not useful and is labeled NO IO
 		0x4b:'Technic Medium Angular Motor',	# Gray color
 		0x4c:'Technic Large Angular motor',		# Gray color
+
+		0x4e:'UNKNOWN SPIKE Essential device',	# A NO-IO device according to its probe
 
 		# My names
 		0x46:'LEGO Events',			# Events from 88010 Powered Up controller and LEGO Mario

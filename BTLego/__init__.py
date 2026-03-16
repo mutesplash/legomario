@@ -19,7 +19,7 @@ __callbacks_to_device_addresses__ = {}
 __callback_matcher__ = []
 __off_bleak_callback_queue__ = SimpleQueue()
 __running__ = False
-__overly_chatty_bluetooth__ = True
+__overly_chatty_bluetooth__ = False
 
 def setLoggingLevel(level):
 	logger = logging.getLogger(__name__)

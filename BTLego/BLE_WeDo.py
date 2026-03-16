@@ -23,6 +23,29 @@ class BLE_WeDo(BLE_Device):
 		super().__init__(advertisement_data)
 
 		# WeDo2
+		# Thanks pybricks
+		# https://github.com/pybricks/technical-info/blob/master/assigned-numbers.md
+		#hub_service = '00001523-1212-efde-1523-785feabcd123'
+		#name_characteristic = '00001524-1212-efde-1523-785feabcd123'	R/W
+		#button_state_ = '00001526-1212-efde-1523-785feabcd123'			R/N
+		#attached_io_ '00001527-1212-efde-1523-785feabcd123'
+		#low_volt_alert_ = '00001528-1212-efde-1523-785feabcd123'
+		#high_current_alert_ = '00001529-1212-efde-1523-785feabcd123'
+		#low_signal_alert = '0000152a-1212-efde-1523-785feabcd123'
+		#power_off_ = '0000152b-1212-efde-1523-785feabcd123'
+		#port_vcc_control = '0000152c-1212-efde-1523-785feabcd123'
+		#battery_type_ = '0000152d-1212-efde-1523-785feabcd123'
+		#disconnect_ = '0000152e-1212-efde-1523-785feabcd123'
+
+		# Standardized BT services
+		#device_information_service = '0000180a-0000-1000-8000-00805f9b34fb'
+			#firmware_rev_characteristic_uuid = '00002a26-0000-1000-8000-00805f9b34fb'
+			#sw_rev_characteristic_uuid = '00002a28-0000-1000-8000-00805f9b34fb'
+			#manuf_name_characteristic_uuid = '00002a29-0000-1000-8000-00805f9b34fb'
+		#battery_service = '0000180f-0000-1000-8000-00805f9b34fb'	#org.bluetooth.service.battery_service
+			#battery_level_characteristic_uuid = '00002a19-0000-1000-8000-00805f9b34fb'	Read, Notify
+
+		#self.service_uuid = '00004f0e-1212-efde-1523-785feabcd123'			# WeDo2 Input service
 		#self.characteristic_uuid = '00001560-1212-EFDE-1523-785FEABCD123'	# Sensor Value, input
 		#self.characteristic_uuid = '00001561-1212-EFDE-1523-785FEABCD123'	# Value Format, input
 		#self.characteristic_uuid = '00001563-1212-EFDE-1523-785FEABCD123'	# Input command
@@ -65,6 +88,21 @@ class BLE_WeDo(BLE_Device):
 				# FIXME: WeDo needs you to sub to all these different chars for data
 				# await self.client.start_notify(self.characteristic_uuid, self._device_events)
 
+				# LWP Devices attach all their LPF Devices via bt messages when you connect to them
+				# WeDo2... does not
+				# Is that true, though?  Maybe you need to be attached to attached_io_ UUID
+
+				# So, enumerate them all by inspecting their UUIDs ...
+				#for svc in self.client.services:
+				#	print(f'Service: {svc}')
+				#	for handle_info in svc.characteristics:
+				#		print(f"\t Svc. Char.: {handle_info}")
+				#
+				# ... and match them to WeDo_Device.py devices
+				#	TODO: emulate _init_port_data()
+				#
+				# Then, _set_hardware_subscription() below should "just work"... right?
+
 				# turn back on everything everybody registered for (For reconnection)
 				for event_sub_type,sub_count in self.BLE_event_subscriptions.items():
 					if sub_count > 0:
@@ -103,6 +141,23 @@ class BLE_WeDo(BLE_Device):
 #								0x01,	# Length of following arguments (1)
 #								0])	# speed (1-100 negative for reverse 255-156 zero to stop)
 #		await self._gatt_send(payload)
+
+	# Checks all Properties and Ports for LPF devices that handle the given message_type
+	# Subscribes or unsubscribes to these messages as requested
+	async def _set_hardware_subscription(self, message_type, should_subscribe=True):
+
+		if not message_type in self.WeDo2_event_subscriptions:
+			self.logger.debug(f'No known devices generate {message_type}')
+			return False
+
+
+#		for port in self.ports:
+#		# what if... we used the UUIDs for the ports
+
+#			await self.ports[port].subscribe_to_messages(message_type, should_subscribe, self.gatt_writer)
+#			# and then attached WeDo_Device.py subclasses to it
+		return True
+
 
 
 	# Returns false if unprocessed

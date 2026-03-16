@@ -82,13 +82,14 @@ class BLE_Device():
 	# (Not really all of them, there are some direct bluetooth things below)
 
 	async def dump_status(self):
+		self.logger.info("CLIENT SERVICE LIST:")
 		for svc in self.client.services:
-			print(f'Service: {svc}')
+			self.logger.info(f'\tService: {svc}')
 			for handle_info in svc.characteristics:
-				print(f"\t Svc. Char.: {handle_info}")
+				self.logger.info(f"\t\t Svc. Char.: {handle_info}")
 
 		self.logger.info("EVENT SUBS\n"+json.dumps(dict(sorted(self.BLE_event_subscriptions.items())), indent=4))
-		self.logger.info("CALLBACKS\n"+json.dumps(self.callbacks, indent=4, default=lambda function: '<function callback>'))
+		self.logger.info("DEVICE OBJECT REGISTERED CALLBACKS\n"+json.dumps(self.callbacks, indent=4, default=lambda function: '<function callback>'))
 		if self.message_queue.qsize():
 			self.logger.info(f'ALERT: {self.message_queue.qsize()} MESSAGE(S) AWAITING DEQUEUE')
 		if self.drainlock_changes_queue.qsize():

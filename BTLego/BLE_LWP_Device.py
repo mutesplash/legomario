@@ -118,7 +118,11 @@ class BLE_LWP_Device(BLE_Device):
 			self.ports[port].port_id = port_id
 			self.ports[port].hw_ver_str = bt_message['hw_ver_str']
 			self.ports[port].fw_ver_str = bt_message['sw_ver_str']
-			self.ports[port].name = Decoder.io_type_id_str[port_id]
+			if port_id in Decoder.io_type_id_str:
+				self.ports[port].name = Decoder.io_type_id_str[port_id]
+			else:
+				self.logger.error(f'Previously unknown port identifier {port_id} on device {self.__class__.__name__}')
+				self.ports[port].name = f"UNKNOWN_PORT_{port_id}"
 			self.ports[port].status = 0x1		# Decoder.io_event_type_str[0x1]
 			for message_type, sub_count in self.BLE_event_subscriptions.items():
 				if sub_count > 0:
@@ -126,7 +130,7 @@ class BLE_LWP_Device(BLE_Device):
 					# On init, don't have to unsub
 
 			if port_classname == 'LPF_Device':
-				devname = Decoder.io_type_id_str[port_id]
+				devname = self.ports[port].name
 				self.logger.warning(f'Class {self.__class__.__name__} contains device type id {port_id} ({devname}) on port {port} that has no class handler')
 
 			# FIXME: Ah, this is fun:  On hub4, Voltage, RGB and Current are laggards so this returns too early
