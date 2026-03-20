@@ -335,6 +335,8 @@ class BLE_Device():
 	# Bleak events get sent here
 	async def _device_events(self, sender, data):
 		bt_message = self.packet_decoder(data)
+		# Suddenly _which_ characteristic you subscribe to becomes super important when WeDo2 is involved...
+		bt_message['char_uuid'] = sender.uuid
 		msg_prefix = self.system_type+" "
 		if bt_message['error']:
 			self.logger.error(msg_prefix+"ERR:"+bt_message['readable'])

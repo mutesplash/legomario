@@ -44,7 +44,7 @@ class LDev(IntEnum):
 	DUPLO_COLOR = 0x2b
 	DUPLO_SPEED = 0x2c
 	CONTROLPLUS_LARGE = 0x2e
-	#0x2f	'Control+ XL'
+	CONTROLPLUS_XL = 0x2f
 	MOTOR_M_B = 0x30
 	MOTOR_L_B = 0x31
 	IMU_GEST = 0x36		# Powered Up hub IMU gesture',
@@ -243,6 +243,7 @@ class Decoder():
 								# Which is weird, but whatever
 
 		# Fuzzed hub2, hub4, controller, boostmove, peach, and duplotrain from 16 to 255 all to find only this
+		# Shows up on mario, hub2, spikesmall
 		0x13:'Mario_UNKNOWN'	# Payload of 0x0 0x0 0x0 0x22
 
 	}

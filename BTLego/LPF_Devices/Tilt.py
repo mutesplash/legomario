@@ -45,10 +45,16 @@ class Tilt(LPF_Device):
 			3: [ self.delta_interval, False, 'LPF2-CAL', ()]
 		}
 
+	# Found in LEBluetoothIO.m
+    # Byte sequence sent to sensor to reset any state (for instance, crash-count for tilt sensor)
+    # resetBytes[] = { 0x44, 0x11, 0xAA };
+
 	def decode_pvs(self, port, data):
 		if port != self.port:
 			return None
 
+		# Crash data is == 3 and inscruitable
+		# Tilt data is == 1
 		if len(data) == 2:
 			# I'm sure there's some clever way to do this and I'm just... not
 			# And now I'm not even using it anymore and I won't delete it

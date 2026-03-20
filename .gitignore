@@ -6,6 +6,8 @@
 
 # Suggested for running examples
 /examples/BTLego
+/examples/bin
+/examples/lib
 
 # *.pyc Trash from running the examples
 __pycache__/

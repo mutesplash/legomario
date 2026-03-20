@@ -24,6 +24,7 @@ def LPF_class_for_type_id(type_id):
 		0x2b:'DT_ColorSensor',
 		0x2c:'DT_Speed',
 		0x2e:'ControlPlusLarge',
+		0x2f:'ControlPlusXL',
 		0x30:'AngularMediumAzure',
 		0x31:'AngularLargeAzure',
 		0x36:'PUH_IMU_Gesture',

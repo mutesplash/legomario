@@ -22,6 +22,7 @@ class Jajur1(BLE_LWP_Device):
 				if (
 					# BUT, it will read selected mode data from it like speed, pos, apos
 					devid == LDev.CONTROLPLUS_LARGE
+					or devid == LDev.CONTROLPLUS_XL
 					or devid == LDev.MOTOR_S
 					or devid == LDev.MOTOR_M_G
 					or devid == LDev.MOTOR_M_B
