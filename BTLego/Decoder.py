@@ -69,6 +69,7 @@ class LDev(IntEnum):
 	MARIO_ALT = 0x55	# 'Mario Alt Events'
 	MOTOR_PLAYVM = 0x56
 	MOTOR_PLAYVM_STEER = 0x57
+	SIX_LED = 0x58
 
 
 # FIXME: Completely confused on upstream/downstream, fix the nomenclature in the comments
@@ -209,7 +210,7 @@ class Decoder():
 
 		0x56:'Technic Move Motor',
 		0x57:'Technic Move Steering Motor',
-		0x58:'UNKNOWN TECHNIC 88 LIGHT DEVICE',
+		0x58:'Technic Move Six-LED Control',
 		0x59:'UNKNOWN TECHNIC 89 PLAYVM DEVICE',
 
 		0x5c:'UNKNOWN TECHNIC 92 ACTION DEVICE',

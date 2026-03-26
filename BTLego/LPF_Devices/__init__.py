@@ -48,7 +48,8 @@ def LPF_class_for_type_id(type_id):
 		0x4c:'AngularLargeGray',
 		0x55:'Mario_Alt_Events',
 		0x56:'PlayVMMotor',
-		0x57:'PlayVMSteerMotor'
+		0x57:'PlayVMSteerMotor',
+		0x58:'SixLED'
 	}
 
 	if type_id in dev_classes:
