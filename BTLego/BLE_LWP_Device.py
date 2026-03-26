@@ -65,6 +65,7 @@ class BLE_LWP_Device(BLE_Device):
 	# following characteristic IDs for LEGO Mario?
 	# FOTA?  OAD Service? Texas Instruments OTA firmware download?
 	# https://software-dl.ti.com/lprf/simplelink_cc2640r2_latest/docs/blestack/ble_user_guide/html/oad-ble-stack-3.x/oad_profile.html
+	# https://software-dl.ti.com/lprf/sdg-latest/html/oad-ble-stack-3.x/oad.html
 	# F000FFC1-0451-4000-B000-000000000000
 	# F000FFC2-0451-4000-B000-000000000000
 	# F000FFC5-0451-4000-B000-000000000000
@@ -122,7 +123,7 @@ class BLE_LWP_Device(BLE_Device):
 				self.ports[port].name = Decoder.io_type_id_str[port_id]
 			else:
 				self.logger.error(f'Previously unknown port identifier {port_id} on device {self.__class__.__name__}')
-				self.ports[port].name = f"UNKNOWN_PORT_{port_id}"
+				self.ports[port].name = f"UNKNOWN_DEV_ON_PORT_{port_id}"
 			self.ports[port].status = 0x1		# Decoder.io_event_type_str[0x1]
 			for message_type, sub_count in self.BLE_event_subscriptions.items():
 				if sub_count > 0:
@@ -352,7 +353,7 @@ class BLE_LWP_Device(BLE_Device):
 				self.logger.error(f'Mode combinations NOT DECODED: {bt_message["readable"]}')
 			return
 		else:
-			self.logger.debug('Interrogating mode info for '+str(bt_message['num_modes'])+' modes on port '+device.name+' ('+str(port)+')')
+			self.logger.debug(f"Interrogating mode info for {bt_message['num_modes']} modes on port {port}: {device.name}")
 
 		if 'requests_until_complete' in self.port_mode_info:
 			if self.port_mode_info['requests_until_complete'] <= 0:
@@ -655,7 +656,7 @@ class BLE_LWP_Device(BLE_Device):
 				self.port_mode_info['requests_until_complete'] += 1
 
 				await self._write_port_info_request(port, 0x1)
-				await asyncio.sleep(0.2)
+				await asyncio.sleep(mode_probe_rate_limit)
 		else:
 			self.logger.error(f"Refusing to start a second port interrogation until the first one is complete. Currently waiting for {self.port_mode_info['requests_until_complete']} requests to complete")
 
@@ -682,10 +683,10 @@ class BLE_LWP_Device(BLE_Device):
 		for dev in target_devs:
 			if port is not None:
 				if dev.port == port:
-					self.logger.debug(f'SENDING {message} TO SPECIFIC PORT {port}')
+					self.logger.debug(f'SENDING {message} TO SPECIFIC PORT {port} ON DEVICE {dev.name}')
 					await dev.send_message(message, self.gatt_writer )
 			else:
-				self.logger.debug(f'SENDING {message}')
+				self.logger.debug(f'SENDING {message} TO DEVICE {dev.name}')
 				await dev.send_message(message, self.gatt_writer )
 
 	async def send_property_message(self, property_type_int, message):

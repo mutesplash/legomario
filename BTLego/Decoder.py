@@ -67,6 +67,9 @@ class LDev(IntEnum):
 	MOTOR_M_G = 0x4b
 	MOTOR_L_G = 0x4c
 	MARIO_ALT = 0x55	# 'Mario Alt Events'
+	MOTOR_PLAYVM = 0x56
+	MOTOR_PLAYVM_STEER = 0x57
+
 
 # FIXME: Completely confused on upstream/downstream, fix the nomenclature in the comments
 
@@ -86,7 +89,8 @@ class Decoder():
 		0x45:'peach',
 		0x60:'smartbrick',	# "SMART Brick" Uses WDX proto, not LWP. Check out this hero: https://github.com/nathankellenicki/node-smartplay/blob/main/notes/PROTOCOL.md
 		0x80:'hub_2',		# "Hub No. 2" Lego 88012, Default name of "Technic Hub", "LEGO Powered Up Technic Hub"
-		0x83:'spikesmall'
+		0x83:'spikesmall',
+		0x84:'technicmove'
 	}
 
 	ble_dev_classes = {
@@ -99,7 +103,8 @@ class Decoder():
 		0x45:'Mario',		# Peach
 		0x60:'BLE_Smartbrick',
 		0x80:'Hub2',
-		0x83:'SpikeEssential'
+		0x83:'SpikeEssential',
+		0x84:'Hub19'	# Identifies itself as "Technic Move  "
 	}
 
 	#https://lego.github.io/lego-ble-wireless-protocol-docs/index.html#message-typ
@@ -201,6 +206,16 @@ class Decoder():
 		0x49:'Mario RGB Scanner',	# The code & color scanner
 		0x4a:'Mario Pants Sensor',
 		0x55:'Mario Alt Events',
+
+		0x56:'Technic Move Motor',
+		0x57:'Technic Move Steering Motor',
+		0x58:'UNKNOWN TECHNIC 88 LIGHT DEVICE',
+		0x59:'UNKNOWN TECHNIC 89 PLAYVM DEVICE',
+
+		0x5c:'UNKNOWN TECHNIC 92 ACTION DEVICE',
+		0x5d:'UNKNOWN TECHNIC 93 ORIENTATION DEVICE',
+		0x5e:'UNKNOWN TECHNIC 94 GESTURE DEVICE',
+		0x5f:'UNKNOWN TECHNIC 95 GESTURE DEVICE'
 	}
 
 	hub_alert_type_str = {
