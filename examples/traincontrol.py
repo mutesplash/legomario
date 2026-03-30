@@ -69,14 +69,14 @@ async def controller_callback(message):
 		if message_key == 'left' and message_value == 'center':
 			if train_device:
 				print(f'TRAIN BEEP')
-				await train_device.send_device_message(LDev.DUPLO_BEEPER, ('play_sound',(color_to_sounds[color_index[selected_color]],)))
+				train_device.send_device_message(LDev.DUPLO_BEEPER, ('play_sound',(color_to_sounds[color_index[selected_color]],)))
 
 		# Stop
 		if message_key == 'right' and message_value == 'center':
 			train_speed = 0
 			print(f'TRAIN SPEED {train_speed}')
 			if train_device:
-				await train_device.send_device_message(LDev.DUPLO_MOTOR, ('set_speed',(train_speed,)))
+				train_device.send_device_message(LDev.DUPLO_MOTOR, ('set_power',(train_speed,)))
 
 		# Accel
 		if message_key == 'right' and message_value == 'plus':
@@ -84,7 +84,7 @@ async def controller_callback(message):
 				train_speed += 10
 			print(f'TRAIN SPEED {train_speed}')
 			if train_device:
-				await train_device.send_device_message(LDev.DUPLO_MOTOR, ('set_speed',(train_speed,)))
+				train_device.send_device_message(LDev.DUPLO_MOTOR, ('set_power',(train_speed,)))
 
 		# Decel
 		if message_key == 'right' and message_value == 'minus':
@@ -92,27 +92,27 @@ async def controller_callback(message):
 				train_speed -= 10
 			print(f'TRAIN SPEED {train_speed}')
 			if train_device:
-				await train_device.send_device_message(LDev.DUPLO_MOTOR, ('set_speed',(train_speed,)))
+				train_device.send_device_message(LDev.DUPLO_MOTOR, ('set_power',(train_speed,)))
 
 		# Cycle LED up
 		if message_key == 'left' and message_value == 'plus':
 			selected_color += 1
 			if selected_color >= len(color_index):
 				selected_color = 0
-			await current_device.send_device_message(LDev.RGB, ('set_color',(color_index[selected_color],)))
+			current_device.send_device_message(LDev.RGB, ('set_color',(color_index[selected_color],)))
 			if train_device:
 				print(f'TRAIN COLOR')
-				await train_device.send_device_message(LDev.RGB, ('set_color',(color_index[selected_color],)))
+				train_device.send_device_message(LDev.RGB, ('set_color',(color_index[selected_color],)))
 
 		# Cycle LED down
 		if message_key == 'left' and message_value == 'minus':
 			selected_color -= 1
 			if selected_color < 0:
 				selected_color = len(color_index)-1
-			await current_device.send_device_message(LDev.RGB, ('set_color',(color_index[selected_color],)))
+			current_device.send_device_message(LDev.RGB, ('set_color',(color_index[selected_color],)))
 			if train_device:
 				print(f'TRAIN COLOR')
-				await train_device.send_device_message(LDev.RGB, ('set_color',(color_index[selected_color],)))
+				train_device.send_device_message(LDev.RGB, ('set_color',(color_index[selected_color],)))
 
 
 	elif message_type == 'connection_request':

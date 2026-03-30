@@ -1,5 +1,3 @@
-import asyncio
-
 from .LPF_Device import LPF_Device, Devtype
 from ..Decoder import Decoder
 
@@ -82,14 +80,15 @@ class UltraDist(LPF_Device):
 					wat_dis = -1
 				return ('ultrasonic','t_raw', wat_dis)
 
-	async def send_message(self, message, gatt_payload_writer):
-		processed = await super().send_message(message, gatt_payload_writer)
+	def send_message(self, message, gatt_payload_writer):
+		processed = super().send_message(message, gatt_payload_writer)
 		if processed:
 			return processed
 		# ( action, (parameters,) )
 
 		action = message[0]
 		parameters = message[1]
+		payload = None
 
 		if action == 'use_mm':
 			self._use_cm = False
@@ -131,8 +130,6 @@ class UltraDist(LPF_Device):
 				left_lower
 			])
 			payload[0] = len(payload)
-			await gatt_payload_writer(payload)
-			return True
 
 		elif action == 'ping':
 
@@ -153,8 +150,10 @@ class UltraDist(LPF_Device):
 				ping_data
 			])
 			payload[0] = len(payload)
-			await gatt_payload_writer(payload)
-			return True
 
+		if payload:
+			# FIXME: Did you even test if you have to select_mode_if_not_selected() ?
+			gatt_payload_writer(payload)
+			return True
 
 		return False

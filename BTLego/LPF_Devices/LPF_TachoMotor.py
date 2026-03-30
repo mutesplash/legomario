@@ -1,5 +1,3 @@
-import asyncio
-
 from .LPF_Device import LPF_Device, Devtype
 from ..Decoder import Decoder
 from .LPF_EncoderMotor import LPF_EncoderMotor
@@ -22,14 +20,14 @@ class LPF_TachoMotor(LPF_EncoderMotor):
 
 		return super().decode_pvs(port, data)
 
-	async def send_message(self, message, gatt_payload_writer):
+	def send_message(self, message, gatt_payload_writer):
 		'''
 		Message tuple:
 		( 'set_position', angle )
 			Where angle is an integer from -180 to 179
 
 		'''
-		processed = await super().send_message(message, gatt_payload_writer)
+		processed = super().send_message(message, gatt_payload_writer)
 		if processed:
 			return processed
 		# ( action, (parameters,) )
@@ -62,6 +60,6 @@ class LPF_TachoMotor(LPF_EncoderMotor):
 			payload[0] = len(payload)
 
 		if payload:
-			await gatt_payload_writer(payload)
+			gatt_payload_writer(payload)
 			return True
 		return False

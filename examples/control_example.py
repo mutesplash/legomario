@@ -37,7 +37,7 @@ sys_data = {
 	'selected_device_index': -1
 }
 
-async def select_next_player(sys_data):
+def select_next_player(sys_data):
 	is_a_handset = True
 	counted_devices = 0
 	while is_a_handset == True and counted_devices != len(sys_data['lego_devices']):
@@ -71,9 +71,7 @@ async def select_next_player(sys_data):
 			rgb_color = 0xa
 
 	if rgb_color:
-		async def set_rgb(this_device, rgb_color):
-			await this_device.send_device_message(LDev.RGB, ('set_color',(rgb_color,)))
-		BTLego.await_function_off_bleak_callback(set_rgb(handset_device, rgb_color))
+		handset_device.send_device_message(LDev.RGB, ('set_color',(rgb_color,)))
 
 async def mario_callback(message):
 	# ( cb_uuid, type, key, value )
@@ -120,16 +118,14 @@ async def controller_callback(message):
 
 	elif message_type == 'controller_buttons':
 		if message_key == 'left' and message_value == 'center':
-			async def turnoff_handset(current_device):
-				if current_device:
-					# Flip the light a bunch of colors and then turn off the controller
-					for color in Decoder.rgb_light_colors:
-						await current_device.send_device_message(LDev.RGB, ('set_color',(color,)))
-					await current_device.turn_off()
-					await asyncio.sleep(1)
-				else:
-					print('WHY IS THIS CALLBACK USING A DEAD OBJECT?')
-			BTLego.await_function_off_bleak_callback(turnoff_handset(current_device))
+			if current_device:
+				# Flip the light a bunch of colors and then turn off the controller
+				for color in Decoder.rgb_light_colors:
+					current_device.send_device_message(LDev.RGB, ('set_color',(color,)))
+				current_device.turn_off()
+				await asyncio.sleep(1)
+			else:
+				print('WHY IS THIS CALLBACK USING A DEAD OBJECT?')
 			BTLego.await_function_off_bleak_callback(None)
 
 		if message_key == 'right' and message_value == 'center':
@@ -137,43 +133,36 @@ async def controller_callback(message):
 			if sys_data['selected_device_index'] != -1:
 				sys_data['selected_device'] = sys_data['lego_devices'][list(sys_data['lego_devices'])[sys_data['selected_device_index']]]
 				if sys_data['selected_device']:
+					sys_data['selected_device'].turn_off()
+					sys_data['lego_devices'].pop(sys_data['selected_device'].address, None)
+					sys_data['selected_device'] = None
+					sys_data['selected_device_index'] = -1
 
-					async def turnoff(sys_data, target_device):
-						if target_device:
-							await target_device.turn_off()
-							sys_data['lego_devices'].pop(target_device.address, None)
-							sys_data['selected_device'] = None
-							sys_data['selected_device_index'] = -1
-
-							await current_device.send_device_message(LDev.RGB, ('set_color',(0xa,)))
-					BTLego.await_function_off_bleak_callback(turnoff(sys_data, sys_data['selected_device']))
+					current_device.send_device_message(LDev.RGB, ('set_color',(0xa,)))
 
 		if message_key == 'right' and message_value == 'plus':
 			if sys_data['selected_device']:
 				set_volume = sys_data['selected_device'].volume + 10
 				if set_volume > 100:
 					set_volume = 10
-				async def setvolume(sys_data):
-					print("Cranking "+sys_data['selected_device'].system_type+" volume to "+str(set_volume))
-					sys_data['selected_device'].volume = set_volume
-					await sys_data['selected_device'].send_property_message( HProp.MARIO_VOLUME, ('set', set_volume) )
-				BTLego.await_function_off_bleak_callback(setvolume(sys_data))
+				print("Cranking "+sys_data['selected_device'].system_type+" volume to "+str(set_volume))
+				sys_data['selected_device'].volume = set_volume
+				sys_data['selected_device'].send_property_message( HProp.MARIO_VOLUME, ('set', set_volume) )
 
 		if message_key == 'right' and message_value == 'minus':
 			if sys_data['selected_device']:
 				set_volume = sys_data['selected_device'].volume - 10
 				if set_volume < 0:
 					set_volume = 100
-				async def setvolume(sys_data):
-					print("Turning "+sys_data['selected_device'].system_type+" volume down to "+str(set_volume))
-					sys_data['selected_device'].volume = set_volume
-					await sys_data['selected_device'].send_property_message( HProp.MARIO_VOLUME, ('set', set_volume) )
-				BTLego.await_function_off_bleak_callback(setvolume(sys_data))
+
+				print("Turning "+sys_data['selected_device'].system_type+" volume down to "+str(set_volume))
+				sys_data['selected_device'].volume = set_volume
+				sys_data['selected_device'].send_property_message( HProp.MARIO_VOLUME, ('set', set_volume) )
 
 	elif message_type == 'connection_request':
 		if message_key == 'button' and message_value == 'down':
 			# Change player the the right buttons control
-			await select_next_player(sys_data)
+			select_next_player(sys_data)
 
 def find_first_device(system_type):
 	global sys_data

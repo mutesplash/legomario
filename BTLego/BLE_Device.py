@@ -81,7 +81,7 @@ class BLE_Device():
 	# ---- Things Normal People Can Do ----
 	# (Not really all of them, there are some direct bluetooth things below)
 
-	async def dump_status(self):
+	def dump_status(self):
 		self.logger.info("CLIENT SERVICE LIST:")
 		for svc in self.client.services:
 			self.logger.info(f'\tService: {svc}')
@@ -128,13 +128,6 @@ class BLE_Device():
 					if sub_count > 0:
 						if not await self._set_hardware_subscription(event_sub_type, True):
 							self.logger.error("INVALID Subscription option on connect:"+event_sub_type)
-
-				await self._inital_connect_updates()
-
-				# Signal connect finished
-				self.message_queue.put(('info','player',self.system_type))
-				# Replace the above signal with something more accurate
-				self.message_queue.put(('info','connected',self.system_type))
 
 			except Exception as e:
 				self.logger.error("Unable to connect to "+str(device.address) + ": "+str(e))
@@ -269,6 +262,9 @@ class BLE_Device():
 				else:
 					self._set_callback_subscriptions(parameters[0], parameters[1], parameters[2])
 
+		if self.TRACE:
+			self.logger.debug(f'DONE WITH DRAINLOCK QUEUE')
+
 	async def _drain_messages(self):
 		async with self.drain_lock:
 			while not self.message_queue.empty():
@@ -278,13 +274,20 @@ class BLE_Device():
 					# message_type in subscriptions
 					if message[0] in callback_settings[1]:
 						# callback( ( dev_addr, type, key, value ) )
+						if self.TRACE:
+							self.logger.debug(f'DRAINING {message} to {callback_uuid}')
 						await callback_settings[0]((callback_uuid,) + message)
 						served = True
 				if not served:
 					self.logger.debug(f'{self.system_type} had no subscribers for message:{message}')
 
 			# Process any registrations that occurred during the above dispatch
+
+			if self.TRACE:
+				self.logger.debug(f'PROCESS DRAINLOCK QUEUE')
 			await self.__process_drainlock_queue()
+			if self.TRACE:
+				self.logger.debug(f'PROCESS DRAINLOCK COMPLETE')
 
 	# return the tuple of subscriptions that were set
 	# Assumes you filtered this to only valid message types
@@ -349,6 +352,8 @@ class BLE_Device():
 
 		self.logger.debug(f'{self.system_type} Draining for: '+bt_message['readable'])
 		await self._drain_messages()
+		if self.TRACE:
+			self.logger.debug(f'{self.system_type} Drained')
 
 	# Returns false if unprocessed
 	# Override in subclass, call super if you don't process the bluetooth message type
@@ -363,12 +368,18 @@ class BLE_Device():
 
 	# ---- Bluetooth port writes for mortals ----
 
-	async def _gatt_send(self, payload):
+	def _gatt_send(self, payload):
+		from . import await_function_off_bleak_callback
+
 		if self.connected:
 			if self.TRACE:
 				self.logger.debug("GATT SEND: "+" ".join(hex(n) for n in payload))
-			await self.client.write_gatt_char(self.characteristic_uuid, payload)
-			await asyncio.sleep(self.gatt_send_rate_limit)
+			async def delayed_gatt_write(char_uuid, payload, sleep_time):
+				await self.client.write_gatt_char(char_uuid, payload)
+				await asyncio.sleep(sleep_time)
+			await_function_off_bleak_callback(delayed_gatt_write(self.characteristic_uuid, payload, self.gatt_send_rate_limit))
+			if self.TRACE:
+				self.logger.debug("GATT CMPL: "+" ".join(hex(n) for n in payload))
 			return True
 		else:
 			self.logger.warn("GATT SEND PROHIBITED: NOT CONNECTED")

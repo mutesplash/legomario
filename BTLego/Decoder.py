@@ -213,10 +213,12 @@ class Decoder():
 		0x58:'Technic Move Six-LED Control',
 		0x59:'UNKNOWN TECHNIC 89 PLAYVM DEVICE',
 
-		0x5c:'UNKNOWN TECHNIC 92 ACTION DEVICE',
-		0x5d:'UNKNOWN TECHNIC 93 ORIENTATION DEVICE',
+		0x5c:'IDK PlayVM Events Maybe???',
+		0x5d:'Technic Move Orientation Sensor',
 		0x5e:'UNKNOWN TECHNIC 94 GESTURE DEVICE',
-		0x5f:'UNKNOWN TECHNIC 95 GESTURE DEVICE'
+		0x5f:'UNKNOWN TECHNIC 95 GESTURE DEVICE',
+
+		0x60:'Mario Telemetry'
 	}
 
 	hub_alert_type_str = {

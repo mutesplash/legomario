@@ -1,4 +1,3 @@
-import asyncio
 from enum import IntEnum
 
 from .LPF_Device import LPF_Device, Devtype
@@ -71,14 +70,16 @@ class Vision(LPF_Device):
 				output_port = int(port)
 		return output_port
 
-	async def send_message(self, message, gatt_payload_writer):
-		processed = await super().send_message(message, gatt_payload_writer)
+	def send_message(self, message, gatt_payload_writer):
+		processed = super().send_message(message, gatt_payload_writer)
 		if processed:
 			return processed
 		# ( action, (parameters,) )
 
 		action = message[0]
 		parameters = message[1]
+		payload = None
+		mode = None
 
 		# You'd think "0-10, must be the RGB.0  colors"
 		# LOL NO.  This only toggles the individual LEDs on and off
@@ -107,10 +108,6 @@ class Vision(LPF_Device):
 			])
 			payload[0] = len(payload)
 
-			await self.select_mode_if_not_selected(5, gatt_payload_writer)
-			await gatt_payload_writer(payload)
-			return True
-
 		# I don't know what the toggle is for, but, might as well expose it
 		elif action == 'set_ir_toggle':
 			# ( int )
@@ -137,58 +134,40 @@ class Vision(LPF_Device):
 		elif action == 'set_ir_sop':
 			# ( int, str/int/idk, int )
 			channel, port, action = parameters
+			mode = 7
 			payload = self.ir_payload_sop(channel, port, action)
-			if payload:
-				await self.select_mode_if_not_selected(7, gatt_payload_writer)
-				await gatt_payload_writer(payload)
-				return True
 
 		elif action == 'set_ir_so_cstid':
 			# ( int, str/int/idk, int )
 			channel, port, action = parameters
+			mode = 7
 			payload = self.ir_payload_socstid(channel, port, action)
-			if payload:
-				await self.select_mode_if_not_selected(7, gatt_payload_writer)
-				await gatt_payload_writer(payload)
-				return True
 
 		elif action == 'set_ir_combo_pwm':
 			# ( int, int, int )
 			channel, a_mode, b_mode = parameters
+			mode = 7
 			payload = self.ir_payload_combo_pwm(channel, a_mode, b_mode)
-			if payload:
-				await self.select_mode_if_not_selected(7, gatt_payload_writer)
-				await gatt_payload_writer(payload)
-				return True
 
 		elif action == 'set_ir_combo_direct':
 			# ( int, int, int )
 			channel, a_output, b_output = parameters
 			# FIXME: Why are these "outputs" instead of "modes" compared to combo PWM?
 			# And just because the documents list them that way is not a good reason
+			mode = 7
 			payload = self.ir_payload_combo_direct(channel, a_output, b_output)
-			if payload:
-				await self.select_mode_if_not_selected(7, gatt_payload_writer)
-				await gatt_payload_writer(payload)
-				return True
 
 		elif action == 'set_ir_combo_extended':
 			# ( int, int )
-			channel, mode = parameters
-			payload = self.ir_payload_extended(channel, mode)
-			if payload:
-				await self.select_mode_if_not_selected(7, gatt_payload_writer)
-				await gatt_payload_writer(payload)
-				return True
+			channel, mode_action = parameters
+			mode = 7
+			payload = self.ir_payload_extended(channel, mode_action)
 
 		elif action == 'set_ir_single_pin':
 			# ( int, int/str/idk, int, int, int )
-			channel, port, pin, mode, timeout = parameters
-			payload = self.ir_payload_single_pin(channel, port, pin, mode, timeout)
-			if payload:
-				await self.select_mode_if_not_selected(7, gatt_payload_writer)
-				await gatt_payload_writer(payload)
-				return True
+			channel, port, pin, mode_action, timeout = parameters
+			mode = 7
+			payload = self.ir_payload_single_pin(channel, port, pin, mode_action, timeout)
 
 		elif action == 'set_mode':
 			# ( int, )
@@ -197,7 +176,12 @@ class Vision(LPF_Device):
 				self._selected_mode = mode
 			else:
 				return False
-			return await self.PIF_single_setup(self._selected_mode, False, gatt_payload_writer)
+			return self.PIF_single_setup(self._selected_mode, False, gatt_payload_writer)
+
+		if payload:
+			self.select_mode_if_not_selected(mode, gatt_payload_writer)
+			gatt_payload_writer(payload)
+			return True
 
 		return False
 
@@ -607,7 +591,7 @@ class Vision(LPF_Device):
 
 		# I COULD let people shoot themselves in the foot by using self._selected_mode
 		# or I could just set this to the correct value and hope that _I_ jam
-		# await select_mode_if_not_selected(7) in front of any IR payload write
+		# select_mode_if_not_selected(7) in front of any IR payload write
 		mode = 7
 
 		if nibble1 > 0xF or nibble2 > 0xF or nibble3 > 0xF:

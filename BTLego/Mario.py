@@ -8,7 +8,7 @@ import json
 from bleak import BleakClient
 
 from .BLE_LWP_Device import BLE_LWP_Device
-from .Decoder import Decoder
+from .Decoder import Decoder, HProp
 from .MarioScanspace import MarioScanspace
 
 class Mario(BLE_LWP_Device):
@@ -73,17 +73,48 @@ class Mario(BLE_LWP_Device):
 	def __init__(self,advertisement_data=None):
 		super().__init__(advertisement_data)
 
+		# Seems to advertise none when initially connected
+		self.minimum_attached_ports = 6
+
 		if self.system_type == 'mario':
 			self.part_identifier = "mar0007"
 		elif self.system_type == 'luigi':
 			self.part_identifier = "mar0062"
 		elif self.system_type == 'peach':
 			self.part_identifier = "mar0112"
+			# Yeah, so... what?  Maybe this is a firmware thing added sometime between v6.2.0.0 (not in here) and v6.5.1.0
+			self.minimum_attached_ports = 7
+			# Apologies while I figure out fw update strategy for this
+
+			# NOT un-updated mario
+			# mario Draining for: hub_properties - HW Version Update: v0.4.0.0
+			# mario Draining for: hub_properties - FW Version Update: v5.4.0.0
+			#
+			# NOT older, but more-updated mario
+			# mario Draining for: hub_properties - HW Version Update: v0.2.0.0
+			# mario Draining for: hub_properties - FW Version Update: v6.2.0.0
+			#
+			# NOT luigi
+			# luigi Draining for: hub_properties - HW Version Update: v0.5.0.0
+			# luigi Draining for: hub_properties - FW Version Update: v6.2.0.0
+			#
+			# YES peach
+			# peach Draining for: hub_properties - HW Version Update: v1.0.0.0
+			# peach Draining for: hub_properties - FW Version Update: v6.5.1.0
 
 		self.mode_probe_ignored_info_types = ( 0x7, 0x8 )	# Doesn't support motor bias or capability bits
 
 		# Mario defaults to this
 		self.volume = 100
+
+	async def connect(self, device):
+		await super().connect(device)
+
+		# Wake things up so devices will enumerate.
+		# Mario will say NOTHING on connect unless you talk to him
+		self.send_property_message( HProp.AD_NAME, ('get', None) )
+		self.send_property_message( HProp.HARDWARE, ('get', None) )
+		self.send_property_message( HProp.FIRMWARE, ('get', None) )
 
 	# Override
 	def _decode_property(self, prop_id, prop_value):

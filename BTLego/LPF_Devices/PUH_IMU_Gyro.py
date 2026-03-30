@@ -1,5 +1,3 @@
-import asyncio
-
 from .LPF_Device import LPF_Device, Devtype
 from ..Decoder import Decoder
 
@@ -67,8 +65,8 @@ class PUH_IMU_Gyro(LPF_Device):
 			print('UNKNOWN IMU ROTATIONAL GYRO DATA '+' '.join(hex(n) for n in data))
 			return None
 
-	async def send_message(self, message, gatt_payload_writer):
-		processed = await super().send_message(message, gatt_payload_writer)
+	def send_message(self, message, gatt_payload_writer):
+		processed = super().send_message(message, gatt_payload_writer)
 		if processed:
 			return processed
 		# ( action, (parameters,) )
@@ -80,4 +78,4 @@ class PUH_IMU_Gyro(LPF_Device):
 		if action == 'set_zero':
 			mode = 0x0
 			self.next_value_zero = True
-			return await self.get_port_info(mode, gatt_payload_writer)
+			return self.get_port_info(mode, gatt_payload_writer)

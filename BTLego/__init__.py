@@ -58,6 +58,9 @@ def await_function_off_bleak_callback(async_function):
 
 	Now, you still can block YOURSELF during the processing of this queue...
 
+	BLE_LWP_Device also uses this to keep from awaiting itself and blowing up
+	Bleak's queue during message processing that requires sending new GATT messages
+
 	To collapse both loops and quit async_run(), call this function with None
 	"""
 	__off_bleak_callback_queue__.put(async_function)
@@ -197,7 +200,7 @@ async def __drain_off_bleak_callback_calls():
 					thisloop = asyncio.get_running_loop()
 					if thisloop:
 						if thisloop.is_running():
-							# logger.debug(f'DRAINING OFF-CALLBACKS {fpair}')
+							logger.debug(f'DRAINING OFF-CALLBACKS {fpair}')
 							await asyncio.create_task(fpair)
 			await asyncio.sleep(0.1)
 	except KeyboardInterrupt:

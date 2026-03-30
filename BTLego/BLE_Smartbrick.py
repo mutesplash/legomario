@@ -31,7 +31,7 @@ class BLE_Smartbrick(BLE_Device):
 	async def _inital_connect_updates(self):
 		#print(self.advertisement)
 		print("Status...")
-		await self.dump_status()
+		self.dump_status()
 		print("Interrogating all known WDX Registers...")
 		await self.interrogate_known_registers()
 

@@ -7,6 +7,6 @@ class SpikeEssential(BLE_LWP_Device):
 
 		self.part_identifier = 45609
 
-		self.mode_probe_rate_limit = 0.8	# Not only small, but apparently also slow
+		self.minimum_attached_ports = 9
 
 		self.mode_probe_ignored_info_types = ( 0x7, 0x8 )	# Doesn't support motor bias or capability bits

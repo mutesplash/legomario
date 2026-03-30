@@ -1,4 +1,3 @@
-import asyncio
 from enum import IntEnum
 from queue import SimpleQueue
 
@@ -130,7 +129,7 @@ class LPF_Device():
 				lpf_classobj.generated_message_types = ()
 		return lpf_classobj.generated_message_types
 
-	async def send_message(self, message, gatt_payload_writer):
+	def send_message(self, message, gatt_payload_writer):
 		"""
 		gatt_payload_writer:
 			This should be the lambda from BLE_device class that owns this device
@@ -142,7 +141,7 @@ class LPF_Device():
 
 		if action == 'delta_set':
 			mode, delta_interval = parameters
-			return await self.set_mode_delta(mode, delta_interval)
+			self.set_mode_delta(mode, delta_interval)
 
 		# ( action, (parameters,) )
 		return False
@@ -162,7 +161,7 @@ class LPF_Device():
 		print(f'{self.name} PORT {port} LPF_DATA: '+' '.join(hex(n) for n in data))
 		return None
 
-	async def get_port_info(self, mode, gatt_payload_writer):
+	def get_port_info(self, mode, gatt_payload_writer):
 		"""
 		This function does a (negative) select on the provided mode
 		and then Port Info Request (0x21)
@@ -171,7 +170,7 @@ class LPF_Device():
 		Information Type 0: Request port_value_single value
 		"""
 
-		await self.select_mode_if_not_selected(mode, gatt_payload_writer)
+		self.select_mode_if_not_selected(mode, gatt_payload_writer)
 
 		information_type = 0
 		payload = bytearray([
@@ -184,13 +183,13 @@ class LPF_Device():
 		])
 		payload[0] = len(payload)
 
-		results = await gatt_payload_writer(payload)
+		results = gatt_payload_writer(payload)
 
 		# Yeah, even doing this, seems very race condition-y
 		self.outstanding_requests.put(mode)
 		return results
 
-	async def subscribe_to_messages(self, message_type, should_subscribe, gatt_payload_writer):
+	def subscribe_to_messages(self, message_type, should_subscribe, gatt_payload_writer):
 		"""
 		Request the device emit or stop returning message_type tuples by setting
 		the port's mode information format.
@@ -202,13 +201,13 @@ class LPF_Device():
 				subbed_anything = False
 				for mode_int in self.mode_subs:
 					if message_type in self.mode_subs[mode_int][3]:
-						sub_result = await self.PIF_single_setup(mode_int, should_subscribe, gatt_payload_writer)
+						sub_result = self.PIF_single_setup(mode_int, should_subscribe, gatt_payload_writer)
 						if not subbed_anything:
 							subbed_anything = sub_result
 				return subbed_anything
 		return False
 
-	async def set_mode_delta(self, mode, delta_interval):
+	def set_mode_delta(self, mode, delta_interval):
 		"""
 		Set the numerical limit of change in the value of the specified mode that
 		is necessary to cause the device to report a value.
@@ -236,10 +235,10 @@ class LPF_Device():
 		self.mode_subs[mode][0] = delta_interval
 
 		if mode == self._selected_mode:
-			return await self.PIF_single_setup(mode, self.mode_subs[mode][1], gatt_payload_writer)
+			return self.PIF_single_setup(mode, self.mode_subs[mode][1], gatt_payload_writer)
 		return True
 
-	async def PIF_single_setup(self, mode, should_subscribe, gatt_payload_writer):
+	def PIF_single_setup(self, mode, should_subscribe, gatt_payload_writer):
 		"""
 		Port Input Format (PIF) Setup for a single port (versus a combination of ports)
 		LWP Section 3.23.1
@@ -283,9 +282,9 @@ class LPF_Device():
 
 		self._selected_mode = mode
 
-		return await gatt_payload_writer(payload)
+		return gatt_payload_writer(payload)
 
-	async def select_mode_if_not_selected(self, mode, gatt_payload_writer):
+	def select_mode_if_not_selected(self, mode, gatt_payload_writer):
 		'''
 		This does the "negative subscribe" to select the device's mode,
 		unless it's already selected
@@ -300,4 +299,4 @@ class LPF_Device():
 		device, perhaps because different buffers need to be prepared
 		'''
 		if mode != self._selected_mode:
-			await self.PIF_single_setup(mode, False, gatt_payload_writer)
+			self.PIF_single_setup(mode, False, gatt_payload_writer)

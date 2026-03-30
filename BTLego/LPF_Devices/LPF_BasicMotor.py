@@ -1,5 +1,3 @@
-import asyncio
-
 from .LPF_Device import LPF_Device, Devtype
 from ..Decoder import Decoder
 
@@ -27,7 +25,7 @@ class LPF_BasicMotor(LPF_Device):
 
 		return super().decode_pvs(port, data)
 
-	async def send_message(self, message, gatt_payload_writer):
+	def send_message(self, message, gatt_payload_writer):
 		'''
 		Message tuple:
 		( 'set_power', power_value )
@@ -41,7 +39,7 @@ class LPF_BasicMotor(LPF_Device):
 
 		FIXME: READABLE DESPITE BEING LISTED AS NOT?
 		'''
-		processed = await super().send_message(message, gatt_payload_writer)
+		processed = super().send_message(message, gatt_payload_writer)
 		if processed:
 			return processed
 		# ( action, (parameters,) )
@@ -72,7 +70,7 @@ class LPF_BasicMotor(LPF_Device):
 			payload[0] = len(payload)
 
 		if payload:
-			# await self.select_mode_if_not_selected(mode, gatt_payload_writer)
-			await gatt_payload_writer(payload)
+			# self.select_mode_if_not_selected(mode, gatt_payload_writer)
+			gatt_payload_writer(payload)
 			return True
 		return False

@@ -7,4 +7,6 @@ class Hub19(BLE_LWP_Device):
 
 		self.part_identifier = '103479c01'
 
-		self.mode_probe_ignored_info_types = ( 0x7, 0x8 )	# Doesn't support motor bias or capability bits
+		self.minimum_attached_ports = 15
+
+		self.mode_probe_ignored_info_types = ( 0x7, )	# Doesn't support motor bias ??

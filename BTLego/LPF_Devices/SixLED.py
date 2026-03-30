@@ -1,5 +1,3 @@
-import asyncio
-
 from .LPF_Device import LPF_Device, Devtype
 from ..Decoder import Decoder
 
@@ -18,8 +16,8 @@ class SixLED(LPF_Device):
 			0: [ self.delta_interval, False, '6LEDS', ()]
 		}
 
-	async def send_message(self, message, gatt_payload_writer):
-		processed = await super().send_message(message, gatt_payload_writer)
+	def send_message(self, message, gatt_payload_writer):
+		processed = super().send_message(message, gatt_payload_writer)
 		if processed:
 			return processed
 		# ( action, (parameters,) )
@@ -40,6 +38,7 @@ class SixLED(LPF_Device):
 				return False
 
 			# Can't do multiple LEDs at the same time despite it seemingly being a bitfield
+			# FIXME: Bit shift this instead
 			led_bitselect = 0
 			if led_select == 1:
 				led_bitselect = 1
@@ -69,7 +68,7 @@ class SixLED(LPF_Device):
 				led_power
 			])
 			payload[0] = len(payload)
-			await gatt_payload_writer(payload)
+			gatt_payload_writer(payload)
 			return True
 
 		return False

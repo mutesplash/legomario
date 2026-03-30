@@ -1,5 +1,3 @@
-import asyncio
-
 from .LPF_Device import LPF_Device, Devtype
 from ..Decoder import Decoder
 
@@ -69,8 +67,8 @@ class Force(LPF_Device):
 
 		return None
 
-	async def send_message(self, message, gatt_payload_writer):
-		processed = await super().send_message(message, gatt_payload_writer)
+	def send_message(self, message, gatt_payload_writer):
+		processed = super().send_message(message, gatt_payload_writer)
 		if processed:
 			return processed
 		# ( action, (parameters,) )
@@ -80,10 +78,10 @@ class Force(LPF_Device):
 
 		if action == 'get_force':
 			mode = 0
-			return await self.get_port_info(mode, gatt_payload_writer)
+			return self.get_port_info(mode, gatt_payload_writer)
 
 		elif action == 'get_peak':
 			mode = 3
-			return await self.get_port_info(mode, gatt_payload_writer)
+			return self.get_port_info(mode, gatt_payload_writer)
 
 		return False

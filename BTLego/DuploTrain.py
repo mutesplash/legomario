@@ -1,7 +1,5 @@
 import asyncio
 
-from bleak import BleakClient
-
 from .BLE_LWP_Device import BLE_LWP_Device
 from .Decoder import Decoder
 
@@ -12,9 +10,7 @@ class DuploTrain(BLE_LWP_Device):
 
 		self.part_identifier = "28743c01"
 
-		# This thing is cranky and slow.  It takes 50 seconds to fully probe the thing
-		self.gatt_send_rate_limit = 0.2
-		self.mode_probe_rate_limit = 1.1
+		self.minimum_attached_ports = 6
 
 		self.mode_probe_ignored_info_types = ( 0x7, 0x8 )	# Doesn't support motor bias or capability bits
 
@@ -42,15 +38,15 @@ class DuploTrain(BLE_LWP_Device):
 					target_dev = dev
 
 		if target_dev:
-			await target_dev.send_message( ('play_sound', (0x3,)), self.gatt_writer)
+			target_dev.send_message( ('play_sound', (0x3,)), self.gatt_writer)
 			await asyncio.sleep(1.1)
-			await target_dev.send_message( ('play_sound', (0x7,)), self.gatt_writer)
+			target_dev.send_message( ('play_sound', (0x7,)), self.gatt_writer)
 			await asyncio.sleep(1.2)
-			await target_dev.send_message( ('play_sound', (0x7,)), self.gatt_writer)
+			target_dev.send_message( ('play_sound', (0x7,)), self.gatt_writer)
 			await asyncio.sleep(1.2)
-			await target_dev.send_message( ('play_sound', (0x7,)), self.gatt_writer)
+			target_dev.send_message( ('play_sound', (0x7,)), self.gatt_writer)
 			await asyncio.sleep(1.2)
-			await target_dev.send_message( ('play_sound', (0x7,)), self.gatt_writer)
+			target_dev.send_message( ('play_sound', (0x7,)), self.gatt_writer)
 
 	async def pretend_default_green_tile(self):
 		# Only sending this to ONE beeper dev.  SEEMS REASONABLE
@@ -62,9 +58,9 @@ class DuploTrain(BLE_LWP_Device):
 					target_dev = dev
 
 		if target_dev:
-			await target_dev.send_message( ('play_sound', (0x3,)), self.gatt_writer)
+			target_dev.send_message( ('play_sound', (0x3,)), self.gatt_writer)
 			await asyncio.sleep(1)
-			await target_dev.send_message( ('play_sound', (0xa,)), self.gatt_writer)
+			target_dev.send_message( ('play_sound', (0xa,)), self.gatt_writer)
 
 
 

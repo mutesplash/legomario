@@ -49,7 +49,10 @@ def LPF_class_for_type_id(type_id):
 		0x55:'Mario_Alt_Events',
 		0x56:'PlayVMMotor',
 		0x57:'PlayVMSteerMotor',
-		0x58:'SixLED'
+		0x58:'SixLED',
+
+		0x5c:'PlayVMEvents',
+		0x5d:'PlayVMTilt'
 	}
 
 	if type_id in dev_classes:

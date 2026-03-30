@@ -1,5 +1,3 @@
-import asyncio
-
 from .LPF_Device import LPF_Device, Devtype
 from ..Decoder import Decoder
 
@@ -58,8 +56,8 @@ class DT_Beeper(LPF_Device):
 			2: [ self.delta_interval, False, 'UI SND', ()]	# Beeps the UI typically makes
 		}
 
-	async def send_message(self, message, gatt_payload_writer):
-		processed = await super().send_message(message, gatt_payload_writer)
+	def send_message(self, message, gatt_payload_writer):
+		processed = super().send_message(message, gatt_payload_writer)
 		if processed:
 			return processed
 		# ( action, (parameters,) )
@@ -102,8 +100,8 @@ class DT_Beeper(LPF_Device):
 				noise_id
 			])
 			payload[0] = len(payload)
-			await self.select_mode_if_not_selected(mode, gatt_payload_writer)
-			await gatt_payload_writer(payload)
+			self.select_mode_if_not_selected(mode, gatt_payload_writer)
+			gatt_payload_writer(payload)
 			return True
 
 		return False

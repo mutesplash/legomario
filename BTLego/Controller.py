@@ -1,11 +1,3 @@
-import asyncio
-from queue import SimpleQueue
-from collections.abc import Iterable
-
-import json
-
-from bleak import BleakClient
-
 from .BLE_LWP_Device import BLE_LWP_Device
 from .Decoder import Decoder
 
@@ -15,5 +7,7 @@ class Controller(BLE_LWP_Device):
 		super().__init__(advertisement_data)
 
 		self.part_identifier = 88010
+
+		self.minimum_attached_ports = 5
 
 		self.mode_probe_ignored_info_types = ( 0x7, )	# Doesn't support motor bias

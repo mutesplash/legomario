@@ -8,6 +8,8 @@ class Hub4(BLE_LWP_Device):
 
 		self.part_identifier = 88009
 
+		self.minimum_attached_ports = 3
+
 		self.mode_probe_ignored_info_types = ( 0x8, )	# Doesn't support capability bits
 		# Seemingly the only hub to support motor bias
 

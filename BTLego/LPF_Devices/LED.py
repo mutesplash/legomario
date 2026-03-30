@@ -1,5 +1,3 @@
-import asyncio
-
 from .LPF_Device import LPF_Device, Devtype
 from ..Decoder import Decoder
 
@@ -22,8 +20,8 @@ class LED(LPF_Device):
 			0: [ self.delta_interval, False, 'LPF2-LIGHT', ()]
 		}
 
-	async def send_message(self, message, gatt_payload_writer):
-		processed = await super().send_message(message, gatt_payload_writer)
+	def send_message(self, message, gatt_payload_writer):
+		processed = super().send_message(message, gatt_payload_writer)
 		if processed:
 			return processed
 		# ( action, (parameters,) )
@@ -53,7 +51,7 @@ class LED(LPF_Device):
 				power
 			])
 			payload[0] = len(payload)
-			await gatt_payload_writer(payload)
+			gatt_payload_writer(payload)
 			return True
 
 		return False
