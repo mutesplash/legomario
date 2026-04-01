@@ -16,6 +16,8 @@ from .LPF_Devices import *
 from .LPF_Devices.LPF_Device import generate_valid_lpf_message_types
 
 from .HubProperty import HubProperty
+from .HubPort import HubPort
+from .HubPortModeInfo import HubPortModeInfo
 
 from .BLE_Device import BLE_Device
 
@@ -117,6 +119,9 @@ class BLE_LWP_Device(BLE_Device):
 	def _init_port_data(self, bt_message):
 
 		port = bt_message['port']
+		if not port in self.ports:
+			self.ports[port] = HubPort(port)
+
 		port_id = bt_message['io_type_id']
 		port_classname = LPF_class_for_type_id(port_id)
 		self.port_mode_info['port_count'] += 1
@@ -125,25 +130,28 @@ class BLE_LWP_Device(BLE_Device):
 			# https://stackoverflow.com/a/547867
 			port_module = __import__('BTLego.LPF_Devices.'+port_classname, fromlist=[port_classname])
 			port_classobj = getattr(port_module, port_classname)
-			self.ports[port] = port_classobj()
-			self.ports[port].port = port
-			self.ports[port].port_id = port_id
-			self.ports[port].hw_ver_str = bt_message['hw_ver_str']
-			self.ports[port].fw_ver_str = bt_message['sw_ver_str']
-			if port_id in Decoder.io_type_id_str:
-				self.ports[port].name = Decoder.io_type_id_str[port_id]
-			else:
-				self.logger.error(f'Previously unknown port identifier {port_id} on device {self.__class__.__name__}')
-				self.ports[port].name = f"UNKNOWN_DEV_ON_PORT_{port_id}"
-			self.ports[port].status = 0x1		# Decoder.io_event_type_str[0x1]
-			for message_type, sub_count in self.BLE_event_subscriptions.items():
-				if sub_count > 0:
-					self.ports[port].subscribe_to_messages(message_type, True, self.gatt_writer)
-					# On init, don't have to unsub
+			attaching_device = port_classobj()
 
 			if port_classname == 'LPF_Device':
-				devname = self.ports[port].name
-				self.logger.warning(f'Class {self.__class__.__name__} contains device type id {port_id} ({devname}) on port {port} that has no class handler')
+				self.logger.warning(f'Class {self.__class__.__name__} contains device type id {port_id} ({attaching_device.name}) on port {port} that has no class handler')
+
+			attaching_device.port = port
+			attaching_device.port_id = port_id
+			attaching_device.hw_ver_str = bt_message['hw_ver_str']
+			attaching_device.fw_ver_str = bt_message['sw_ver_str']
+			if port_id in Decoder.io_type_id_str:
+				attaching_device.name = Decoder.io_type_id_str[port_id]
+			else:
+				self.logger.error(f'Previously unknown port identifier {port_id} on device {self.__class__.__name__}')
+				attaching_device.name = f"UNKNOWN_DEV_ON_PORT_{port_id}"
+
+			attaching_device.status = 0x1		# Decoder.io_event_type_str[0x1]
+			for message_type, sub_count in self.BLE_event_subscriptions.items():
+				if sub_count > 0:
+					attaching_device.subscribe_to_messages(message_type, True, self.gatt_writer)
+					# On init, don't have to unsub
+
+			self.ports[port].attach_device(attaching_device)
 
 			# FIXME: Ah, this is fun:  On hub4, Voltage, RGB and Current are laggards so this returns too early
 			self.message_queue.put(('device_ready', port_id, port))
@@ -159,8 +167,7 @@ class BLE_LWP_Device(BLE_Device):
 
 	def _detach_lpf_device(self,port):
 		if port in self.ports:
-			lpf_dev = self.ports[port]
-			lpf_dev.status = 0x0		# Decoder.io_event_type_str[0x0]
+			self.ports[port].detach_device()
 			del self.ports[port]
 
 	def _reset_port_mode_info(self):
@@ -198,7 +205,8 @@ class BLE_LWP_Device(BLE_Device):
 		super().dump_status()
 		self.logger.info("PORT LIST\n")
 		for port in self.ports:
-			dev = self.ports[port]
+			dev = self.ports[port].attached_device
+
 			self.logger.info(f'\tPort {dev.port} {dev.name} : {dev.devtype} {dev.mode_subs} HW:{dev.hw_ver_str} FW:{dev.fw_ver_str}')
 		self.logger.info("PROPERTY LIST\n")
 		for prop_int, propobj in self.properties.items():
@@ -216,7 +224,7 @@ class BLE_LWP_Device(BLE_Device):
 			return False
 
 		for port in self.ports:
-			await self.ports[port].subscribe_to_messages(message_type, should_subscribe, self.gatt_writer)
+			self.ports[port].attached_device.subscribe_to_messages(message_type, should_subscribe, self.gatt_writer)
 		return True
 
 	# FIXME: Dead code path?
@@ -254,7 +262,9 @@ class BLE_LWP_Device(BLE_Device):
 				port_text = "port "+str(bt_message['port'])
 
 				if bt_message['port'] in self.ports:
-					port_text = self.ports[bt_message['port']].name+" port ("+str(bt_message['port'])+")"
+					port = bt_message['port']
+					device = self.ports[port].attached_device
+					port_text = f"{device.name} port ({port})"
 
 				self.logger.debug(msg_prefix+msg+port_text+", mode "+str(bt_message['mode']))
 
@@ -262,9 +272,9 @@ class BLE_LWP_Device(BLE_Device):
 		elif Decoder.message_type_str[bt_message['type']] == 'hub_attached_io':
 			event = Decoder.io_event_type_str[bt_message['event']]
 
-			reattached = -1
+			port = -1
 			if bt_message['port'] in self.ports:
-				reattached = bt_message['port']
+				port = bt_message['port']
 
 			if event == 'attached':
 				dev = "UNKNOWN DEVICE"
@@ -273,9 +283,10 @@ class BLE_LWP_Device(BLE_Device):
 				else:
 					dev += "_"+str(bt_message['io_type_id'])
 
-				if reattached != -1:
+				if port != -1:
 					self.logger.info(msg_prefix+"Re-attached "+dev+" on port "+str(bt_message['port']))
-					self.ports[reattached].status = bt_message['event']
+					device = self.ports[port].attached_device
+					device.status = bt_message['event']
 				else:
 					self.logger.info(msg_prefix+"Attached "+dev+" on port "+str(bt_message['port']))
 					# Can't mess with the port list outside of the drain lock
@@ -297,14 +308,15 @@ class BLE_LWP_Device(BLE_Device):
 
 			device = None
 			if bt_message['port'] in self.ports:
-				device = self.ports[bt_message['port']]
+				port = bt_message['port']
+				device = self.ports[port].attached_device
 				if device:
-					if bt_message['port'] != device.port:
-						self.logger.error("CONSISTENCY ERROR: DEVICE ON PORT "+str(bt_message['port'])+f" NOT EQUAL TO PORT {device.port} IN CLASS ")
+					if port != device.port:
+						self.logger.error(f"CONSISTENCY ERROR: DEVICE ON PORT {port} NOT EQUAL TO PORT {device.port} IN CLASS")
 						# FIXME: Harsh?
 						quit()
 
-					message = device.decode_pvs(bt_message['port'], bt_message['value'])
+					message = device.decode_pvs(port, bt_message['value'])
 					if message is None:
 						if self.TRACE:
 							self.logger.debug(f'{msg_prefix} {device.name} ({device.__class__.__name__}) declared NO-OP for PVS:'+bt_message['readable'])
@@ -313,13 +325,13 @@ class BLE_LWP_Device(BLE_Device):
 							if message[0] != 'noop':
 								self.message_queue.put(message)
 						elif len(message) == 2 or len(message) > 3:
-							self.logger.error(f'{msg_prefix}{message[0]} on {device.name} port '+str(bt_message['port'])+f' missing key & value while processing PVS:{message[1]}')
+							self.logger.error(f'{msg_prefix}{message[0]} on {device.name} port {port} missing key & value while processing PVS:{message[1]}')
 						else:
-							self.logger.error(f'{msg_prefix} {device.name} FAILED TO DECODE PVS DATA ON PORT '+str(bt_message['port'])+":"+" ".join(hex(n) for n in bt_message['value']))
+							self.logger.error(f'{msg_prefix} {device.name} FAILED TO DECODE PVS DATA ON PORT {port}:'+" ".join(hex(n) for n in bt_message['value']))
 				else:
-					self.logger.error(f'{msg_prefix} Received data for unconfigured port '+str(bt_message['port'])+':'+bt_message['readable'])
+					self.logger.error(f'{msg_prefix} Received data for unconfigured port {port}:'+bt_message['readable'])
 			else:
-				self.logger.error(f'{msg_prefix} No idea what kind of PVS:'+bt_message['readable'])
+				self.logger.error(f'{msg_prefix} No idea what kind of PVS:{port}')
 
 		elif Decoder.message_type_str[bt_message['type']] == 'hub_properties':
 			if not Decoder.hub_property_op_str[bt_message['operation']] == 'Update':
@@ -374,7 +386,7 @@ class BLE_LWP_Device(BLE_Device):
 	async def _decode_mode_info_and_interrogate(self, bt_message):
 
 		port = bt_message['port']
-		device = self.ports[port]
+		device = self.ports[port].attached_device
 		if not 'num_modes' in bt_message:
 			if 'mode_combinations' in bt_message and port in self.port_mode_info:
 				self.port_mode_info[port]['combinations'] = bt_message['mode_combinations']
@@ -399,8 +411,8 @@ class BLE_LWP_Device(BLE_Device):
 		self.port_mode_info[port]['port_class'] = device.__class__.__name__
 		self.port_mode_info[port]['parent_hub_driver'] = self.__class__.__name__
 		self.port_mode_info[port]['parent_type'] = self.system_type
-		self.port_mode_info[port]['hw'] = self.ports[port].hw_ver_str
-		self.port_mode_info[port]['fw'] = self.ports[port].fw_ver_str
+		self.port_mode_info[port]['hw'] = device.hw_ver_str
+		self.port_mode_info[port]['fw'] = device.fw_ver_str
 		self.port_mode_info[port]['mode_info_requests_outstanding'] = { }
 
 		# Does not note the entire bt_message['port_mode_capabilities']
@@ -413,7 +425,7 @@ class BLE_LWP_Device(BLE_Device):
 		if bt_message['port_mode_capabilities']['logic_combineable']:
 			# This is a signal to check for combinations (3.15.2)
 			self.logger.debug(f'\tRequest port {port} combinations...')
-			self._write_port_info_request(port, 0x2)
+			self._gatt_send(HubPort.payload_for_port_info(port, 0x2))
 
 		def scan_mode(direction, port, mode):
 			if not mode in self.port_mode_info[port]:
@@ -443,7 +455,7 @@ class BLE_LWP_Device(BLE_Device):
 			frozen_requests = list(self.port_mode_info[port][mode]['requests_outstanding'].items())
 			for hexkey, requested in frozen_requests:
 				if requested:
-					self._write_port_mode_info_request(port,mode,hexkey)
+					self._gatt_send(HubPortModeInfo.payload_for_port_mode_info_request(port,mode,hexkey))
 
 		bit_value = 1
 		mode_number = 0
@@ -532,7 +544,7 @@ class BLE_LWP_Device(BLE_Device):
 		mode = bt_message['mode']
 
 		if port in self.ports:
-			device = self.ports[port]
+			device = self.ports[port].attached_device
 			readable += device.name+' ('+str(port)+')'
 		else:
 			readable += 'Port ('+str(port)+')'
@@ -701,7 +713,7 @@ class BLE_LWP_Device(BLE_Device):
 
 			for port in self.ports:
 				self.logger.warning(f"{self.system_type} Requesting info for port {port} ...")
-				self._write_port_info_request(port, 0x1)
+				self._gatt_send(HubPort.payload_for_port_info(port, 0x1))
 
 		else:
 			self.logger.error(f"Refusing to start a second port interrogation until the first one is complete. Currently waiting for {self.port_mode_info['requests_until_complete']} requests to complete")
@@ -720,7 +732,7 @@ class BLE_LWP_Device(BLE_Device):
 
 		target_devs = []
 		for attached_port in self.ports:
-			dev = self.ports[attached_port]
+			dev = self.ports[attached_port].attached_device
 			if dev.status != 0x0:		# Decoder.io_event_type_str[0x0]
 				if dev.port_id == devtype:
 					target_devs.append(dev)
@@ -765,51 +777,3 @@ class BLE_LWP_Device(BLE_Device):
 				self.logger.error(f"Property doesn\'t exist for {property_type_int}: Message {message} failed.")
 		else:
 			self.logger.error(f"Didn't find property {property_type_int} for message {message}")
-
-	# ---- Bluetooth port writes for the class ----
-
-	def _write_port_mode_info_request(self, port, mode, infotype):
-		if mode < 0 or mode > 255:
-			self.logger.error('Invalid mode '+str(mode)+' for mode info request')
-			return
-		if not infotype in Decoder.mode_info_type_str:
-			self.logger.error('Invalid information type '+hex(infotype)+' for mode info request')
-			return
-
-		payload = bytearray([
-			0x7,	# len
-			0x0,	# padding
-			0x22,	# Command: port_mode_info_req
-			# end header
-			port,
-			mode,
-			infotype	# 0-8 & 0x80
-		])
-		payload[0] = len(payload)
-
-# FIXME: Check for range issues with bluetooth  on write_gatt_char (device goes too far away)
-#    raise BleakError("Characteristic {} was not found!".format(char_specifier))
-#bleak.exc.BleakError: Characteristic 00001624-1212-efde-1623-785feabcd123 was not found!
-
-# or it just disappears
-# AttributeError: 'NoneType' object has no attribute 'write_gatt_char'
-		self._gatt_send(payload)
-
-	def _write_port_info_request(self, port, mode_info):
-		# 3.15.2
-		# 0: Request port_value_single value
-		# 1: Request port_info for port modes
-		# 2: Request port_info for mode combinations
-		mode_int = int(mode_info)
-		if mode_int > 2 or mode_int < 0:
-			return
-		payload = bytearray([
-			0x7,	# len
-			0x0,	# padding
-			0x21,	# Command: port_info_req
-			# end header
-			port,
-			mode_int
-		])
-		payload[0] = len(payload)
-		self._gatt_send(payload)

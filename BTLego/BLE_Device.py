@@ -8,12 +8,9 @@ import json
 
 from bleak import BleakClient
 
-from .Decoder import Decoder, HProp
+from .Decoder import Decoder
 
 from .LPF_Devices import *
-from .LPF_Devices.LPF_Device import generate_valid_lpf_message_types
-
-from .HubProperty import HubProperty
 
 class BLE_Device():
 
