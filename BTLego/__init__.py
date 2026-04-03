@@ -112,15 +112,13 @@ async def bleak_device_dectection_callback(device, advertisement_data):
 	logger = logging.getLogger(__name__)
 
 	if device:
-		dev_shortname = Decoder.determine_device_shortname(advertisement_data)
-		dev_systype = Decoder.determine_device_systemtype(advertisement_data)
-		devclass = Decoder.classname_from_ad_data(advertisement_data)
+		device_info = Decoder.device_info_from_ad_data(advertisement_data)
 
-		if devclass:
+		if device_info['class']:
 			if not device.address in __lego_devices__:
-				matched_callbacks = __match_up_device(device.name, dev_systype, dev_shortname)
+				matched_callbacks = __match_up_device(device.name, device_info['systype'], device_info['shortname'])
 				if matched_callbacks:
-					__lego_devices__[device.address] = devclass(advertisement_data) #BTLego.Mario(advertisement_data)
+					__lego_devices__[device.address] = device_info['class'](advertisement_data, device_info['shortname'])
 
 					for callback in matched_callbacks:
 						if 'event_callback' in callback:
@@ -132,11 +130,11 @@ async def bleak_device_dectection_callback(device, advertisement_data):
 									await __lego_devices__[device.address].subscribe_to_messages_on_callback(callback_uuid, requested_event)
 
 									# You don't have to subscribe to "error" type messages...
-					logger.info(f'Starting BTLE connection on {dev_shortname}')
+					logger.info(f"Starting BTLE connection on {device_info['shortname']}")
 					await __lego_devices__[device.address].connect(device)
 				else:
 					if __overly_chatty_bluetooth__:
-						logger.debug(f'Device {dev_shortname} / {dev_systype} / {devclass} did not match any provided callbacks {advertisement_data}')
+						logger.debug(f"Device {device_info['shortname']} / {device_info['systype']} / {device_info['class']} did not match any provided callbacks {advertisement_data}")
 
 			else:
 				# Reconnect if known and disconnected
@@ -153,7 +151,7 @@ async def bleak_device_dectection_callback(device, advertisement_data):
 			# Spike prime hub starts with "LEGO Hub" but you have to pair with that, not BTLE
 			if device.name and device.name.startswith("LEGO Mario"):
 				if advertisement_data and advertisement_data.manufacturer_data:
-					logger.warning("UNKNOWN LEGO DEVICE",dev_shortname, device.address, "RSSI:", device.rssi, advertisement_data)
+					logger.warning("UNKNOWN LEGO DEVICE",device_info['shortname'], device.address, "RSSI:", device.rssi, advertisement_data)
 				else:
 					logger.info("Found some useless Mario broadcast without the manufacturer or service UUIDs")
 					pass

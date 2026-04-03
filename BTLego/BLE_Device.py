@@ -28,7 +28,7 @@ class BLE_Device():
 
 	# ---- Initializations, obviously ----
 
-	def __init__(self, advertisement_data=None):
+	def __init__(self, advertisement_data=None, shortname=''):
 
 		# Default to LWP
 		self.characteristic_uuid = '00001624-1212-efde-1623-785feabcd123'
@@ -40,7 +40,7 @@ class BLE_Device():
 		self.part_identifier = None
 
 		self.advertisement = advertisement_data
-		self.system_type = Decoder.determine_device_shortname(advertisement_data)
+		self.shortname = shortname
 		self.client = None
 		self.connected = False
 
@@ -94,7 +94,7 @@ class BLE_Device():
 
 	async def connect(self, device):
 		async with self.lock:
-			self.logger.info("Connecting to "+str(self.system_type)+"...")
+			self.logger.info("Connecting to "+str(self.shortname)+"...")
 			self.device = device
 			try:
 				self.client = BleakClient(device.address, self.disconnect_callback)
@@ -115,7 +115,7 @@ class BLE_Device():
 					# [ ] Ignore this device     [Cancel] [Connect]
 					self.logger.info(f"MacOS pairing skipped, either already paired or hoping subsequent GATT writes will force UI to pop up...")
 
-				self.logger.info("Connected to "+self.system_type+"! ("+str(device.name)+")")
+				self.logger.info("Connected to "+self.shortname+"! ("+str(device.name)+")")
 				self.connected = True
 				self.address = device.address
 				await self.client.start_notify(self.characteristic_uuid, self._device_events)
@@ -123,7 +123,7 @@ class BLE_Device():
 				# turn back on everything everybody registered for (For reconnection)
 				for event_sub_type,sub_count in self.BLE_event_subscriptions.items():
 					if sub_count > 0:
-						if not await self._set_hardware_subscription(event_sub_type, True):
+						if not self._set_hardware_subscription(event_sub_type, True):
 							self.logger.error("INVALID Subscription option on connect:"+event_sub_type)
 
 			except Exception as e:
@@ -135,11 +135,11 @@ class BLE_Device():
 	async def disconnect(self):
 		async with self.lock:
 			self.connected = False
-			self.logger.info(self.system_type+" has disconnected.")
+			self.logger.info(self.shortname+" has disconnected.")
 
 	def _bleak_disconnect(self, bleak_dev):
 		"""Called by the BleakClient when disconnected"""
-		self.logger.info(f'Bleak disconnect {self.system_type}: {bleak_dev.address}')
+		self.logger.info(f'Bleak disconnect {self.shortname}: {bleak_dev.address}')
 		# This whole function is a bit annoying as it isn't awaited by Bleak
 		# and therefore can't be called async, so it can't lock to set this
 		# variable.
@@ -233,7 +233,7 @@ class BLE_Device():
 						self._set_callback_subscriptions(parameters[0], subscription, False)
 
 						if (self.BLE_event_subscriptions[subscription] <= 0):
-							if not await self._set_hardware_subscription(subscription, False):
+							if not self._set_hardware_subscription(subscription, False):
 								self.logger.error(f'UUID {callback_uuid} requested unsubscribe... but.. the device was not connected?')
 					self.logger.debug(f'Finished processing unsubscribes {callback_uuid}')
 
@@ -254,7 +254,7 @@ class BLE_Device():
 				# Otherwise, don't bother the hardware
 				if (self.BLE_event_subscriptions[parameters[1]] <= 0 and parameters[2]) or (self.BLE_event_subscriptions[parameters[1]] == 1 and not parameters[2]):
 					self._set_callback_subscriptions(parameters[0], parameters[1], parameters[2])
-					if not await self._set_hardware_subscription(parameters[1], parameters[2]):
+					if not self._set_hardware_subscription(parameters[1], parameters[2]):
 						self.logger.error("INVALID Subscription option:"+parameters[1])
 				else:
 					self._set_callback_subscriptions(parameters[0], parameters[1], parameters[2])
@@ -276,7 +276,7 @@ class BLE_Device():
 						await callback_settings[0]((callback_uuid,) + message)
 						served = True
 				if not served:
-					self.logger.debug(f'{self.system_type} had no subscribers for message:{message}')
+					self.logger.debug(f'{self.shortname} had no subscribers for message:{message}')
 
 			# Process any registrations that occurred during the above dispatch
 
@@ -328,16 +328,15 @@ class BLE_Device():
 
 	# Checks all Properties and Ports for LPF devices that handle the given message_type
 	# Subscribes or unsubscribes to these messages as requested
-	async def _set_hardware_subscription(self, message_type, should_subscribe=True):
+	def _set_hardware_subscription(self, message_type, should_subscribe=True):
 		# Base class doesn't do anything with this
 		pass
 
 	# Bleak events get sent here
 	async def _device_events(self, sender, data):
-		bt_message = self.packet_decoder(data)
 		# Suddenly _which_ characteristic you subscribe to becomes super important when WeDo2 is involved...
-		bt_message['char_uuid'] = sender.uuid
-		msg_prefix = self.system_type+" "
+		bt_message = self.packet_decoder(data, sender.uuid)
+		msg_prefix = self.shortname+" "
 		if bt_message['error']:
 			self.logger.error(msg_prefix+"ERR:"+bt_message['readable'])
 			self.message_queue.put(('error','message',bt_message['readable']))
@@ -347,10 +346,10 @@ class BLE_Device():
 				# debug for messages we've never seen before
 				self.logger.info(msg_prefix+"-?- "+bt_message['readable'],1)
 
-		self.logger.debug(f'{self.system_type} Draining for: '+bt_message['readable'])
+		self.logger.debug(f'{self.shortname} Draining for: '+bt_message['readable'])
 		await self._drain_messages()
 		if self.TRACE:
-			self.logger.debug(f'{self.system_type} Drained')
+			self.logger.debug(f'{self.shortname} Drained')
 
 	# Returns false if unprocessed
 	# Override in subclass, call super if you don't process the bluetooth message type

@@ -80,7 +80,7 @@ class Decoder():
 	WEDO2_SERVICE_UUID = '00001523-1212-efde-1523-785feabcd123'
 
 	advertised_system_type = {
-		0x00:'wedo2',		# FIXME: Kind of a hack...
+		# 0x0: Things that don't have an advertised system type: 'wedo2'
 		0x20:'duplotrain',	# "Hub No. 5" "Train Base"
 		0x40:'boostmove',	# "JAJUR1" "LEGO Move Hub" "LEGO® Powered Up 88006 Move Hub" The set this hub comes in (17101) is called "Boost"
 		0x41:'hub_4',		# Lego 88009 Powered Up "Hub", "HUB NO.4"
@@ -90,7 +90,7 @@ class Decoder():
 		0x45:'peach',
 		0x60:'smartbrick',	# "SMART Brick" Uses WDX proto, not LWP. Check out this hero: https://github.com/nathankellenicki/node-smartplay/blob/main/notes/PROTOCOL.md
 		0x80:'hub_2',		# "Hub No. 2" Lego 88012, Default name of "Technic Hub", "LEGO Powered Up Technic Hub"
-		0x83:'spikesmall',
+		0x83:'spikesmall',	# "Hub No. 7"
 		0x84:'technicmove'
 	}
 
@@ -408,12 +408,13 @@ class Decoder():
 		if advertisement_data.service_uuids:
 			if Decoder.WEDO2_SERVICE_UUID in advertisement_data.service_uuids:
 				classname = 'BLE_WeDo'
+		return classname
 
+	def class_obj_from_classname(classname):
 		if classname:
 			class_module = importlib.import_module(f'BTLego.{classname}')
 			classobj = getattr(class_module, classname)
 			return classobj
-
 		return None
 
 	def determine_device_shortname(advertisement_data):
@@ -461,8 +462,22 @@ class Decoder():
 			pass
 		return 0x0
 
-	def decode_payload(message_bytes):
+	def device_info_from_ad_data(advertisement_data):
+		classname = Decoder.classname_from_ad_data(advertisement_data)
+		retval = {
+			'systype': Decoder.determine_device_systemtype(advertisement_data),
+			'class': Decoder.class_obj_from_classname(classname),
+			'shortname': Decoder.determine_device_shortname(advertisement_data)
+		}
+
+		if retval['systype'] == 0x0 and classname == 'BLE_WeDo':
+			retval['shortname'] = 'wedo2'
+
+		return retval
+
+	def decode_payload(message_bytes, source_char_uuid):
 		bt_message = {
+			'char_uuid': source_char_uuid,
 			'error': False,
 			'raw':message_bytes
 		}
@@ -1013,9 +1028,10 @@ class Decoder():
 		bt_message['value'] = payload[1:]
 		bt_message['readable'] += "port "+str(bt_message['port'] )+": "+" ".join(hex(n) for n in payload[1:])
 
-	def decode_wdx_packet(message_bytes):
+	def decode_wdx_packet(message_bytes, source_char_uuid):
 
 		bt_message = {
+			'char_uuid': source_char_uuid,
 			'error': False,
 			'raw':message_bytes,
 			'readable': ''
@@ -1081,13 +1097,53 @@ class Decoder():
 
 		return bt_message
 
-	def decode_wedo2_packet(message_bytes):
+	def decode_wedo2_packet(message_bytes, source_char_uuid):
 
 		bt_message = {
+			'char_uuid': source_char_uuid,
 			'error': False,
 			'raw':message_bytes,
 			'readable': ''
 		}
+
+		# FIXME: Where to put these constants?
+		hub_attached_io_ = '00001527-1212-efde-1523-785feabcd123'
+			# 0: Port Number
+			# 1: ?
+			# 2: ?
+			# 3: Port ID
+			# 4 - 11: ?
+			# Init (four devices: 'Current','Voltage','Piezo Tone','RGB Light')
+			# 0x3 0x1 0x33 0x15 0x1 0x0 0x0 0x0 0x1 0x0 0x0 0x0 len:12
+			# 0x4 0x1 0x34 0x14 0x1 0x0 0x0 0x0 0x1 0x0 0x0 0x0 len:12
+			# 0x5 0x1 0x35 0x16 0x1 0x0 0x0 0x0 0x1 0x0 0x0 0x0 len:12
+			# 0x6 0x1 0x36 0x17 0x1 0x0 0x0 0x0 0x1 0x0 0x0 0x0 len:12
+
+			# Ports (Numbered 1 & 2)
+			# 0x2 0x1 0x1 0x22 0x0 0x0 0x0 0x10 0x0 0x0 0x0 0x10 len:12
+			# 0x1 0x1 0x0 0x26 0x0 0x0 0x0 0x10 0x0 0x0 0x0 0x10 len:12
+
+			# (b'\x01\x00') Port 1, no device
+
+
+		# FIXME: Note that it auto-detaches the Matrix, but of course...
+		if bt_message['char_uuid'].lower() == hub_attached_io_.lower():
+			# FIXME: Assigned by UUID, not in message
+			bt_message['type'] = 0x4
+
+			bt_message['port'] = message_bytes[0]
+			bt_message['event'] = message_bytes[1]
+			event_readable = Decoder.int8_dict_to_str(Decoder.io_event_type_str,bt_message['event'])
+			# FIXME: needs a decoder for this readable
+			bt_message['readable'] = "hub_attached_io"
+			if bt_message['event'] == 0x0:
+				bt_message['readable'] += f" {event_readable} on port {bt_message['port']}"
+			elif bt_message['event'] == 0x1:
+				if len(bt_message['raw']) == 12:
+					bt_message['io_type_id'] = message_bytes[3]
+					bt_message['readable'] += f" {event_readable} {Decoder.io_type_id_str[bt_message['io_type_id']]} on port {bt_message['port']}"
+				else:
+					bt_message['readable'] += f" {event_readable} UNKNOWN DATA"
 
 		return bt_message
 

@@ -5,7 +5,6 @@ from queue import SimpleQueue
 from collections.abc import Iterable
 
 import datetime
-
 import json
 
 from bleak import BleakClient
@@ -76,11 +75,11 @@ class BLE_LWP_Device(BLE_Device):
 
 	# ---- Initializations, obviously ----
 
-	def __init__(self, advertisement_data=None):
+	def __init__(self, advertisement_data=None, shortname=''):
 
 		self.lpf_message_types = generate_valid_lpf_message_types()
 
-		super().__init__(advertisement_data)
+		super().__init__(advertisement_data, shortname)
 
 		self.mode_probe_rate_limit = 0.3
 
@@ -94,9 +93,9 @@ class BLE_LWP_Device(BLE_Device):
 		# port mode information requests ( interrogate_ports() )
 		self.mode_probe_ignored_info_types = ()
 
-		self.port_mode_info = {
-			'port_count':0,
-			'requests_until_complete':0		# Port interrogation
+		self.watchdogs = {
+			'port_info_request': None,
+			'device_init': None
 		}
 
 		self.minimum_attached_ports = 0
@@ -114,17 +113,18 @@ class BLE_LWP_Device(BLE_Device):
 	# override: Keep track of how long it takes to track all the device inits
 	async def connect(self, device):
 		await super().connect(device)
-		self.port_mode_info['device_watchdog'] = datetime.datetime.now()
+		self.watchdogs['device_init'] = datetime.datetime.now()
 
 	def _init_port_data(self, bt_message):
 
 		port = bt_message['port']
 		if not port in self.ports:
 			self.ports[port] = HubPort(port)
+			self.ports[port].set_parent_info(self.__class__.__name__, self.shortname)
+			self.ports[port].mode_probe_ignored_info_types = self.mode_probe_ignored_info_types
 
 		port_id = bt_message['io_type_id']
 		port_classname = LPF_class_for_type_id(port_id)
-		self.port_mode_info['port_count'] += 1
 		retval = False
 		if port_classname:
 			# https://stackoverflow.com/a/547867
@@ -160,7 +160,7 @@ class BLE_LWP_Device(BLE_Device):
 			self.logger.warning(f'Class {self.__class__.__name__} contains unknown device type id {port_id} on port {port}')
 
 		if len(self.ports) == self.minimum_attached_ports:
-			self.port_mode_info.pop('device_watchdog', None)	# WARNING: Can't serialize datetime to JSON
+			self.watchdogs['device_init'] = None
 			self.message_queue.put(('info','initialized',('minimum_connected_ports', len(self.ports))))
 			self._inital_connect_updates()
 		return retval
@@ -171,24 +171,23 @@ class BLE_LWP_Device(BLE_Device):
 			del self.ports[port]
 
 	def _reset_port_mode_info(self):
-		self.port_mode_info['requests_until_complete'] = 0
+		for port in list(self.ports):
+			self.ports[port].reset_mode_info()
 
-		for port in list(self.port_mode_info):
-			if isinstance(port,int) or port.isdigit():
-				if 'mode_info_requests_outstanding' in self.port_mode_info[port]:
-					self.port_mode_info[port].pop('mode_info_requests_outstanding',None)
-
-				for mode in list(self.port_mode_info[port]):
-					if isinstance(mode,int) or mode.isdigit():
-						self.port_mode_info[port].pop(mode,None)
+	def _generate_port_info_dict(self):
+		port_mode_info = {}
+		port_mode_info['port_count'] = len(self.ports)
+		for port in self.ports:
+			port_mode_info[port] = self.ports[port].dump_info()
+		return port_mode_info
 
 	# Overrideable
 	def _inital_connect_updates(self):
 
 		# Signal connect finished
-		self.message_queue.put(('info','player',self.system_type))
+		self.message_queue.put(('info','player',self.shortname))
 		# Replace the above signal with something more accurate
-		self.message_queue.put(('info','connected',self.system_type))
+		self.message_queue.put(('info','connected',self.shortname))
 
 	# Override in subclass and call super if you subclass to initialize BLE_event_subscriptions with all available message types
 	def _reset_event_subscription_counters(self):
@@ -206,18 +205,17 @@ class BLE_LWP_Device(BLE_Device):
 		self.logger.info("PORT LIST\n")
 		for port in self.ports:
 			dev = self.ports[port].attached_device
-
 			self.logger.info(f'\tPort {dev.port} {dev.name} : {dev.devtype} {dev.mode_subs} HW:{dev.hw_ver_str} FW:{dev.fw_ver_str}')
 		self.logger.info("PROPERTY LIST\n")
 		for prop_int, propobj in self.properties.items():
 			self.logger.info(f'\tProperty {propobj.name} ({propobj.reference_number}) Subscribed: {propobj.subscribed}')
-		self.logger.info("PORT MODE INFO\n"+json.dumps(self.port_mode_info, indent=4))
+		self.logger.info(f"PORT MODE INFO\n{json.dumps(self._generate_port_info_dict(), indent=4)}")
 
 	# ---- Message processing ----
 
 	# Checks all Properties and Ports for LPF devices that handle the given message_type
 	# Subscribes or unsubscribes to these messages as requested
-	async def _set_hardware_subscription(self, message_type, should_subscribe=True):
+	def _set_hardware_subscription(self, message_type, should_subscribe=True):
 
 		if not message_type in self.BLE_event_subscriptions:
 			self.logger.debug(f'No known devices generate {message_type}')
@@ -234,21 +232,25 @@ class BLE_LWP_Device(BLE_Device):
 			if payload:
 				self._gatt_send(payload)
 		else:
-			self.logger.error(f'{self.system_type} does not have a property numbered {property_int}')
+			self.logger.error(f'{self.shortname} does not have a property numbered {property_int}')
 
 	# Returns false if unprocessed
 	# Override in subclass, call super if you don't process the bluetooth message type
 	async def _process_bt_message(self, bt_message):
-		msg_prefix = self.system_type+" "
+		msg_prefix = self.shortname+" "
 
-		if 'request_watchdog' in self.port_mode_info:
-			if (self.port_mode_info['request_watchdog'] +  + datetime.timedelta(seconds=10)) < datetime.datetime.now():
-				self.logger.error(f'{self.system_type} mode info request watchdog timeout!')
+		if self.watchdogs['port_info_request']:
+			if (self.watchdogs['port_info_request'] +  + datetime.timedelta(seconds=10)) < datetime.datetime.now():
+				self.logger.error(f'{self.shortname} mode info request watchdog timeout!')
+				self.watchdogs['port_info_request'] = None
+				self.message_queue.put(('error','message',f"Mode info requests were still outstanding when watchdog timed out"))
+				if self.logger.isEnabledFor(logging.DEBUG):
+					self.dump_status()
 
-		if 'device_watchdog' in self.port_mode_info:
-			if (self.port_mode_info['device_watchdog']  + datetime.timedelta(seconds=10)) < datetime.datetime.now():
-				self.logger.error(f'{self.system_type} mode info request device_watchdog timeout.  Assuming device enumeration complete and signaling such')
-				self.port_mode_info.pop('device_watchdog', None)
+		if self.watchdogs['device_init']:
+			if (self.watchdogs['device_init']  + datetime.timedelta(seconds=10)) < datetime.datetime.now():
+				self.logger.error(f'{self.shortname} mode info request device_watchdog timeout.  Assuming device enumeration complete and signaling such')
+				self.watchdogs['device_init'] = None
 				self.message_queue.put(('info','initialized',('minimum_connected_ports', len(self.ports))))
 				self._inital_connect_updates()
 
@@ -361,11 +363,39 @@ class BLE_LWP_Device(BLE_Device):
 			self._decode_hub_action(bt_message)
 
 		elif Decoder.message_type_str[bt_message['type']] == 'port_info':
-			await self._decode_mode_info_and_interrogate(bt_message)
+
+			port = bt_message['port']
+			if port in self.ports:
+				self.ports[port].process_port_info_message(bt_message, self._gatt_send)
+			else:
+				self.logger.error(f"{msg_prefix} RECIEVED PORT INFO MESSAGE FOR PORT THAT DOESN'T EXIST: {bt_message['readable']}")
 
 		elif Decoder.message_type_str[bt_message['type']] == 'port_mode_info':
 			# Debug stuff for the ports and modes, similar to list command on BuildHAT
-			self._decode_port_mode_info(bt_message)
+			self.watchdogs['port_info_request'] = datetime.datetime.now()
+
+			port = bt_message['port']
+			mode = bt_message['mode']
+
+			if port in self.ports:
+				if mode in self.ports[port].reported.modes:
+					self.ports[port].reported.modes[mode].process_mode_info_request(bt_message)
+				else:
+					self.logger.error(f"ERROR: No mode ({mode}) on port ({port}) exists for port info message: {bt_message['readable']}")
+			else:
+				self.logger.error(f"ERROR: No port ({port}) exists for port info message: {bt_message['readable']}")
+
+			incomplete_ports = len(self.ports)
+			for port in self.ports:
+				if self.ports[port].check_probe_completion():
+					incomplete_ports -= 1
+#					print(f"DONE WITH PORT {port} ({incomplete_ports} left)")
+
+			if incomplete_ports == 0:
+				self.watchdogs['port_info_request'] = None
+
+				self.message_queue.put(('info','port_json',json.dumps(self._generate_port_info_dict())))
+				self.logger.info("Port interrogation complete!")
 
 		elif Decoder.message_type_str[bt_message['type']] == 'hw_network_cmd':
 			self._decode_hardware_network_command(bt_message)
@@ -379,294 +409,8 @@ class BLE_LWP_Device(BLE_Device):
 	def _decode_property(self, prop_id, value):
 		pass
 
-	# ---- Make data useful for the processing ----
-	# port_info_req response
-	# 'IN': Receive data from device
-	# 'OUT': Send data to device
-	async def _decode_mode_info_and_interrogate(self, bt_message):
-
-		port = bt_message['port']
-		device = self.ports[port].attached_device
-		if not 'num_modes' in bt_message:
-			if 'mode_combinations' in bt_message and port in self.port_mode_info:
-				self.port_mode_info[port]['combinations'] = bt_message['mode_combinations']
-			else:
-				self.logger.error(f'Mode combinations NOT DECODED: {bt_message["readable"]}')
-			return
-		else:
-			self.logger.debug(f"Interrogating mode info for {bt_message['num_modes']} modes on port {port}: {device.name}")
-
-		if 'requests_until_complete' in self.port_mode_info:
-			if self.port_mode_info['requests_until_complete'] <= 0:
-				self.logger.warning(f'WARN: Did not expect this mode info description, refusing to update: {bt_message["readable"]}')
-				return
-
-		if not port in self.port_mode_info:
-			self.port_mode_info[port] = {}
-
-		self.port_mode_info[port]['mode_count'] = bt_message['num_modes']
-		self.port_mode_info[port]['name'] = device.name
-		self.port_mode_info[port]['attached_port'] = port
-		self.port_mode_info[port]['port_id'] = device.port_id
-		self.port_mode_info[port]['port_class'] = device.__class__.__name__
-		self.port_mode_info[port]['parent_hub_driver'] = self.__class__.__name__
-		self.port_mode_info[port]['parent_type'] = self.system_type
-		self.port_mode_info[port]['hw'] = device.hw_ver_str
-		self.port_mode_info[port]['fw'] = device.fw_ver_str
-		self.port_mode_info[port]['mode_info_requests_outstanding'] = { }
-
-		# Does not note the entire bt_message['port_mode_capabilities']
-		# Mostly because i/o is redundant
-		# IE: {'output': True, 'input': True, 'logic_combineable': True, 'logic_synchronizeable': False}
-
-		if bt_message['port_mode_capabilities']['logic_synchronizeable']:
-			self.port_mode_info[port]['virtual_port_capable'] = True
-
-		if bt_message['port_mode_capabilities']['logic_combineable']:
-			# This is a signal to check for combinations (3.15.2)
-			self.logger.debug(f'\tRequest port {port} combinations...')
-			self._gatt_send(HubPort.payload_for_port_info(port, 0x2))
-
-		def scan_mode(direction, port, mode):
-			if not mode in self.port_mode_info[port]:
-				self.port_mode_info[port][mode] = {
-					'requests_outstanding':{
-						0x0:True,	# NAME
-						0x1:True,	# RAW
-						0x2:True,	# PCT
-						0x3:True,	# SI
-						0x4:True,	# SYMBOL
-						0x5:True,	# MAPPING
-						0x7:True,	# Mario throws 'Invalid use of command' if it doesn't support motor bias, any other BLE Lego things support it?
-						0x8:True,	# Mario doesn't seem to support Capability bits
-						0x80:True	# VALUE FORMAT
-					},
-					'direction':direction
-				}
-
-				for mode_info_type_number in self.mode_probe_ignored_info_types:
-					del self.port_mode_info[port][mode]['requests_outstanding'][mode_info_type_number]
-
-				# If the BLE_Device supports motor bias, only enable on approved LPF devices
-				if 0x7 in self.port_mode_info[port][mode]['requests_outstanding']:
-					if not device.port_id in LPF_Device.motor_bias_device_allowlist:
-						del self.port_mode_info[port][mode]['requests_outstanding'][0x7]
-
-			frozen_requests = list(self.port_mode_info[port][mode]['requests_outstanding'].items())
-			for hexkey, requested in frozen_requests:
-				if requested:
-					self._gatt_send(HubPortModeInfo.payload_for_port_mode_info_request(port,mode,hexkey))
-
-		bit_value = 1
-		mode_number = 0
-		while mode_number < 16: # or bit_value <= 32768
-			if bt_message['input_bitfield'] & bit_value:
-				self.port_mode_info[port]['mode_info_requests_outstanding'][mode_number] = 1
-				scan_mode('IN',port,mode_number)
-			bit_value <<=1
-			mode_number += 1
-
-		bit_value = 1
-		mode_number = 0
-		while mode_number < 16: # or bit_value <= 32768
-			if bt_message['output_bitfield'] & bit_value:
-				if mode_number in self.port_mode_info[port]:
-					# Already scanned during the IN loop
-					self.port_mode_info[port][mode_number]['direction'] = 'IN/OUT'
-				else:
-					# Can't really tell the difference between in and out request
-					if mode_number in self.port_mode_info[port]['mode_info_requests_outstanding']:
-						self.port_mode_info[port]['mode_info_requests_outstanding'][mode_number] += 1
-					else:
-						self.port_mode_info[port]['mode_info_requests_outstanding'][mode_number] = 1
-					scan_mode('OUT',port,mode_number)
-			else:
-				if mode_number + 1 <= self.port_mode_info[port]['mode_count']:
-					if not mode_number in self.port_mode_info[port]:
-						# Neither IN nor OUT.  As seen on the Vision sensor, mode 8
-						# Scan a NO-IO port?  Well, it hasn't crashed anything yet...
-						if mode_number in self.port_mode_info[port]['mode_info_requests_outstanding']:
-							self.port_mode_info[port]['mode_info_requests_outstanding'][mode_number] += 1
-						else:
-							self.port_mode_info[port]['mode_info_requests_outstanding'][mode_number] = 1
-						scan_mode('NO-IO',port,mode_number)
-
-			bit_value <<=1
-			mode_number += 1
-
-	def _check_if_interrogation_complete(self):
-
-		if self.port_mode_info['requests_until_complete'] == 0:
-
-			# FIXME: If there's an error getting all this information, requests_outstanding and mode_info_requests_outstanding
-			# will be littered across the dictionary.  How about finding it, trashing it,
-			# and starting over?
-
-			bt_corruption = False
-
-			for port in self.port_mode_info:
-				if isinstance(port,int) or port.isdigit():
-					# Redundant error
-					#if 'mode_info_requests_outstanding' in self.port_mode_info[port]:
-					#	self.message_queue.put(('error','message',f'Mode info requests were still outstanding for port {port}'))
-					#	bt_corruption = True
-
-					for mode in self.port_mode_info[port]:
-						if isinstance(mode,int) or mode.isdigit():
-							if 'requests_outstanding' in self.port_mode_info[port][mode]:
-								self.message_queue.put(('error','message',f"Mode info requests were still outstanding for port {port} mode {mode}: {self.port_mode_info[port][mode]['requests_outstanding']}"))
-								bt_corruption = True
-
-			self.port_mode_info.pop('requests_until_complete', None)
-			self.port_mode_info.pop('request_watchdog', None)
-
-			if bt_corruption:
-				# Not actually corrupted, just incomplete
-				# Already sent error messages
-				return False
-			else:
-				self.message_queue.put(('info','port_json',json.dumps(self.port_mode_info))) # , indent=4
-				self.logger.info("Port interrogation complete!")
-				return True
-
-	def _decode_port_mode_info(self, bt_message):
-
-		if 'requests_until_complete' in self.port_mode_info:
-			if self.port_mode_info['requests_until_complete'] <= 0:
-				self.logger.warning(f'WARN: Did not expect this mode info report, refusing to update: {bt_message["readable"]}')
-				return
-
-		if 'request_watchdog' in self.port_mode_info:
-			self.port_mode_info['request_watchdog'] = datetime.datetime.now()
-
-		readable =''
-		port = bt_message['port']
-		mode = bt_message['mode']
-
-		if port in self.ports:
-			device = self.ports[port].attached_device
-			readable += device.name+' ('+str(port)+')'
-		else:
-			readable += 'Port ('+str(port)+')'
-
-		readable += ' mode '+str(mode)
-
-		# FIXME: Stuff all this in a structure and then dump it out
-		if not mode in self.port_mode_info[port]:
-			self.logger.error(f'ERROR: MODE {mode} MISSING FOR PORT {port}: SHOULD HAVE BEEN SET in _decode_mode_info_and_interrogate. Dumping: {bt_message["readable"]}\nKeys:\n'+str(self.port_mode_info[port].keys()))
-			return
-
-		if bt_message['mode_info_type'] in Decoder.mode_info_type_str:
-			readable += ' '+Decoder.mode_info_type_str[bt_message['mode_info_type']]+':'
-		else:
-			readable += ' infotype_'+str(bt_message['mode_info_type'])+':'
-
-		# Name
-		decoded = True
-		if bt_message['mode_info_type'] == 0x0:
-			# readable += bt_message['name']
-			self.port_mode_info[port][mode]['name'] = bt_message['name']
-		# Raw
-		elif bt_message['mode_info_type'] == 0x1:
-			#readable += ' Min: '+str(bt_message['raw']['min'])+' Max: '+str(bt_message['raw']['max'])
-			self.port_mode_info[port][mode]['raw'] = {
-				'min':bt_message['raw']['min'],
-				'max':bt_message['raw']['max']
-			}
-		# Percentage range window scale
-		elif bt_message['mode_info_type'] == 0x2:
-			#readable += ' Min: '+str(bt_message['pct']['min'])+' Max: '+str(bt_message['pct']['max'])
-			self.port_mode_info[port][mode]['pct'] = {
-				'min':bt_message['pct']['min'],
-				'max':bt_message['pct']['max']
-			}
-		# SI Range
-		elif bt_message['mode_info_type'] == 0x3:
-			#readable += ' Min: '+str(bt_message['si']['min'])+' Max: '+str(bt_message['si']['max'])
-			self.port_mode_info[port][mode]['si'] = {
-				'min':bt_message['si']['min'],
-				'max':bt_message['si']['max']
-			}
-		# Symbol
-		elif bt_message['mode_info_type'] == 0x4:
-			#readable += bt_message['symbol']
-			self.port_mode_info[port][mode]['symbol'] = bt_message['symbol']
-
-		# Mapping
-		elif bt_message['mode_info_type'] == 0x5:
-			#self.port_mode_info[port][mode]['mapping_readable'] = bt_message['readable']
-
-			if bt_message['IN_mapping']:
-				self.port_mode_info[port][mode]['input_mappable'] = bt_message['IN_maptype']
-			else:
-				if bt_message['IN_maptype']:
-					self.port_mode_info[port][mode]['not_input_mappable'] = bt_message['IN_maptype']
-
-			if bt_message['OUT_mapping']:
-				self.port_mode_info[port][mode]['output_mappable'] = bt_message['OUT_maptype']
-			else:
-				if bt_message['OUT_maptype']:
-					self.port_mode_info[port][mode]['not_output_mappable'] = bt_message['OUT_maptype']
-
-
-			if bt_message['IN_nullable']:
-				self.port_mode_info[port][mode]['input_nullable'] = True
-			if bt_message['OUT_nullable']:
-				self.port_mode_info[port][mode]['output_nullable'] = True
-
-		elif bt_message['mode_info_type'] == 0x7:
-			#readable += ' Motor bias: '+bt_message['motor_bias']
-			self.port_mode_info[port][mode]['motor_bias'] = bt_message['motor_bias']
-		elif bt_message['mode_info_type'] == 0x8:
-			# Capability bits
-			# FIXME
-			#readable += bt_message['readable']
-			self.port_mode_info[port][mode]['capability_readable'] = bt_message['readable']
-
-
-		# Value format
-		elif bt_message['mode_info_type'] == 0x80:
-			readable = ''
-			readable += ' '+str(bt_message['datasets']) + ' '+ bt_message['dataset_type']+ ' datasets'
-			readable += ' with '+str(bt_message['total_figures'])+' total figures and '+str(bt_message['decimals'])+' decimals'
-
-			self.port_mode_info[port][mode]['value_readable'] = readable
-
-		else:
-			decoded = False
-
-		if not decoded:
-			self.logger.warning(f'No decoder for this: {readable}')
-		else:
-			self.logger.debug(f'PMI Decoded: {readable}')
-
-		if 'requests_outstanding' in self.port_mode_info[port][mode]:
-			if bt_message['mode_info_type'] in self.port_mode_info[port][mode]['requests_outstanding']:
-				self.port_mode_info[port][mode]['requests_outstanding'].pop(bt_message['mode_info_type'],None)
-			else:
-				self.logger.warning("DUPLICATE mode info type "+hex(bt_message['mode_info_type'])+' on port '+str(port)+' mode '+str(mode))
-
-			# Remove requests_outstanding if zero outstanding (and all the modes with it)
-			if not self.port_mode_info[port][mode]['requests_outstanding']:
-				self.port_mode_info[port][mode].pop('requests_outstanding',None)
-				if mode in self.port_mode_info[port]['mode_info_requests_outstanding']:
-					self.port_mode_info[port]['mode_info_requests_outstanding'][mode] -= 1
-					if self.port_mode_info[port]['mode_info_requests_outstanding'][mode] == 0:
-						self.port_mode_info[port]['mode_info_requests_outstanding'].pop(mode,None)
-		else:
-			self.logger.warning(f"EXTRA mode info type {hex(bt_message['mode_info_type'])} on port {port} mode {mode} DUMP:{bt_message['readable']}")
-
-		# When 'requests_outstanding' for the port and mode are done, eliminate entry in mode_info_requests_outstanding
-		if 'mode_info_requests_outstanding' in self.port_mode_info[port]:
-			if len(self.port_mode_info[port]['mode_info_requests_outstanding']) == 0:
-				self.port_mode_info[port].pop('mode_info_requests_outstanding',None)
-				self.port_mode_info['requests_until_complete'] -= 1
-				self._check_if_interrogation_complete()
-		else:
-			self.logger.error(f"ERROR: MESSAGE RECIEVED {bt_message} FOR MODE INFO DECLARED FINISHED: {self.port_mode_info[port]}")
-
 	def _decode_hub_action(self, bt_message):
-		self.logger.debug(self.system_type+" "+bt_message['action_str'])
+		self.logger.debug(self.shortname+" "+bt_message['action_str'])
 		# Decoder.hub_action_type
 		if bt_message['action'] == 0x30:
 			self.message_queue.put(('event','power','turned_off'))
@@ -674,7 +418,7 @@ class BLE_LWP_Device(BLE_Device):
 		elif bt_message['action'] == 0x31:
 			self.message_queue.put(('event','bt','disconnected'))
 		else:
-			self.logger.warning(self.system_type+" unknown hub action "+hex(bt_message['action']))
+			self.logger.warning(self.shortname+" unknown hub action "+hex(bt_message['action']))
 
 	def _decode_hardware_network_command(self, bt_message):
 		if 'command' in bt_message:
@@ -690,33 +434,35 @@ class BLE_LWP_Device(BLE_Device):
 				message = ('family_request','please_send','new_family_if_there_is_one')
 				self.message_queue.put(message)
 			else:
-				self.logger.warning(self.system_type+" unknown hw command: "+bt_message['readable'])
+				self.logger.warning(self.shortname+" unknown hw command: "+bt_message['readable'])
 		else:
-			self.logger.error(self.system_type+" Apparently not a hw network command?:"+bt_message['readable'])
+			self.logger.error(self.shortname+" Apparently not a hw network command?:"+bt_message['readable'])
 
 	# ---- Bluetooth port writes for mortals ----
 	def interrogate_ports(self):
 
 		start = False
-		if 'requests_until_complete' in self.port_mode_info:
-			if self.port_mode_info['requests_until_complete'] == 0:
-				start = True
-		else:
+		outstanding_probe_requests = 0
+		for port in self.ports:
+			outstanding_probe_requests += self.ports[port].mode_probe_count()
+
+		if outstanding_probe_requests == 0:
+			if self.ports[port].mode_probes_running:
+				self.logger.error("ERROR: All modes report no outstanding requests but device thinks mode probes are still running")
 			start = True
 
 		if start:
 			self.logger.info("Starting port interrogation...")
 			self._reset_port_mode_info()
 
-			self.port_mode_info['requests_until_complete'] = len(self.ports)
-			self.port_mode_info['request_watchdog'] = datetime.datetime.now()
+			self.watchdogs['port_info_request'] = datetime.datetime.now()
 
 			for port in self.ports:
-				self.logger.warning(f"{self.system_type} Requesting info for port {port} ...")
-				self._gatt_send(HubPort.payload_for_port_info(port, 0x1))
+				self.logger.warning(f"{self.shortname} Requesting info for port {port} ...")
+				self.ports[port].request_port_info(self._gatt_send)
 
 		else:
-			self.logger.error(f"Refusing to start a second port interrogation until the first one is complete. Currently waiting for {self.port_mode_info['requests_until_complete']} requests to complete")
+			self.logger.error(f"Refusing to start a second port interrogation until the first one is complete. Currently waiting for {outstanding_probe_requests} requests to complete")
 
 	def turn_off(self):
 		name_update_bytes = bytearray([

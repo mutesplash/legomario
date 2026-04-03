@@ -19,8 +19,8 @@ class BLE_Smartbrick(BLE_Device):
 
 	# ---- Initializations, obviously ----
 
-	def __init__(self, advertisement_data=None):
-		super().__init__(advertisement_data)
+	def __init__(self, advertisement_data=None, shortname=''):
+		super().__init__(advertisement_data, shortname)
 
 		# WDX
 		self.characteristic_uuid = '005F0002-2FF2-4ED5-B045-4C7463617865'
@@ -38,7 +38,7 @@ class BLE_Smartbrick(BLE_Device):
 	# Returns false if unprocessed
 	# Override in subclass, call super if you don't process the bluetooth message type
 	async def _process_bt_message(self, bt_message):
-		msg_prefix = self.system_type+" "
+		msg_prefix = self.shortname+" "
 
 		self.logger.debug(msg_prefix+" "+bt_message['readable'])
 
