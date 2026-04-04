@@ -139,7 +139,7 @@ async def bleak_device_dectection_callback(device, advertisement_data):
 			else:
 				# Reconnect if known and disconnected
 				if not await __lego_devices__[device.address].is_connected():
-					logger.info(f'Attempting to reconnect to {__lego_devices__[device.address].system_type}')
+					logger.info(f'Attempting to reconnect to {__lego_devices__[device.address].shortname}')
 					await __lego_devices__[device.address].connect(device)
 				else:
 					pass

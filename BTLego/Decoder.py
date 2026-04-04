@@ -1108,11 +1108,13 @@ class Decoder():
 
 		# FIXME: Where to put these constants?
 		hub_attached_io_ = '00001527-1212-efde-1523-785feabcd123'
-			# 0: Port Number
-			# 1: ?
-			# 2: ?
-			# 3: Port ID
-			# 4 - 11: ?
+			# 0: Port Number on hub
+			# 1: Hub Attached IO Event Type
+			# 2: ?	WeDo "send" commands with a header size of 3
+			#		(port aka "connectID", "commandID", payload_size). Maybe that's what's in here?
+			#		Probably not, since it's not the port
+			# 3: Port ID for device type
+			# 4 - 11: ? Four 16-bit numbers? Two 32s?
 			# Init (four devices: 'Current','Voltage','Piezo Tone','RGB Light')
 			# 0x3 0x1 0x33 0x15 0x1 0x0 0x0 0x0 0x1 0x0 0x0 0x0 len:12
 			# 0x4 0x1 0x34 0x14 0x1 0x0 0x0 0x0 0x1 0x0 0x0 0x0 len:12
@@ -1125,11 +1127,14 @@ class Decoder():
 
 			# (b'\x01\x00') Port 1, no device
 
+		# FIXME: Name might be wrong
+		port_mode_info = '00001561-1212-EFDE-1523-785FEABCD123'	# Value Format, "input format" in SDK
+
 
 		# FIXME: Note that it auto-detaches the Matrix, but of course...
+		# Set 'type' similar to LWP3 manually based on notification UUID received upon
 		if bt_message['char_uuid'].lower() == hub_attached_io_.lower():
-			# FIXME: Assigned by UUID, not in message
-			bt_message['type'] = 0x4
+			bt_message['type'] = 0x4	# Hub Attached IO
 
 			bt_message['port'] = message_bytes[0]
 			bt_message['event'] = message_bytes[1]
@@ -1144,6 +1149,30 @@ class Decoder():
 					bt_message['readable'] += f" {event_readable} {Decoder.io_type_id_str[bt_message['io_type_id']]} on port {bt_message['port']}"
 				else:
 					bt_message['readable'] += f" {event_readable} UNKNOWN DATA"
+
+		# RGB handily sends this on first start_notify() for the UUID
+		elif bt_message['char_uuid'].lower() == port_mode_info.lower():
+			bt_message['type'] = 0x44 # Signal PMI
+
+			bt_message['readable'] = Decoder.int8_dict_to_str(Decoder.message_type_str, bt_message['type']) + " - "
+
+			bt_message['pmi_revision'] = message_bytes[0]
+			bt_message['port'] = message_bytes[1]	# ConnectID in SDK
+			bt_message['io_type_id'] = message_bytes[2]
+			bt_message['mode'] = message_bytes[3]
+			bt_message['readable'] += f"{Decoder.io_type_id_str[bt_message['io_type_id']]} port {bt_message['port']} mode {bt_message['mode']}"
+			bt_message['delta'] = int.from_bytes(message_bytes[4:8], byteorder="little", signed=False)
+			if message_bytes[8] == 0x0:	# This byte is "unit" in the SDK
+				bt_message['mode_info_type_readable'] = 'RAW'
+			elif message_bytes[8] == 0x1:
+				bt_message['mode_info_type_readable'] = 'PCT'
+			elif message_bytes[8] == 0x2:
+				bt_message['mode_info_type_readable'] = 'SI'
+			else:
+				bt_message['mode_info_type_readable'] = 'ERR_UNKNOWN_MODE_INFO_TYPE'
+
+			bt_message['notifications_enabled_raw_value'] = message_bytes[9]	# FIXME: probably a bitfiled
+			bt_message['data_size_in_bytes'] = message_bytes[10]	# Size of data to send/rec?
 
 		return bt_message
 

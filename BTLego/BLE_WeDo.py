@@ -65,7 +65,8 @@ class BLE_WeDo(BLE_Device):
 				# (b'\x02\x06\x03') on first start_notify()
 		self.btle_uuid_values = '00001561-1212-EFDE-1523-785FEABCD123'	# Value Format, "input format" in SDK
 				# (b'\x02\x06\x17\x00\x01\x00\x00\x00\x00\x00\x01') on first start_notify()
-		# SDK has no idea what to do with the above, but it sets them for notifications
+				# SDK has no idea what to do with the above, but it sets them for notifications
+				# See: Decoder FIXME: Probably useless duplicate here
 
 		self.btle_uuid_input = '00001563-1212-EFDE-1523-785FEABCD123'	# Input command (same as SDK) (can't .start_notify())
 				# Write stuff here to configure devices?
@@ -334,6 +335,12 @@ class BLE_WeDo(BLE_Device):
 	# 					print(f"Attached unknown Device {bt_message['raw'][3]}")
 	# 			else:
 	# 				self.logger.debug(f"{msg_prefix} Attached IO RAW: {' '.join(hex(n) for n in bt_message['raw'])} len:{len(bt_message['raw'])} sender:{bt_message['char_uuid']}")
+
+			# FIXME: May not be the exactly correct signal
+			elif Decoder.message_type_str[bt_message['type']] == 'port_mode_info':
+				# FIXME:
+				print(msg_prefix+bt_message['readable'])
+
 		elif bt_message['char_uuid'].lower() == self.btle_uuid_sensor.lower():
 
 			# FIXME: Devices respond using pretty much what you would expect, so delegate this properly to them
@@ -397,3 +404,37 @@ class BLE_WeDo(BLE_Device):
 
 
 		pass
+
+# Device Writes
+# Header
+# 0: port (connectID in SDK)
+# 1: "commandID"
+#	0x01: Motor Power
+#	0x02: Play Piezo
+#	0x03: Stop Piezo
+#	0x04: Set RGB
+#	0x05: Direct Write
+# 2: payload_size.  Length of subsequent bytes
+
+# LED Payload (3)
+# 3: Red
+# 4: Green
+# 5: Blue
+
+# LED Payload (1) (Indexed)
+# 3: Color Index
+
+# Piezo Payload (4):
+# 3-4: frequency (16-bit)
+# 5-6: milliseconds (16-bit)
+
+# Stop Piezo (0)
+
+# Motor speed (1)
+# 3: Motor speed, signed
+
+# Direct Writes
+#	Reset Any Sensor Payload (3) (specify via port in header?)
+#		3: 0x44
+#		4: 0x11
+#		5: 0xAA

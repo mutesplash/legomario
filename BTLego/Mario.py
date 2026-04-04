@@ -70,8 +70,8 @@ class Mario(BLE_LWP_Device):
 	app_icon_ints = dict(map(reversed, app_icon_names.items()))
 	app_icon_color_ints = dict(map(reversed, app_icon_color_names.items()))
 
-	def __init__(self,advertisement_data=None):
-		super().__init__(advertisement_data)
+	def __init__(self, advertisement_data=None, shortname=''):
+		super().__init__(advertisement_data, shortname)
 
 		# Seems to advertise none when initially connected
 		self.minimum_attached_ports = 6
