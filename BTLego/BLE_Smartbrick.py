@@ -23,8 +23,8 @@ class BLE_Smartbrick(BLE_Device):
 		super().__init__(advertisement_data, shortname)
 
 		# WDX
-		self.characteristic_uuid = '005F0002-2FF2-4ED5-B045-4C7463617865'
-		self.hub_service_uuid = '00001623-1212-efde-1623-785feabcd123'
+		self.characteristics['primary'] = '005F0002-2FF2-4ED5-B045-4C7463617865'
+		self.characteristics['hub_service'] = '00001623-1212-efde-1623-785feabcd123'
 		self.packet_decoder = Decoder.decode_wdx_packet
 
 	# Overrideable

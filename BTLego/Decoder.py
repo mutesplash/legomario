@@ -80,7 +80,8 @@ class Decoder():
 	WEDO2_SERVICE_UUID = '00001523-1212-efde-1523-785feabcd123'
 
 	advertised_system_type = {
-		# 0x0: Things that don't have an advertised system type: 'wedo2'
+		# 0x0: Things that don't have an advertised system type
+		#	'wedo2' aka model "LPF2 Smart Hub 2 I/O", which amusingly gets the '/O' cut off in the advertisement data
 		0x20:'duplotrain',	# "Hub No. 5" "Train Base"
 		0x40:'boostmove',	# "JAJUR1" "LEGO Move Hub" "LEGO® Powered Up 88006 Move Hub" The set this hub comes in (17101) is called "Boost"
 		0x41:'hub_4',		# Lego 88009 Powered Up "Hub", "HUB NO.4"

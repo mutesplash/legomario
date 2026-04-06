@@ -31,7 +31,9 @@ class BLE_Device():
 	def __init__(self, advertisement_data=None, shortname=''):
 
 		# Default to LWP
-		self.characteristic_uuid = '00001624-1212-efde-1623-785feabcd123'
+		self.characteristics = {
+			'primary': '00001624-1212-efde-1623-785feabcd123'
+		}
 		self.packet_decoder = Decoder.decode_payload
 
 		self.logger = logging.getLogger(__name__.split('.')[0])
@@ -53,7 +55,8 @@ class BLE_Device():
 		self.disconnect_callback = lambda bleak_dev: BLE_Device._bleak_disconnect(self, bleak_dev)
 		# This is such a fun trick, we'll do it twice.
 		# Give connected devices this function to let them send their own gatt messages
-		self.gatt_writer = lambda payload: BLE_Device._gatt_send(self, payload)
+#		self.gatt_writer = lambda payload: BLE_Device._gatt_send(self, payload)
+		self.gatt_writer = self._gatt_send
 
 		self.message_queue = SimpleQueue()				# Messages to send to callbacks
 		self.drainlock_changes_queue = SimpleQueue()	# Changes to those callbacks
@@ -118,7 +121,7 @@ class BLE_Device():
 				self.logger.info("Connected to "+self.shortname+"! ("+str(device.name)+")")
 				self.connected = True
 				self.address = device.address
-				await self.client.start_notify(self.characteristic_uuid, self._device_events)
+				await self.client.start_notify(self.characteristics['primary'], self._device_events)
 
 				# turn back on everything everybody registered for (For reconnection)
 				for event_sub_type,sub_count in self.BLE_event_subscriptions.items():
@@ -364,16 +367,22 @@ class BLE_Device():
 
 	# ---- Bluetooth port writes for mortals ----
 
-	def _gatt_send(self, payload):
+	def _gatt_send(self, payload, uuid=None):
 		from . import await_function_off_bleak_callback
+
+		target_char_uuid = self.characteristics['primary']
+		if uuid:
+			if self.TRACE:
+				self.logger.debug(f"GATT SELECT SEND: {uuid}")
+			target_char_uuid = uuid
 
 		if self.connected:
 			if self.TRACE:
 				self.logger.debug("GATT SEND: "+" ".join(hex(n) for n in payload))
 			async def delayed_gatt_write(char_uuid, payload, sleep_time):
 				await self.client.write_gatt_char(char_uuid, payload)
-				await asyncio.sleep(sleep_time)
-			await_function_off_bleak_callback(delayed_gatt_write(self.characteristic_uuid, payload, self.gatt_send_rate_limit))
+#				await asyncio.sleep(sleep_time)
+			await_function_off_bleak_callback(delayed_gatt_write(target_char_uuid, payload, self.gatt_send_rate_limit))
 			if self.TRACE:
 				self.logger.debug("GATT CMPL: "+" ".join(hex(n) for n in payload))
 			return True

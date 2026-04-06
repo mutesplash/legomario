@@ -105,7 +105,9 @@ class BLE_WeDo(BLE_Device):
 			# 0x2 Command (play)
 			#04B801E803
 
-		self.characteristic_uuid = self.btle_uuid_input
+		self.characteristics['primary'] = self.btle_uuid_input
+		self.characteristics['port_config'] = self.btle_uuid_input
+		self.characteristics['port_writes'] = self.btle_uuid_output
 
 		self.packet_decoder = Decoder.decode_wedo2_packet
 
@@ -239,6 +241,8 @@ class BLE_WeDo(BLE_Device):
 				self.logger.warning(f'Class {self.__class__.__name__} contains device type id {port_id} ({attaching_device.name}) on port {port} that has no class handler')
 
 			attaching_device.port = port
+			attaching_device.set_protocol('WeDo2')
+			attaching_device.gatt_targets = self.characteristics
 			attaching_device.port_id = port_id
 			attaching_device.hw_ver_str = ''	# FIXME: Possible this data is in the connection data
 			attaching_device.fw_ver_str = ''
@@ -352,6 +356,11 @@ class BLE_WeDo(BLE_Device):
 				#		Port 6 is RGB and 0x3 is blue
 				#		It gets this data before all the ports are initialized, sooo, eh
 			else:
+
+# PIF setup Subscribing to RGB modes, I guess
+# wedo2  Unknown Sensor data: RAW: 0x3 0x6 0x0 0x0 0x80 0x41 0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x0 len:14 sender:00001560-1212-efde-1523-785feabcd123
+# wedo2  Unknown Sensor data: RAW: 0x6 0x6 0x0 0x0 0x0 len:5 sender:00001560-1212-efde-1523-785feabcd123
+# wedo2  Unknown Sensor data: RAW: 0x7 0x6 0x3 len:3 sender:00001560-1212-efde-1523-785feabcd123
 				self.logger.debug(f"{msg_prefix} Unknown Sensor data: RAW: {' '.join(hex(n) for n in bt_message['raw'])} len:{len(bt_message['raw'])} sender:{bt_message['char_uuid']}")
 		else:
 			self.logger.debug(f"{msg_prefix} RAW: {' '.join(hex(n) for n in bt_message['raw'])} len:{len(bt_message['raw'])} sender:{bt_message['char_uuid']}")
@@ -389,7 +398,25 @@ class BLE_WeDo(BLE_Device):
 			])
 			self._gatt_send(payload)
 		else:
-			print(f"FIXME: Not sending {message}")
+			target_devs = []
+			for attached_port in self.ports:
+				dev = self.ports[attached_port].attached_device
+				if dev.status != 0x0:		# Decoder.io_event_type_str[0x0]
+					if dev.port_id == devtype:
+						target_devs.append(dev)
+				else:
+					self.logger.warning("Attempted message {message} to disconnected device on port {port}")
+
+			for dev in target_devs:
+				if port is not None:
+					if dev.port == port:
+						self.logger.debug(f'SENDING {message} TO SPECIFIC PORT {port} ON DEVICE {dev.name}')
+						dev.send_message(message, self._gatt_send)
+				else:
+					self.logger.debug(f'SENDING {message} TO DEVICE {dev.name}')
+					dev.send_message(message, self._gatt_send)
+
+			#print(f"FIXME: Not sending {message}")
 
 				# Write stuff here to configure devices?
 				# 0x1	Command ID (SDK name) (0: input value, 1: input format) (SDK never writes to command input value)
@@ -404,6 +431,8 @@ class BLE_WeDo(BLE_Device):
 
 
 		pass
+
+#
 
 # Device Writes
 # Header

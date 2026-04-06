@@ -53,11 +53,29 @@ class RGB(LPF_Device):
 		mode = -1
 
 		if action == 'set_color':
-			mode = 0x0
-			color = int(parameters[0])
+			mode = 0
+			payload = self.payload_for_indexed_color(parameters[0])
 
-			if color not in Decoder.rgb_light_colors:
-				return
+		elif action == 'set_rgb':
+			mode = 1
+			red, green, blue = parameters
+			payload = self.payload_for_rgb(red, green, blue)
+
+		if payload:
+			self.select_mode_if_not_selected(mode, gatt_payload_writer)
+			gatt_payload_writer(payload, self.gatt_targets['port_writes'])
+			return True
+		return False
+
+	def payload_for_indexed_color(self, color_index):
+
+		color = int(color_index)
+
+		if color not in Decoder.rgb_light_colors:
+			return None
+
+		if self.payload_mode == 'LWP3':
+			mode = 0x0
 
 			payload = bytearray([
 				0x7,	# len
@@ -71,20 +89,32 @@ class RGB(LPF_Device):
 				color
 			])
 			payload[0] = len(payload)
+			return payload
 
-		elif action == 'set_rgb':
+		elif self.payload_mode == 'WeDo2':
+			payload = bytearray([
+				self.port,
+				0x4,					# WeDo2 Command: Set RGB	# FIXME: put in decoder
+				0x1,					# Size of payload (1 for index int)
+				color
+			])
+			return payload
+		else:
+			return None
+
+	def payload_for_rgb(self, red, green, blue):
+		def normalize_color(c):
+			if c > 255:
+				c = 255
+			if c < 0:
+				c = 0
+			return int(c)
+		red = normalize_color(red)
+		green = normalize_color(green)
+		blue = normalize_color(blue)
+
+		if self.payload_mode == 'LWP3':
 			mode = 0x1
-			red, green, blue = parameters
-			def nomalize_color(c):
-				if c > 255:
-					c = 255
-				if c < 0:
-					c = 0
-				return int(c)
-			red = nomalize_color(red)
-			green = nomalize_color(green)
-			blue = nomalize_color(blue)
-
 			payload = bytearray([
 				0x10,	# len
 				0x0,	# padding
@@ -100,9 +130,19 @@ class RGB(LPF_Device):
 				blue
 			])
 			payload[0] = len(payload)
+			return payload
 
-		if payload:
-			self.select_mode_if_not_selected(mode, gatt_payload_writer)
-			gatt_payload_writer(payload)
-			return True
-		return False
+		elif self.payload_mode == 'WeDo2':
+			payload = bytearray([
+				self.port,
+				0x4,					# WeDo2 Command: Set RGB	# FIXME: put in decoder
+				0x3,					# Size of payload (3 for r, g b ints)
+				red,
+				green,
+				blue
+			])
+			return payload
+
+		else:
+			print(f"Unknown payload mode {self.payload_mode}")
+			return None

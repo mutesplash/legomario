@@ -84,8 +84,13 @@ class BLE_LWP_Device(BLE_Device):
 		self.mode_probe_rate_limit = 0.3
 
 		# LWP
-		self.characteristic_uuid = '00001624-1212-efde-1623-785feabcd123'
-		self.hub_service_uuid = '00001623-1212-efde-1623-785feabcd123'
+		self.characteristics = {
+			'primary': '00001624-1212-efde-1623-785feabcd123',
+			'hub_service': '00001623-1212-efde-1623-785feabcd123'
+		}
+		self.characteristics['port_config'] = self.characteristics['primary']
+		self.characteristics['port_writes'] = self.characteristics['primary']
+
 		self.packet_decoder = Decoder.decode_payload
 
 		# Override in subclass __init__ and set to a list of hex values for
@@ -133,9 +138,14 @@ class BLE_LWP_Device(BLE_Device):
 			attaching_device = port_classobj()
 
 			if port_classname == 'LPF_Device':
-				self.logger.warning(f'Class {self.__class__.__name__} contains device type id {port_id} ({attaching_device.name}) on port {port} that has no class handler')
+				io_type_name = ''
+				if port_id in Decoder.io_type_id_str:
+					io_type_name = Decoder.io_type_id_str[port_id]
+				self.logger.warning(f'Class {self.__class__.__name__} contains device type id {port_id} ({attaching_device.name} / {io_type_name}) on port {port} that has no class handler')
 
 			attaching_device.port = port
+			attaching_device.set_protocol('LWP3')
+			attaching_device.gatt_targets = self.characteristics
 			attaching_device.port_id = port_id
 			attaching_device.hw_ver_str = bt_message['hw_ver_str']
 			attaching_device.fw_ver_str = bt_message['sw_ver_str']
@@ -333,7 +343,8 @@ class BLE_LWP_Device(BLE_Device):
 				else:
 					self.logger.error(f'{msg_prefix} Received data for unconfigured port {port}:'+bt_message['readable'])
 			else:
-				self.logger.error(f'{msg_prefix} No idea what kind of PVS:{port}')
+				# FIXME: Getting this is a port re-init problem on reconnect
+				self.logger.error(f'{msg_prefix} Got PVS from port not in port list ({self.ports}): {bt_message}')
 
 		elif Decoder.message_type_str[bt_message['type']] == 'hub_properties':
 			if not Decoder.hub_property_op_str[bt_message['operation']] == 'Update':

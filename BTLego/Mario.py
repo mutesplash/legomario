@@ -76,11 +76,11 @@ class Mario(BLE_LWP_Device):
 		# Seems to advertise none when initially connected
 		self.minimum_attached_ports = 6
 
-		if self.system_type == 'mario':
+		if self.shortname == 'mario':
 			self.part_identifier = "mar0007"
-		elif self.system_type == 'luigi':
+		elif self.shortname == 'luigi':
 			self.part_identifier = "mar0062"
-		elif self.system_type == 'peach':
+		elif self.shortname == 'peach':
 			self.part_identifier = "mar0112"
 			# Yeah, so... what?  Maybe this is a firmware thing added sometime between v6.2.0.0 (not in here) and v6.5.1.0
 			self.minimum_attached_ports = 7
@@ -196,11 +196,11 @@ class Mario(BLE_LWP_Device):
 		# FIXME: How about use this instead?
 		#self.send_property_message(Decoder.hub_property_int['Advertising Name'], name_only_but_bytearray):
 
-		await self.client.write_gatt_char(BLE_Device.characteristic_uuid, set_name_bytes)
+		await self.client.write_gatt_char(self.characteristics['primary'], set_name_bytes)
 		await asyncio.sleep(0.1)
 
 	async def erase_icon(self):
-		if self.system_type != 'peach':
+		if self.shortname != 'peach':
 			# FIXME: Ok, well, how about you erase somebody else and figure this out
 			self.logger.error("ERROR: Don't know how to erase any player except peach")
 			return
@@ -217,5 +217,5 @@ class Mario(BLE_LWP_Device):
 
 		set_name_bytes[0] = len(set_name_bytes)
 
-		await self.client.write_gatt_char(BLE_Device.characteristic_uuid, set_name_bytes)
+		await self.client.write_gatt_char(self.characteristics['primary'], set_name_bytes)
 		await asyncio.sleep(0.1)

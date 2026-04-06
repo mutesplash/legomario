@@ -82,6 +82,7 @@ class LPF_Device():
 		"""
 
 		self.devtype = Devtype.FIXED
+		self.payload_mode = 'LWP3'
 
 		self.part_identifier = None
 
@@ -108,6 +109,14 @@ class LPF_Device():
 		self.mode_subs = {
 			# mode_number: [ delta_interval, subscribe_boolean, Mode Information Name (Section 3.20.1), tuple of generated messages when subscribed to this mode ]
 		}
+
+		self.gatt_targets = {}
+
+	def set_protocol(self, payload_mode):
+		if payload_mode.lower() == 'lwp3':
+			self.payload_mode = 'LWP3'
+		if payload_mode.lower() == 'wedo2':
+			self.payload_mode = 'WeDo2'
 
 	@property
 	def message_types(self):
@@ -252,37 +261,62 @@ class LPF_Device():
 		according to their port mode information, but do not return any useful
 		data (RGB, DT_Beeper).
 
+		"delta interval" is the size of the change necessary to trigger a notification
+		update by the hub.  Set twitchy sensors to 5, discrete states to 1.
+
 		"""
 		if not mode in self.mode_subs:
 			return False
 
-		payload = bytearray([
-			0x0A,		# length
-			0x00,
-			0x41,		# Port input format (single)
-			self.port,	# port
-			mode,
-		])
-
-		# delta interval (uint32)
-		# 5 is what was suggested by https://github.com/salendron/pyLegoMario
-		delta_int = self.mode_subs[mode][0]
-
-		payload.extend(delta_int.to_bytes(4,byteorder='little',signed=False))
-
-		if should_subscribe:
-			payload.append(0x1)		# notification enable
-			self.mode_subs[mode][1] = True
-		else:
-			payload.append(0x0)		# notification disable
-			self.mode_subs[mode][1] = False
-		#print(" ".join(hex(n) for n in payload))
-
-		payload[0] = len(payload)
-
+		payload = None
 		self._selected_mode = mode
 
-		return gatt_payload_writer(payload)
+		if self.payload_mode == 'LWP3':
+			payload = bytearray([
+				0x0A,		# length
+				0x00,
+				0x41,		# Port input format (single)
+				self.port,	# port
+				mode,
+			])
+
+			# 4 bytes of delta interval (uint32)
+			delta_int = self.mode_subs[mode][0]
+			payload.extend(delta_int.to_bytes(4,byteorder='little',signed=False))
+
+			if should_subscribe:
+				payload.append(0x1)		# notification enable
+				self.mode_subs[mode][1] = True
+			else:
+				payload.append(0x0)		# notification disable
+				self.mode_subs[mode][1] = False
+			#print(" ".join(hex(n) for n in payload))
+
+			payload[0] = len(payload)
+
+		elif self.payload_mode == 'WeDo2':
+			payload = bytearray([
+				0x1,					# Command ID (SDK name) (0: input value, 1: input format) (SDK never writes to command input value)
+				0x2,					# Command Type (SDK name) (0: clear, 1: read, 2: write)
+				self.port,				# Port Number (SDK name: Connect ID)
+				# --- end LEInputCommand prefix and begin payload
+				self.port_id,
+				mode					# Mode (For RGB: 0x0 indexed, 0x1 absolute)
+			])
+
+			# 4 bytes of delta interval (uint32)
+			delta_int = self.mode_subs[mode][0]
+			payload.extend(delta_int.to_bytes(4,byteorder='little',signed=False))
+
+			payload.append(0x0)			# Format: 0x0: Raw, 0x1: PCT, 02: SI
+										# FIXME: Can't select this
+			if should_subscribe:		# Notification Enable (0x0 disable)
+				payload.append(0x1)
+			else:
+				payload.append(0x0)
+
+		return gatt_payload_writer(payload, uuid=self.gatt_targets['port_config'])
+
 
 	def select_mode_if_not_selected(self, mode, gatt_payload_writer):
 		'''

@@ -119,8 +119,9 @@ async def controller_callback(message):
 		# Turn everything off if everything is connected
 		if message_key == 'button' and message_value == 'down':
 			if train_device:
-				await train_device.turn_off()
-				await current_device.turn_off()
+				train_device.turn_off()
+			if current_device:
+				current_device.turn_off()
 
 callback_matcher = [
 	{

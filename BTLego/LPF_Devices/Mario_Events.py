@@ -712,6 +712,9 @@ class Mario_Events(LPF_Device):
 # peach event data:0x8d 0x38 0x0 0x0
 # mario event data:0x7a 0x38 0x0 0x0
 
+# Reconnect?
+# peach event data:0x62 0x38 0x4 0x0
+
 			if not decoded_something:
 				return ('info', 'unknown', 'Event data:'+" ".join(hex(n) for n in data) )
 		else:

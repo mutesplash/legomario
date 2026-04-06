@@ -46,7 +46,7 @@ def select_next_player(sys_data):
 		if sys_data['selected_device_index']+1 > len(sys_data['lego_devices']):
 			sys_data['selected_device_index'] = 0
 		if sys_data['selected_device_index'] < len(list(sys_data['lego_devices'])):
-			if not sys_data['lego_devices'][(list(sys_data['lego_devices'])[sys_data['selected_device_index']])].system_type == 'handset':
+			if not sys_data['lego_devices'][(list(sys_data['lego_devices'])[sys_data['selected_device_index']])].shortname == 'handset':
 				is_a_handset = False
 				break
 
@@ -61,11 +61,11 @@ def select_next_player(sys_data):
 	if handset_device:
 		if not is_a_handset:
 			sys_data['selected_device'] = sys_data['lego_devices'][list(sys_data['lego_devices'])[sys_data['selected_device_index']]]
-			if sys_data['selected_device'].system_type == 'mario':
+			if sys_data['selected_device'].shortname == 'mario':
 				rgb_color = 0x9
-			elif sys_data['selected_device'].system_type == 'luigi':
+			elif sys_data['selected_device'].shortname == 'luigi':
 				rgb_color = 0x6
-			elif sys_data['selected_device'].system_type == 'peach':
+			elif sys_data['selected_device'].shortname == 'peach':
 				rgb_color = 0x1
 		else:
 			rgb_color = 0xa
@@ -145,7 +145,7 @@ async def controller_callback(message):
 				set_volume = sys_data['selected_device'].volume + 10
 				if set_volume > 100:
 					set_volume = 10
-				print("Cranking "+sys_data['selected_device'].system_type+" volume to "+str(set_volume))
+				print("Cranking "+sys_data['selected_device'].shortname+" volume to "+str(set_volume))
 				sys_data['selected_device'].volume = set_volume
 				sys_data['selected_device'].send_property_message( HProp.MARIO_VOLUME, ('set', set_volume) )
 
@@ -155,7 +155,7 @@ async def controller_callback(message):
 				if set_volume < 0:
 					set_volume = 100
 
-				print("Turning "+sys_data['selected_device'].system_type+" volume down to "+str(set_volume))
+				print("Turning "+sys_data['selected_device'].shortname+" volume down to "+str(set_volume))
 				sys_data['selected_device'].volume = set_volume
 				sys_data['selected_device'].send_property_message( HProp.MARIO_VOLUME, ('set', set_volume) )
 
@@ -167,7 +167,7 @@ async def controller_callback(message):
 def find_first_device(system_type):
 	global sys_data
 	for device_id in sys_data['lego_devices']:
-		if sys_data['lego_devices'][device_id].system_type == system_type:
+		if sys_data['lego_devices'][device_id].shortname == system_type:
 			return sys_data['lego_devices'][device_id]
 
 callback_matcher = [
