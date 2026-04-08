@@ -68,7 +68,7 @@ class SixLED(LPF_Device):
 				led_power
 			])
 			payload[0] = len(payload)
-			gatt_payload_writer(payload)
+			gatt_payload_writer(payload, 'port_writes')
 			return True
 
 		return False

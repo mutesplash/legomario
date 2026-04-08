@@ -178,6 +178,8 @@ class HubPortModeInfo():
 		else:
 			self.logger.debug(f'PMI Decoded: {readable}')
 			self.mode_requests.pop(mode_info_hexkey,None)
+			if not self.mode_requests:
+				self.logger.debug(f"COMPLETE: Probe for mode {self.mode_number} on port {self.port}")
 
 	def mode_info_requests_outstanding(self):
 		outstanding_requests = 0

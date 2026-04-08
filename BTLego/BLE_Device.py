@@ -367,22 +367,22 @@ class BLE_Device():
 
 	# ---- Bluetooth port writes for mortals ----
 
-	def _gatt_send(self, payload, uuid=None):
+	def _gatt_send(self, payload, target):
 		from . import await_function_off_bleak_callback
 
-		target_char_uuid = self.characteristics['primary']
-		if uuid:
+		target_char_uuid = None
+		if target in self.characteristics:
 			if self.TRACE:
 				self.logger.debug(f"GATT SELECT SEND: {uuid}")
-			target_char_uuid = uuid
+			target_char_uuid = target_char_uuid = self.characteristics[target]
+
+		if not target_char_uuid:
+			target_char_uuid = self.characteristics['primary']
 
 		if self.connected:
 			if self.TRACE:
 				self.logger.debug("GATT SEND: "+" ".join(hex(n) for n in payload))
-			async def delayed_gatt_write(char_uuid, payload, sleep_time):
-				await self.client.write_gatt_char(char_uuid, payload)
-#				await asyncio.sleep(sleep_time)
-			await_function_off_bleak_callback(delayed_gatt_write(target_char_uuid, payload, self.gatt_send_rate_limit))
+			await_function_off_bleak_callback(self.client.write_gatt_char(target_char_uuid, payload))
 			if self.TRACE:
 				self.logger.debug("GATT CMPL: "+" ".join(hex(n) for n in payload))
 			return True

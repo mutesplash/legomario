@@ -88,7 +88,7 @@ class BLE_LWP_Device(BLE_Device):
 			'primary': '00001624-1212-efde-1623-785feabcd123',
 			'hub_service': '00001623-1212-efde-1623-785feabcd123'
 		}
-		self.characteristics['port_config'] = self.characteristics['primary']
+		self.characteristics['port_config'] = self.characteristics['primary']	# HubPort
 		self.characteristics['port_writes'] = self.characteristics['primary']
 
 		self.packet_decoder = Decoder.decode_payload
@@ -137,28 +137,28 @@ class BLE_LWP_Device(BLE_Device):
 			port_classobj = getattr(port_module, port_classname)
 			attaching_device = port_classobj()
 
-			if port_classname == 'LPF_Device':
-				io_type_name = ''
-				if port_id in Decoder.io_type_id_str:
-					io_type_name = Decoder.io_type_id_str[port_id]
-				self.logger.warning(f'Class {self.__class__.__name__} contains device type id {port_id} ({attaching_device.name} / {io_type_name}) on port {port} that has no class handler')
-
-			attaching_device.port = port
-			attaching_device.set_protocol('LWP3')
-			attaching_device.gatt_targets = self.characteristics
-			attaching_device.port_id = port_id
-			attaching_device.hw_ver_str = bt_message['hw_ver_str']
-			attaching_device.fw_ver_str = bt_message['sw_ver_str']
 			if port_id in Decoder.io_type_id_str:
 				attaching_device.name = Decoder.io_type_id_str[port_id]
 			else:
 				self.logger.error(f'Previously unknown port identifier {port_id} on device {self.__class__.__name__}')
 				attaching_device.name = f"UNKNOWN_DEV_ON_PORT_{port_id}"
 
+			if port_classname == 'LPF_Device':
+				self.logger.warning(f'Class {self.__class__.__name__} contains device type id {port_id} ({attaching_device.name}) on port {port} that has no class handler')
+				attaching_device.port_id = port_id
+			else:
+				if attaching_device.port_id != port_id:
+					self.logger.error(f'ERROR: Failed to create Device Class {self.__class__.__name__} from correct port identifier {hex(port_id)}, created {hex(attaching_device.port_id)} instead!')
+
+			attaching_device.port = port
+			attaching_device.set_protocol('LWP3')
+			attaching_device.hw_ver_str = bt_message['hw_ver_str']
+			attaching_device.fw_ver_str = bt_message['sw_ver_str']
+
 			attaching_device.status = 0x1		# Decoder.io_event_type_str[0x1]
 			for message_type, sub_count in self.BLE_event_subscriptions.items():
 				if sub_count > 0:
-					attaching_device.subscribe_to_messages(message_type, True, self.gatt_writer)
+					attaching_device.subscribe_to_messages(message_type, True, self._gatt_send)
 					# On init, don't have to unsub
 
 			self.ports[port].attach_device(attaching_device)
@@ -232,7 +232,7 @@ class BLE_LWP_Device(BLE_Device):
 			return False
 
 		for port in self.ports:
-			self.ports[port].attached_device.subscribe_to_messages(message_type, should_subscribe, self.gatt_writer)
+			self.ports[port].attached_device.subscribe_to_messages(message_type, should_subscribe, self._gatt_send)
 		return True
 
 	# FIXME: Dead code path?
@@ -240,7 +240,7 @@ class BLE_LWP_Device(BLE_Device):
 		if property_int in self.properties:
 			payload = self.properties[property_int].gatt_payload_for_subscribe(should_subscribe)
 			if payload:
-				self._gatt_send(payload)
+				self._gatt_send(payload, 'primary')
 		else:
 			self.logger.error(f'{self.shortname} does not have a property numbered {property_int}')
 
@@ -482,7 +482,7 @@ class BLE_LWP_Device(BLE_Device):
 			0x2,	# 'hub_actions'
 			0x1		# Decoder.hub_action_type: 'Switch Off Hub'  (Don't use 0x2f, powers down as if you yanked the battery)
 		])
-		self._gatt_send(name_update_bytes)
+		self._gatt_send(name_update_bytes, 'primary')
 
 	# Send any attached devices a message to process (or a specific device on a port)
 	def send_device_message(self, devtype, message, port=None):
@@ -500,10 +500,10 @@ class BLE_LWP_Device(BLE_Device):
 			if port is not None:
 				if dev.port == port:
 					self.logger.debug(f'SENDING {message} TO SPECIFIC PORT {port} ON DEVICE {dev.name}')
-					dev.send_message(message, self.gatt_writer)
+					dev.send_message(message, self._gatt_send)
 			else:
 				self.logger.debug(f'SENDING {message} TO DEVICE {dev.name}')
-				dev.send_message(message, self.gatt_writer)
+				dev.send_message(message, self._gatt_send)
 
 	def send_property_message(self, property_type_int, message):
 		if property_type_int in Decoder.hub_property_str:
@@ -513,11 +513,11 @@ class BLE_LWP_Device(BLE_Device):
 					if message[0] == 'set':
 						payload = target_property.gatt_payload_for_property_set(message[1])
 						if payload:
-							self._gatt_send(payload)
+							self._gatt_send(payload, 'primary')
 					elif message[0] == 'get':
 						payload = target_property.gatt_payload_for_property_value_fetch()
 						if payload:
-							self._gatt_send(payload)
+							self._gatt_send(payload, 'primary')
 					elif message[0] == 'subscribe':
 						payload = target_property.gatt_payload_for_subscribe(message[1])
 						if payload:
@@ -525,7 +525,7 @@ class BLE_LWP_Device(BLE_Device):
 								target_property.subscribed = True
 							else:
 								target_property.subscribed = False
-							self._gatt_send(payload)
+							self._gatt_send(payload, 'primary')
 					else:
 						self.logger.error(f"Invalid command ({message[0]}) to {target_property.name}")
 				else:

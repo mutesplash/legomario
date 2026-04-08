@@ -180,7 +180,7 @@ class Vision(LPF_Device):
 
 		if payload:
 			self.select_mode_if_not_selected(mode, gatt_payload_writer)
-			gatt_payload_writer(payload)
+			gatt_payload_writer(payload, 'port_writes')
 			return True
 
 		return False

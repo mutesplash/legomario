@@ -105,9 +105,11 @@ class BLE_WeDo(BLE_Device):
 			# 0x2 Command (play)
 			#04B801E803
 
-		self.characteristics['primary'] = self.btle_uuid_input
-		self.characteristics['port_config'] = self.btle_uuid_input
-		self.characteristics['port_writes'] = self.btle_uuid_output
+		self.characteristics = {
+			'primary': self.btle_uuid_input,
+			'port_config': self.btle_uuid_input,
+			'port_writes': self.btle_uuid_output
+		}
 
 		self.packet_decoder = Decoder.decode_wedo2_packet
 
@@ -216,7 +218,7 @@ class BLE_WeDo(BLE_Device):
 #		for port in self.ports:
 #		# what if... we used the UUIDs for the ports
 
-#			await self.ports[port].subscribe_to_messages(message_type, should_subscribe, self.gatt_writer)
+#			await self.ports[port].subscribe_to_messages(message_type, should_subscribe, self._gatt_send)
 #			# and then attached WeDo_Device.py subclasses to it
 		return True
 
@@ -242,7 +244,6 @@ class BLE_WeDo(BLE_Device):
 
 			attaching_device.port = port
 			attaching_device.set_protocol('WeDo2')
-			attaching_device.gatt_targets = self.characteristics
 			attaching_device.port_id = port_id
 			attaching_device.hw_ver_str = ''	# FIXME: Possible this data is in the connection data
 			attaching_device.fw_ver_str = ''
@@ -255,7 +256,7 @@ class BLE_WeDo(BLE_Device):
 			attaching_device.status = 0x1		# Decoder.io_event_type_str[0x1]
 			for message_type, sub_count in self.BLE_event_subscriptions.items():
 				if sub_count > 0:
-					attaching_device.subscribe_to_messages(message_type, True, self.gatt_writer)
+					attaching_device.subscribe_to_messages(message_type, True, self._gatt_send)
 					# On init, don't have to unsub
 
 			self.ports[port].attach_device(attaching_device)
@@ -431,8 +432,6 @@ class BLE_WeDo(BLE_Device):
 
 
 		pass
-
-#
 
 # Device Writes
 # Header

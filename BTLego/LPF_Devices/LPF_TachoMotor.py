@@ -60,6 +60,6 @@ class LPF_TachoMotor(LPF_EncoderMotor):
 			payload[0] = len(payload)
 
 		if payload:
-			gatt_payload_writer(payload)
+			gatt_payload_writer(payload, 'port_writes')
 			return True
 		return False

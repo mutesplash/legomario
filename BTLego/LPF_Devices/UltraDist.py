@@ -153,7 +153,7 @@ class UltraDist(LPF_Device):
 
 		if payload:
 			# FIXME: Did you even test if you have to select_mode_if_not_selected() ?
-			gatt_payload_writer(payload)
+			gatt_payload_writer(payload, 'port_writes')
 			return True
 
 		return False

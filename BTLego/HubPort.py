@@ -52,8 +52,8 @@ class HubPort():
 			retval['modes'][mode] = self.reported.modes[mode].dump_info()
 		return retval
 
-	def request_port_info(self, gatt_sender):
-		gatt_sender(HubPort.payload_for_port_info(self.port_number, 0x1))
+	def request_port_info(self, gatt_payload_writer):
+		gatt_payload_writer(HubPort.payload_for_port_info(self.port_number, 0x1), 'port_config')
 		self.mode_probes_running = True
 
 	def check_probe_completion(self):
@@ -78,8 +78,8 @@ class HubPort():
 	# bt_message is a port_info_req response
 	# 'IN': Receive data from device
 	# 'OUT': Send data to device
-	# Uses gatt_writer to issue requests for port mode info
-	def process_port_info_message(self, bt_message, gatt_writer):
+	# Uses gatt_payload_writer to issue requests for port mode info
+	def process_port_info_message(self, bt_message, gatt_payload_writer):
 
 		port = bt_message['port']
 		if port != self.port_number:
@@ -111,7 +111,7 @@ class HubPort():
 		if bt_message['port_mode_capabilities']['logic_combineable']:
 			# This is a signal to check for combinations (3.15.2)
 			self.logger.debug(f'\tRequest port {port} combinations...')
-			gatt_writer(HubPort.payload_for_port_info(port, 0x2))
+			gatt_payload_writer(HubPort.payload_for_port_info(port, 0x2),'port_config')
 
 		def scan_mode(direction, port, mode):
 			if not mode in self.reported.modes:
@@ -145,7 +145,7 @@ class HubPort():
 			for hexkey, requested in frozen_requests:
 				if requested:
 #					print(f'Mode info request for port {port} / {mode} / {hexkey} / {direction}')
-					gatt_writer(HubPortModeInfo.payload_for_port_mode_info_request(port,mode,hexkey))
+					gatt_payload_writer(HubPortModeInfo.payload_for_port_mode_info_request(port,mode,hexkey), 'port_config')
 
 		bit_value = 1
 		mode_number = 0

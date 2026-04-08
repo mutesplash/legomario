@@ -110,8 +110,6 @@ class LPF_Device():
 			# mode_number: [ delta_interval, subscribe_boolean, Mode Information Name (Section 3.20.1), tuple of generated messages when subscribed to this mode ]
 		}
 
-		self.gatt_targets = {}
-
 	def set_protocol(self, payload_mode):
 		if payload_mode.lower() == 'lwp3':
 			self.payload_mode = 'LWP3'
@@ -192,7 +190,7 @@ class LPF_Device():
 		])
 		payload[0] = len(payload)
 
-		results = gatt_payload_writer(payload)
+		results = gatt_payload_writer(payload, 'port_config')
 
 		# Yeah, even doing this, seems very race condition-y
 		self.outstanding_requests.put(mode)
@@ -315,7 +313,7 @@ class LPF_Device():
 			else:
 				payload.append(0x0)
 
-		return gatt_payload_writer(payload, uuid=self.gatt_targets['port_config'])
+		return gatt_payload_writer(payload, 'port_config')
 
 
 	def select_mode_if_not_selected(self, mode, gatt_payload_writer):
