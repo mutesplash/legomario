@@ -9,10 +9,10 @@
 	* LEGO Powered Up Hub No. 4 (88009)
 	* LEGO Technic Hub No. 2 (88012)
 	* LEGO Boost Hub No. 1 (88006) aka Move Hub aka JAJUR1
-	* LEGO SPIKE Essential aka Technic Small Hub  (45609)
+	* LEGO Hub No. 7 aka SPIKE Essential aka Technic Small Hub  (45609)
 	* LEGO Technic Hub No. 19 aka Technic Move Hub
 	* Does **not** (currently) work with WeDo 2.0 Hub (45301) aka LPF2 Smart Hub 2.  This does not seem to speak standard LEGO Wireless Protocol 3.0
-	* Does **not** (currently) work with SPIKE Prime / Mindstorms Robot Inventor Hub (Doesn't connect over BTLE, but Classic Bluetooth)
+	* Does **not** (currently) work with Hub No. 6 / SPIKE Prime / Mindstorms Robot Inventor Hub (Doesn't connect over BTLE, but Classic Bluetooth)
 * Has some idea about how to communicate with all Lego Power Functions v2 (LPF2) devices that can be attached to the hubs
 * Does not have great documentation yet, but things like "python -m pydoc BTLego.LPF_Devices.RGB" are intended to be helpful, and may even be the basis of acceptable documentation... eventually
 
