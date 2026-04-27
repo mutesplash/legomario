@@ -1,5 +1,5 @@
 from .BLE_LWP_Device import BLE_LWP_Device
-from .Decoder import Decoder, LDev
+from ..Decoder import Decoder, LDev
 
 class Hub4(BLE_LWP_Device):
 

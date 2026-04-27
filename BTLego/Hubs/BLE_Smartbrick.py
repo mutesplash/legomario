@@ -8,7 +8,7 @@ import json
 
 from bleak import BleakClient
 
-from .Decoder import Decoder
+from ..Decoder import Decoder
 
 from .BLE_Device import BLE_Device
 

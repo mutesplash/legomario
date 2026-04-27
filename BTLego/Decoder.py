@@ -413,7 +413,7 @@ class Decoder():
 
 	def class_obj_from_classname(classname):
 		if classname:
-			class_module = importlib.import_module(f'BTLego.{classname}')
+			class_module = importlib.import_module(f'BTLego.Hubs.{classname}')
 			classobj = getattr(class_module, classname)
 			return classobj
 		return None

@@ -9,14 +9,14 @@ import json
 
 from bleak import BleakClient
 
-from .Decoder import Decoder, HProp
+from ..Decoder import Decoder, HProp
 
-from .LPF_Devices import *
-from .LPF_Devices.LPF_Device import generate_valid_lpf_message_types
+from ..LPF_Devices import *
+from ..LPF_Devices.LPF_Device import generate_valid_lpf_message_types
 
-from .HubProperty import HubProperty
-from .HubPort import HubPort
-from .HubPortModeInfo import HubPortModeInfo
+from ..HubProperty import HubProperty
+from ..HubPort import HubPort
+from ..HubPortModeInfo import HubPortModeInfo
 
 from .BLE_Device import BLE_Device
 

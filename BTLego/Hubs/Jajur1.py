@@ -1,5 +1,5 @@
 from .BLE_LWP_Device import BLE_LWP_Device
-from .Decoder import Decoder, LDev
+from ..Decoder import Decoder, LDev
 
 # Boost Hub, Bricklink calls this No 1 but I don't see that anywhere else
 class Jajur1(BLE_LWP_Device):

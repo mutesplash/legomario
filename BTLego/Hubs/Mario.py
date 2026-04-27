@@ -8,8 +8,8 @@ import json
 from bleak import BleakClient
 
 from .BLE_LWP_Device import BLE_LWP_Device
-from .Decoder import Decoder, HProp
-from .MarioScanspace import MarioScanspace
+from ..Decoder import Decoder, HProp
+from ..MarioScanspace import MarioScanspace
 
 class Mario(BLE_LWP_Device):
 

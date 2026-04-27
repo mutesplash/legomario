@@ -8,9 +8,9 @@ import json
 
 from bleak import BleakClient
 
-from .Decoder import Decoder
+from ..Decoder import Decoder
 
-from .LPF_Devices import *
+from ..LPF_Devices import *
 
 class BLE_Device():
 
@@ -45,8 +45,6 @@ class BLE_Device():
 		self.shortname = shortname
 		self.client = None
 		self.connected = False
-
-		self.gatt_send_rate_limit = 0.1
 
 		# keep around for... whatever?
 		self.device = None
@@ -368,7 +366,7 @@ class BLE_Device():
 	# ---- Bluetooth port writes for mortals ----
 
 	def _gatt_send(self, payload, target):
-		from . import await_function_off_bleak_callback
+		from .. import await_function_off_bleak_callback
 
 		target_char_uuid = None
 		if target in self.characteristics:

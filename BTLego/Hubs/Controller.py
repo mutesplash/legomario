@@ -1,5 +1,5 @@
 from .BLE_LWP_Device import BLE_LWP_Device
-from .Decoder import Decoder
+from ..Decoder import Decoder
 
 class Controller(BLE_LWP_Device):
 
