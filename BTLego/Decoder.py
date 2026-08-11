@@ -70,7 +70,8 @@ class LDev(IntEnum):
 	MOTOR_PLAYVM = 0x56
 	MOTOR_PLAYVM_STEER = 0x57
 	SIX_LED = 0x58
-
+	DUPLO_EVENTS = 0x5A
+	DUPLO_SCANNER = 0x5B
 
 # FIXME: Completely confused on upstream/downstream, fix the nomenclature in the comments
 
@@ -83,6 +84,7 @@ class Decoder():
 		# 0x0: Things that don't have an advertised system type
 		#	'wedo2' aka model "LPF2 Smart Hub 2 I/O", which amusingly gets the '/O' cut off in the advertisement data
 		0x20:'duplotrain',	# "Hub No. 5" "Train Base"
+		0x21:'duplotrain2',	# "Hub No. 16"
 		0x40:'boostmove',	# "JAJUR1" "LEGO Move Hub" "LEGO® Powered Up 88006 Move Hub" The set this hub comes in (17101) is called "Boost"
 		0x41:'hub_4',		# Lego 88009 Powered Up "Hub", "HUB NO.4"
 		0x42:'handset',		# Lego 88010 Remote Control for Powered Up
@@ -97,6 +99,7 @@ class Decoder():
 
 	ble_dev_classes = {
 		0x20:'DuploTrain',
+		0x21:'DuploTrain2',
 		0x40:'Jajur1',
 		0x41:'Hub4',
 		0x42:'Controller',
@@ -213,6 +216,9 @@ class Decoder():
 		0x57:'Technic Move Steering Motor',
 		0x58:'Technic Move Six-LED Control',
 		0x59:'UNKNOWN TECHNIC 89 PLAYVM DEVICE',
+
+		0x5A:'DUPLO Events',
+		0x5B:'DUPLO Scanner',	# Seems similar to mario code scanner
 
 		0x5c:'IDK PlayVM Events Maybe???',
 		0x5d:'Technic Move Orientation Sensor',

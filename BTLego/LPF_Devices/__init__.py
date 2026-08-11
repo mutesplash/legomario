@@ -4,6 +4,7 @@ from ..Decoder import LDev
 
 #-----
 
+# FIXME: REPLACE WITH generate_lpf_id_classlist()
 def LPF_class_for_type_id(type_id):
 	# io_type_id_str indicies
 	dev_classes = {
@@ -50,7 +51,8 @@ def LPF_class_for_type_id(type_id):
 		0x56:'PlayVMMotor',
 		0x57:'PlayVMSteerMotor',
 		0x58:'SixLED',
-
+		0x5a:'DT_Events',
+		0x5b:'DT_Scanner',
 		0x5c:'PlayVMEvents',
 		0x5d:'PlayVMTilt'
 	}

@@ -130,9 +130,9 @@ callback_matcher = [
 		'requested_events': [ 'event', 'connection_request', 'controller_buttons', 'info' ]
 	},
 	{
-		'device_match': [ 'duplotrain' ],
+		'device_match': [ 'duplotrain', 'duplotrain2' ],
 		'event_callback': train_callback,
-		'requested_events': [ 'event', 'info']
+		'requested_events': [ 'event', 'info', 'duplotrain_events', 'duplotrain_scantag']
 	}
 
 ]

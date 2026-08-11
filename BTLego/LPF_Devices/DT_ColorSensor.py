@@ -17,7 +17,7 @@ class DT_ColorSensor(LPF_Device):
 
 		self.mode_subs = {
 			# mode_number: [ delta_interval, subscribe_boolean, Mode Information Name (Section 3.20.1), tuple of generated messages when subscribed to this mode ]
-			0: [ self.delta_interval, False, 'COLOR', ('duplotrain_color',)],
+			0: [ 1, False, 'COLOR', ('duplotrain_color',)],		# duplotrain2 refuses to send
 			1: [ self.delta_interval, False, 'C TAG', ('duplotrain_tag',)],	# Don't really know what this is
 			2: [ self.delta_interval, False, 'REFLT', ('duplotrain_reflectivity',)],
 			3: [ self.delta_interval, False, 'RGB I', ('duplotrain_rgb',)],
@@ -32,7 +32,11 @@ class DT_ColorSensor(LPF_Device):
 			color_int = int(data[0])
 
 			if color_int in Decoder.rgb_light_colors:
-				# Incredibly unreliable!  Only VAGUELY related to Decoder.rgb_light_colors.  Like, red seems to work?
+				# Incredibly unreliable!  Only VAGUELY related to Decoder.rgb_light_colors.
+				# 9 or 7: Yellow or Red
+				# 5: Green
+				# 3 or 5: Blue
+				# 0: White
 				return ('duplotrain_color','color',color_int)
 			elif color_int > 0xa and color_int < 0x32:
 				return ('duplotrain_reflectivity','measurement',color_int)
