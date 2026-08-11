@@ -8,6 +8,7 @@
 	* LEGO Technic Hub No. 19 aka Technic Move Hub
 	* LEGO Hub No. 7 aka SPIKE Essential aka Technic Small Hub  (45609)
 	* DUPLO Train Hub No. 5
+	* DUPLO Train Hub No. 16
 	* LEGO Powered Up Hub No. 4 (88009)
 	* LEGO Technic Hub No. 2 (88012)
 	* LEGO Boost Hub No. 1 (88006) aka Move Hub aka JAJUR1

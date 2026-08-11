@@ -1,5 +1,7 @@
 from .HubPortReported import HubPortReported
 from .HubPortModeInfo import HubPortModeInfo
+from .LPF_Devices import LPF_Device
+
 import logging
 
 class HubPort():
@@ -135,7 +137,7 @@ class HubPort():
 				# If the BLE_Device supports motor bias, only enable on approved LPF devices
 				if 0x7 in self.reported.modes[mode].mode_requests:
 					if not self.attached_device.port_id in LPF_Device.motor_bias_device_allowlist:
-						del self.reported.modes[mode].mode_requests[mode_info_type_number][0x7]
+						del self.reported.modes[mode].mode_requests[0x7]
 
 			# Update direction (IN => IN/OUT or none => OUT)
 			self.reported.modes[mode].mode_direction = direction

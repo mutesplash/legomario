@@ -12,8 +12,6 @@ class DuploTrain2(BLE_LWP_Device):
 
 		self.minimum_attached_ports = 5
 
-		self.mode_probe_ignored_info_types = ( 0x7, 0x8 )	# Doesn't support motor bias or capability bits
-
 
 
 
